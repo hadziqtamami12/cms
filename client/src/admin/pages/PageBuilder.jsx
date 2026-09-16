@@ -1,9 +1,9 @@
 import React from 'react';
-import AdminPageBuilder from '../AdminPageBuilder';
+import VisualPageBuilder from './VisualPageBuilder';
 
 export default function PageBuilder({ page, onBack, onSaved }) {
   return (
-    <AdminPageBuilder
+    <VisualPageBuilder
       page={page}
       onBack={onBack}
       onSaved={onSaved}

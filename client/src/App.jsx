@@ -11,12 +11,14 @@ import PageSkeleton from './components/skeletons/PageSkeleton';
 import SeoHead from './components/seo/SeoHead';
 import JsonLd from './components/seo/JsonLd';
 
-// Code-split admin pages so public visitors never load heavy admin chunks
-const AdminLayout = lazy(() => import('./admin/AdminLayout'));
+// Admin Shell Layout (Imported directly so layout never unmounts or blinks during tab navigation)
+import AdminLayout from './admin/AdminLayout';
+
+// Code-split admin tab pages
 const Dashboard = lazy(() => import('./admin/pages/Dashboard'));
 const PagesManager = lazy(() => import('./admin/pages/PagesManager'));
 const PostsManager = lazy(() => import('./admin/pages/PostsManager'));
-const ThemeCustomizer = lazy(() => import('./admin/pages/ThemeCustomizer'));
+const AdminThemeManager = lazy(() => import('./admin/pages/AdminThemeManager'));
 const PageBuilder = lazy(() => import('./admin/pages/PageBuilder'));
 const JsonImporter = lazy(() => import('./admin/pages/JsonImporter'));
 const SettingsPage = lazy(() => import('./admin/pages/SettingsPage'));
@@ -102,6 +104,20 @@ export default function App() {
       });
     }
   }, [isAdminRoute, pathname]);
+
+  // Eagerly preload admin modules in background so tab switching is 100% instant with 0ms delay and zero blink
+  useEffect(() => {
+    if (isAdminRoute) {
+      import('./admin/pages/Dashboard');
+      import('./admin/pages/PagesManager');
+      import('./admin/pages/PostsManager');
+      import('./admin/pages/AdminThemeManager');
+      import('./admin/pages/SettingsPage');
+      import('./admin/pages/SeoSettingsPage');
+      import('./admin/pages/AppearanceSettings');
+      import('./admin/pages/VisualPageBuilder');
+    }
+  }, [isAdminRoute]);
 
   // Load public landing page
   useEffect(() => {
@@ -249,11 +265,21 @@ export default function App() {
       );
     }
 
-    // Standalone Fullscreen Elementor Pro Visual Builder:
-    // Renders outside of AdminLayout so it has full screen freedom and returns to Pages onBack()
+    // Standalone Fullscreen Elementor Pro Studio (Themes & Visual Page Builder):
+    // Renders outside of AdminLayout so it has full screen freedom and returns onBack()
+    if (adminTab === 'themes') {
+      return (
+        <Suspense fallback={<div className="min-h-screen bg-[#12141a] text-slate-300 flex items-center justify-center text-xs font-mono">Memuat Elementor Pro Studio...</div>}>
+          <AdminThemeManager
+            onBack={() => handleAdminNavigate('dashboard')}
+          />
+        </Suspense>
+      );
+    }
+
     if (adminTab === 'builder') {
       return (
-        <Suspense fallback={<div className="min-h-screen bg-white text-slate-900 flex items-center justify-center text-xs">Memuat Elementor Studio Pro...</div>}>
+        <Suspense fallback={<div className="min-h-screen bg-[#12141a] text-slate-300 flex items-center justify-center text-xs font-mono">Memuat Elementor Pro Studio...</div>}>
           <PageBuilder
             page={editingPage}
             onBack={() => handleAdminNavigate('pages')}
@@ -264,10 +290,24 @@ export default function App() {
     }
 
     return (
-      <Suspense fallback={<div className="min-h-screen bg-slate-50" />}>
-        <AdminLayout
-          currentTab={adminTab}
-          onNavigate={(tab) => handleAdminNavigate(tab)}
+      <AdminLayout
+        currentTab={adminTab}
+        onNavigate={(tab) => handleAdminNavigate(tab)}
+      >
+        <Suspense
+          fallback={
+            <div className="p-6 space-y-6 animate-pulse">
+              <div className="flex items-center justify-between">
+                <div className="h-8 bg-slate-200/80 rounded-xl w-48" />
+                <div className="h-8 bg-slate-200/60 rounded-xl w-28" />
+              </div>
+              <div className="h-96 bg-white rounded-2xl border border-slate-200/80 p-6 space-y-4">
+                <div className="h-6 bg-slate-100 rounded-lg w-1/3" />
+                <div className="h-4 bg-slate-100 rounded-lg w-1/2" />
+                <div className="h-48 bg-slate-50 rounded-xl w-full mt-4" />
+              </div>
+            </div>
+          }
         >
           {adminTab === 'dashboard' ? (
             <Dashboard
@@ -288,7 +328,7 @@ export default function App() {
           ) : adminTab === 'seo' ? (
             <SeoSettingsPage />
           ) : adminTab === 'themes' ? (
-            <ThemeCustomizer />
+            <AdminThemeManager />
           ) : adminTab === 'appearance' ? (
             <AppearanceSettings />
           ) : adminTab === 'import' ? (
@@ -296,8 +336,8 @@ export default function App() {
           ) : (
             <SettingsPage />
           )}
-        </AdminLayout>
-      </Suspense>
+        </Suspense>
+      </AdminLayout>
     );
   }
 

@@ -4,9 +4,12 @@
  */
 
 const ALLOWED_BLOCK_TYPES = new Set([
+  'hero',
   'hero-slider',
+  'fleet',
   'fleet-catalog',
   'product-grid',
+  'catalog',
   'features',
   'pricing',
   'testimonials',
@@ -16,6 +19,7 @@ const ALLOWED_BLOCK_TYPES = new Set([
   'post-list',
   'text-content',
   'custom-html',
+  'whatsapp',
 ]);
 
 const ALLOWED_NAV_TYPES = new Set(['curved', 'classic', 'drawer', 'pill']);
@@ -62,11 +66,17 @@ export function validateBlockNode(block, depth = 0) {
   if (!block.id) block.id = `block_${Math.random().toString(36).substring(2, 9)}`;
   if (!block.type || typeof block.type !== 'string') throw new Error('Block must have a string type');
 
+  const rawProps = block.props || block.content || {};
+  const rawStyle = block.styles || block.style || {};
+
   const cleanBlock = {
     id: String(block.id),
     type: String(block.type).toLowerCase(),
-    props: sanitizeProps(block.props || {}),
-    styles: sanitizeProps(block.styles || {}),
+    props: sanitizeProps(rawProps),
+    content: sanitizeProps(block.content || rawProps),
+    styles: sanitizeProps(rawStyle),
+    style: sanitizeProps(block.style || rawStyle),
+    label: block.label ? sanitizeString(block.label) : undefined,
   };
 
   if (Array.isArray(block.children) && block.children.length > 0) {
@@ -94,6 +104,10 @@ export function validatePagePayload(payload) {
   const seo = {
     metaTitle: sanitizeString(metaTitle),
     metaDescription: sanitizeString(metaDescription),
+    title: sanitizeString(payload.seo?.title || metaTitle),
+    description: sanitizeString(payload.seo?.description || metaDescription),
+    keywords: sanitizeString(payload.seo?.keywords || ''),
+    focusKeyword: sanitizeString(payload.seo?.focusKeyword || ''),
     ogImage: sanitizeString(payload.seo?.ogImage || payload.ogImage || ''),
     jsonLdType: sanitizeString(payload.seo?.jsonLdType || 'WebPage'),
     canonical: sanitizeString(payload.seo?.canonical || ''),
@@ -157,6 +171,12 @@ export function validatePagePayload(payload) {
     header,
     footer,
     floatingWhatsapp,
+    hero: payload.hero ? sanitizeProps(payload.hero) : null,
+    fleet: payload.fleet ? sanitizeProps(payload.fleet) : null,
+    styling: payload.styling ? sanitizeProps(payload.styling) : null,
+    category: payload.category || null,
+    template: payload.template || null,
+    isHome: payload.isHome !== undefined ? Boolean(payload.isHome) : false,
     blocks,
     html,
     css,

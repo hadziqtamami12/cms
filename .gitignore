@@ -1,0 +1,49 @@
+# OS & editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+*.sw?
+
+# Node modules (root, client, dan server)
+node_modules/
+/client/node_modules/
+/server/node_modules/
+
+# Logs & cache
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+.pnpm-debug.log*
+.cache/
+/client/.eslintcache
+
+# Environment variables & secrets
+.env
+.env.*
+!.env.example
+/client/.env
+/client/.env.*
+!/client/.env.example
+/server/.env
+/server/.env.*
+!/server/.env.example
+
+# Build output Vite (React)
+/client/dist/
+/client/dist-ssr/
+*.local
+
+# Serverless & deployment output (Vercel, Netlify, AWS, dsb.)
+.vercel/
+.serverless/
+.netlify/
+/server/dist/
+/server/build/
+/server/.aws-sam/

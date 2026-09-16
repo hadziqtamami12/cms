@@ -1,0 +1,10 @@
+{
+  "dbType": "local-json",
+  "cacheType": "memory",
+  "siteName": "Rental Kendaraan & Transportasi",
+  "setupCompleted": true,
+  "adminUsername": "admin",
+  "adminEmail": "admin@example.com",
+  "passwordHash": "d3e21a1f72326e021a65b1b4bcfcf0c3:c9ed4cacd8a66b9a627ce128950239363dd2114765a80e61f11dd2d61bbae3181ab3dbca955b417ddae12e0239eec4549680879289b2f60f2724ddb73a20fe25",
+  "updatedAt": "2026-09-16T09:29:30.293Z"
+}

@@ -1,0 +1,23 @@
+{
+  "name": "ultra-cms-monorepo",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Ultra Performance Multi-Purpose Headless CMS & Page Builder",
+  "type": "module",
+  "scripts": {
+    "dev": "concurrently -n \"SERVER,CLIENT\" -c \"cyan,magenta\" \"node api/index.js\" \"npm --prefix client run dev\"",
+    "build": "npm --prefix client run build",
+    "server": "node api/index.js",
+    "client": "npm --prefix client run dev",
+    "install:all": "npm install && npm --prefix client install && npm --prefix api install"
+  },
+  "dependencies": {
+    "cookie-parser": "^1.4.7",
+    "cors": "^2.8.5",
+    "express": "^4.21.2",
+    "jsonwebtoken": "^9.0.2"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2"
+  }
+}

@@ -1,0 +1,123 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --canvas: #fafafa;
+    --surface: #ffffff;
+    --border: #e4e4e7;
+    --border-hover: #d4d4d8;
+    --text-primary: #18181b;
+    --text-secondary: #3f3f46;
+    --text-muted: #71717a;
+  }
+
+  html {
+    scroll-behavior: smooth;
+    -webkit-tap-highlight-color: transparent;
+    background-color: #fafafa;
+    color: #3f3f46;
+  }
+
+  body {
+    overflow-x: hidden;
+    touch-action: manipulation;
+    background-color: #fafafa;
+    color: #3f3f46;
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  }
+
+}
+
+/* Universal Form Field Reset - Guarantee 100% Crisp White Backgrounds (No Gray Inputs) */
+input:not([type="checkbox"]):not([type="radio"]):not([type="color"]):not([type="range"]):not([type="button"]):not([type="submit"]):not([type="reset"]),
+textarea,
+select {
+  background-color: #ffffff !important;
+  color: #18181b !important;
+  border-color: #e4e4e7;
+  box-shadow: none !important;
+}
+
+/* Focus State */
+input:not([type="checkbox"]):not([type="radio"]):not([type="color"]):not([type="range"]):focus,
+textarea:focus,
+select:focus {
+  background-color: #ffffff !important;
+  border-color: #a1a1aa !important;
+  outline: none !important;
+  box-shadow: 0 0 0 2px rgba(228, 228, 231, 0.6) !important;
+}
+
+/* Force pure white background on WebKit autofill & filled forms */
+input:-webkit-autofill,
+input:-webkit-autofill:hover, 
+input:-webkit-autofill:focus,
+input:-webkit-autofill:active,
+textarea:-webkit-autofill,
+textarea:-webkit-autofill:hover,
+textarea:-webkit-autofill:focus,
+select:-webkit-autofill,
+select:-webkit-autofill:hover,
+select:-webkit-autofill:focus {
+  -webkit-box-shadow: 0 0 0 1000px #ffffff inset !important;
+  box-shadow: 0 0 0 1000px #ffffff inset !important;
+  -webkit-text-fill-color: #18181b !important;
+  background-color: #ffffff !important;
+  transition: background-color 999999s ease-in-out 0s;
+}
+
+/* Standard autofill pseudo-class */
+input:autofill,
+input:autofill:hover,
+input:autofill:focus,
+textarea:autofill,
+select:autofill {
+  -webkit-box-shadow: 0 0 0 1000px #ffffff inset !important;
+  box-shadow: 0 0 0 1000px #ffffff inset !important;
+  -webkit-text-fill-color: #18181b !important;
+  background-color: #ffffff !important;
+}
+
+@layer utilities {
+  /* Safe area utilities for mobile notches & home bars */
+  .pb-safe {
+    padding-bottom: max(1rem, env(safe-area-inset-bottom));
+  }
+  .pt-safe {
+    padding-top: max(1rem, env(safe-area-inset-top));
+  }
+  .bottom-safe {
+    bottom: env(safe-area-inset-bottom);
+  }
+
+  /* Minimalist Stripe/Linear clean card & panel */
+  .clean-panel {
+    background-color: #ffffff;
+    border: 1px solid #e4e4e7;
+    box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.04);
+  }
+
+  .clean-card {
+    background-color: #ffffff;
+    border: 1px solid rgba(228, 228, 231, 0.9);
+    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05);
+  }
+}
+
+/* Minimal light scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #f8fafc;
+}
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}

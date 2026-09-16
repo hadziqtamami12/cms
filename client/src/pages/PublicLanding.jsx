@@ -204,6 +204,11 @@ export default function PublicLanding({
   const [searchQuery, setSearchQuery] = useState('');
   const [faqOpen, setFaqOpen] = useState(0);
 
+  // --- Search Command Modal State ---
+  const [searchModalOpen, setSearchModalOpen] = useState(false);
+  const [modalSearchTerm, setModalSearchTerm] = useState('');
+  const modalInputRef = useRef(null);
+
   // --- Scroll State Tracking for Dynamic Topbar and Mobile Nav ---
   const containerRef = useRef(null);
   const heroRef = useRef(null);
@@ -212,7 +217,6 @@ export default function PublicLanding({
   const [activeBottomNav, setActiveBottomNav] = useState('hero');
   const [quickServiceType, setQuickServiceType] = useState('lepas-kunci');
   const [quickSelectedCar, setQuickSelectedCar] = useState(vehicles[0]?.name || 'Toyota Alphard Transformer VIP');
-  const [quickLocation, setQuickLocation] = useState('');
   const lockScrollSpyRef = useRef(false);
   const unlockTimerRef = useRef(null);
 
@@ -323,6 +327,34 @@ export default function PublicLanding({
     };
   }, []);
 
+  // Keyboard shortcut listener (ESC to close, Ctrl+K / Cmd+K to toggle search modal)
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        setSearchModalOpen(false);
+      }
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        setSearchModalOpen((prev) => !prev);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
+  // Lock body scroll strictly when search modal is open
+  useEffect(() => {
+    if (searchModalOpen) {
+      document.body.style.overflow = 'hidden';
+      setTimeout(() => modalInputRef.current?.focus(), 60);
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [searchModalOpen]);
+
   const categories = useMemo(() => {
     const cats = ['Semua'];
     vehicles.forEach((v) => {
@@ -337,11 +369,43 @@ export default function PublicLanding({
       const matchSearch =
         !searchQuery ||
         item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        item.category.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (item.category && item.category.toLowerCase().includes(searchQuery.toLowerCase())) ||
         (item.specs && item.specs.some((s) => s.toLowerCase().includes(searchQuery.toLowerCase())));
       return matchCat && matchSearch;
     });
   }, [vehicles, selectedCategory, searchQuery]);
+
+  const modalFilteredVehicles = useMemo(() => {
+    if (!modalSearchTerm.trim()) return vehicles.slice(0, 6);
+    const query = modalSearchTerm.toLowerCase();
+    return vehicles.filter(
+      (v) =>
+        v.name.toLowerCase().includes(query) ||
+        (v.category && v.category.toLowerCase().includes(query)) ||
+        (v.specs && v.specs.some((s) => s.toLowerCase().includes(query)))
+    );
+  }, [vehicles, modalSearchTerm]);
+
+  const popularKeywords = useMemo(() => [
+    'Alphard', 'Innova Zenix', 'Fortuner', 'Hiace', 'Lepas Kunci', 'Supir VIP'
+  ], []);
+
+  const handleSelectVehicleFromModal = (car) => {
+    setSearchModalOpen(false);
+    setSearchQuery(car.name);
+    const fleetEl = document.getElementById('fleet');
+    if (fleetEl) {
+      fleetEl.scrollIntoView({ behavior: 'smooth' });
+    }
+  };
+
+  const handleOpenFullCatalog = () => {
+    setSearchModalOpen(false);
+    const fleetEl = document.getElementById('fleet');
+    if (fleetEl) {
+      fleetEl.scrollIntoView({ behavior: 'smooth' });
+    }
+  };
 
   return (
     <div
@@ -351,37 +415,33 @@ export default function PublicLanding({
     >
       {/* 1. TOPBAR NAVBAR (Transparent on top of slideshow, changes to solid on scroll) */}
       <header
-        className={`fixed top-0 inset-x-0 z-40 transition-all duration-500 ${
-          isScrolled
+        className={`fixed top-0 inset-x-0 z-40 transition-all duration-500 ${isScrolled
             ? 'bg-white/95 backdrop-blur-xl border-b border-slate-200/90 py-3 text-slate-900 shadow-md'
             : 'bg-transparent border-none py-4 text-white'
-        }`}
+          }`}
       >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between">
           {/* Logo & Brand Identity */}
           <a href="#hero" className="flex items-center gap-3 group">
             <div
-              className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-300 group-hover:scale-105 shadow-md ${
-                isScrolled
+              className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-300 group-hover:scale-105 shadow-md ${isScrolled
                   ? 'text-white'
                   : 'backdrop-blur-md bg-white/20 border border-white/30 text-white'
-              }`}
+                }`}
               style={{ backgroundColor: isScrolled ? primaryColor : undefined }}
             >
               <Car className="w-5 h-5" />
             </div>
             <div>
               <span
-                className={`font-extrabold text-base sm:text-lg tracking-tight block leading-tight transition-colors ${
-                  isScrolled ? 'text-slate-950' : 'text-white drop-shadow-sm'
-                }`}
+                className={`font-extrabold text-base sm:text-lg tracking-tight block leading-tight transition-colors ${isScrolled ? 'text-slate-950' : 'text-white drop-shadow-sm'
+                  }`}
               >
                 {brandTitle}
               </span>
               <span
-                className={`text-[11px] font-medium tracking-normal block transition-colors ${
-                  isScrolled ? 'text-slate-500' : 'text-slate-300 drop-shadow-xs'
-                }`}
+                className={`text-[11px] font-medium tracking-normal block transition-colors ${isScrolled ? 'text-slate-500' : 'text-slate-300 drop-shadow-xs'
+                  }`}
               >
                 Executive Fleet & 24/7 Car Rental
               </span>
@@ -390,46 +450,63 @@ export default function PublicLanding({
 
           {/* Desktop Nav Links */}
           <nav
-            className={`hidden md:flex items-center gap-6 text-sm font-semibold transition-colors ${
-              isScrolled ? 'text-slate-700' : 'text-white/90'
-            }`}
+            className={`hidden md:flex items-center gap-6 text-sm font-semibold transition-colors ${isScrolled ? 'text-slate-700' : 'text-white/90'
+              }`}
           >
             <a
               href="#hero"
-              className={`transition-colors px-2 py-1 rounded-lg ${
-                isScrolled ? 'hover:text-indigo-600' : 'hover:text-white hover:bg-white/10'
-              }`}
+              className={`transition-colors px-2 py-1 rounded-lg ${isScrolled ? 'hover:text-indigo-600' : 'hover:text-white hover:bg-white/10'
+                }`}
             >
               Beranda
             </a>
             <a
               href="#fleet"
-              className={`transition-colors px-2 py-1 rounded-lg ${
-                isScrolled ? 'hover:text-indigo-600' : 'hover:text-white hover:bg-white/10'
-              }`}
+              className={`transition-colors px-2 py-1 rounded-lg ${isScrolled ? 'hover:text-indigo-600' : 'hover:text-white hover:bg-white/10'
+                }`}
             >
               Pilihan Armada
             </a>
             <a
               href="#features"
-              className={`transition-colors px-2 py-1 rounded-lg ${
-                isScrolled ? 'hover:text-indigo-600' : 'hover:text-white hover:bg-white/10'
-              }`}
+              className={`transition-colors px-2 py-1 rounded-lg ${isScrolled ? 'hover:text-indigo-600' : 'hover:text-white hover:bg-white/10'
+                }`}
             >
               Keunggulan
             </a>
             <a
               href="#faq"
-              className={`transition-colors px-2 py-1 rounded-lg ${
-                isScrolled ? 'hover:text-indigo-600' : 'hover:text-white hover:bg-white/10'
-              }`}
+              className={`transition-colors px-2 py-1 rounded-lg ${isScrolled ? 'hover:text-indigo-600' : 'hover:text-white hover:bg-white/10'
+                }`}
             >
               FAQ
             </a>
           </nav>
 
-          {/* WhatsApp CTA Desktop */}
-          <div className="flex items-center gap-3">
+          {/* WhatsApp CTA & Topbar Search */}
+          <div className="flex items-center gap-2.5 sm:gap-3">
+            {/* Topbar Search Button (Desktop & Mobile) */}
+            <button
+              type="button"
+              onClick={() => setSearchModalOpen(true)}
+              className={`flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold transition-all border ${isScrolled
+                  ? 'bg-slate-100 hover:bg-slate-200 text-slate-700 hover:text-slate-900 border-slate-200/90'
+                  : 'bg-white/15 hover:bg-white/25 text-white border-white/20 backdrop-blur-md'
+                }`}
+              title="Cari Armada & Layanan (Ctrl+K)"
+              aria-label="Cari Armada"
+            >
+              <Search className={`w-3.5 h-3.5 shrink-0 ${isScrolled ? 'text-slate-500' : 'text-white/80'}`} />
+              <span className="hidden sm:inline">Cari Armada...</span>
+              <span
+                className={`hidden md:inline-block text-[10px] font-mono px-1.5 py-0.5 rounded ${isScrolled ? 'bg-slate-200 text-slate-600' : 'bg-white/20 text-white'
+                  }`}
+              >
+                Ctrl+K
+              </span>
+            </button>
+
+            {/* WhatsApp CTA Desktop */}
             <a
               href={`https://wa.me/${whatsappPhone}?text=Halo%20Admin,%20saya%20ingin%20tanya%20reservasi%20mobil`}
               target="_blank"
@@ -457,9 +534,8 @@ export default function PublicLanding({
           {slides.map((slide, idx) => (
             <div
               key={slide.id || idx}
-              className={`absolute inset-0 transition-opacity duration-1000 ease-in-out ${
-                idx === currentSlideIndex ? 'opacity-100 z-10' : 'opacity-0 z-0 pointer-events-none'
-              }`}
+              className={`absolute inset-0 transition-opacity duration-1000 ease-in-out ${idx === currentSlideIndex ? 'opacity-100 z-10' : 'opacity-0 z-0 pointer-events-none'
+                }`}
             >
               <img
                 src={slide.imageUrl}
@@ -496,33 +572,33 @@ export default function PublicLanding({
           )}
         </div>
 
-        {/* Hero Main Content (2-Column Grid on Desktop: Left Story, Right Quick Booking Card) */}
-        <div className="relative z-20 flex-1 flex flex-col justify-center max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full pt-24 pb-8">
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center w-full">
+        {/* Hero Main Content (Spacious, Uncluttered 2-Column Grid on Desktop) */}
+        <div className="relative z-20 flex-1 flex flex-col justify-center max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full pt-20 lg:pt-24 pb-6 lg:pb-8">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-10 items-center w-full">
             {/* Left Column: Headline, Story & Core CTAs */}
-            <div className="lg:col-span-7 space-y-6 text-left">
+            <div className="lg:col-span-7 space-y-4 lg:space-y-5 text-left">
               {/* Glassmorphism Badge */}
-              <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full backdrop-blur-md bg-white/20 border border-white/30 shadow-lg text-xs font-bold text-white">
-                <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-ping" />
+              <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full backdrop-blur-md bg-white/15 border border-white/25 shadow-md text-xs font-semibold text-white">
+                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
                 <Sparkles className="w-3.5 h-3.5 text-amber-300" />
                 <span>{activeSlide.badge || 'Layanan VIP Rental 24 Jam • #1 Terpercaya'}</span>
               </div>
 
-              {/* H1 Headline with High-Impact Typography */}
-              <h1 className="text-3xl sm:text-5xl lg:text-6xl font-black tracking-tight text-white leading-[1.08] drop-shadow-lg">
+              {/* H1 Headline with High-Impact, Balanced Typography */}
+              <h1 className="text-2xl sm:text-4xl lg:text-5xl font-black tracking-tight text-white leading-[1.12] drop-shadow-md">
                 {activeSlide.title || 'Perjalanan Mewah & Berkelas dengan Armada Terbaik'}
               </h1>
 
               {/* Subtitle */}
-              <p className="text-base sm:text-lg text-slate-200 font-normal leading-relaxed max-w-2xl drop-shadow-md">
+              <p className="text-xs sm:text-sm lg:text-base text-slate-200/90 font-normal leading-relaxed max-w-xl drop-shadow-sm">
                 {activeSlide.subtitle || 'Unit terbaru, interior bersih wangi berkelas, siap lepas kunci atau supir eksekutif ramah berpengalaman.'}
               </p>
 
               {/* Dual Action CTAs */}
-              <div className="flex flex-wrap items-center gap-4 pt-1">
+              <div className="flex flex-wrap items-center gap-3 pt-1">
                 <a
                   href={activeSlide.ctaPrimaryLink || '#fleet'}
-                  className="px-7 py-3.5 rounded-xl font-bold text-sm text-white shadow-2xl shadow-indigo-500/40 hover:shadow-indigo-500/60 transition-all transform hover:-translate-y-0.5 active:translate-y-0 flex items-center gap-2.5"
+                  className="px-6 py-3 rounded-xl font-bold text-xs sm:text-sm text-white shadow-xl shadow-indigo-500/30 hover:shadow-indigo-500/50 transition-all transform hover:-translate-y-0.5 active:translate-y-0 flex items-center gap-2"
                   style={{ backgroundColor: primaryColor }}
                 >
                   <span>{activeSlide.ctaPrimaryText || 'Pilih Armada Mobil'}</span>
@@ -533,120 +609,110 @@ export default function PublicLanding({
                   href={activeSlide.ctaSecondaryLink || `https://wa.me/${whatsappPhone}`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="px-7 py-3.5 rounded-xl font-bold text-sm text-white backdrop-blur-md bg-white/15 border border-white/30 shadow-lg hover:bg-white/25 transition-all flex items-center gap-2.5"
+                  className="px-6 py-3 rounded-xl font-bold text-xs sm:text-sm text-white backdrop-blur-md bg-white/15 border border-white/25 shadow-md hover:bg-white/25 transition-all flex items-center gap-2"
                 >
                   <MessageSquare className="w-4 h-4 text-emerald-400" />
                   <span>{activeSlide.ctaSecondaryText || 'Chat WhatsApp 24 Jam'}</span>
                 </a>
               </div>
 
-              {/* Trust Statistics Bar (Frosted Glass) */}
-              <div className="grid grid-cols-3 gap-3 pt-4 border-t border-white/20 max-w-lg">
-                <div className="backdrop-blur-sm bg-slate-900/40 p-2.5 rounded-xl border border-white/10">
-                  <span className="text-lg sm:text-xl font-black text-white block">50+</span>
-                  <span className="text-[10px] sm:text-[11px] font-medium text-slate-300 block">Unit Siap Jalan</span>
-                </div>
-                <div className="backdrop-blur-sm bg-slate-900/40 p-2.5 rounded-xl border border-white/10">
-                  <span className="text-lg sm:text-xl font-black text-white block">99.8%</span>
-                  <span className="text-[10px] sm:text-[11px] font-medium text-slate-300 block">On-Time Penjemputan</span>
-                </div>
-                <div className="backdrop-blur-sm bg-slate-900/40 p-2.5 rounded-xl border border-white/10">
-                  <span className="text-lg sm:text-xl font-black text-white block">100%</span>
-                  <span className="text-[10px] sm:text-[11px] font-medium text-slate-300 block">Asuransi All-Risk</span>
-                </div>
+              {/* Airy Trust Line - Clean, Single Row (Replaces Bulky Stacked Stat Boxes) */}
+              <div className="flex flex-wrap items-center gap-x-5 gap-y-2 pt-2 text-xs font-medium text-slate-200">
+                <span className="flex items-center gap-1.5 drop-shadow-xs">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                  <span>50+ Unit Siap Jalan</span>
+                </span>
+                <span className="flex items-center gap-1.5 drop-shadow-xs">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                  <span>Supir VIP Profesional</span>
+                </span>
+                <span className="flex items-center gap-1.5 drop-shadow-xs">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                  <span>Asuransi All-Risk 100%</span>
+                </span>
               </div>
             </div>
 
-            {/* Right Column: Desktop Quick Booking Card (Eliminates empty space on right) */}
+            {/* Right Column: Compact Executive Fleet Card (Airy, Spacious, Zero Clutter) */}
             <div className="hidden lg:block lg:col-span-5">
-              <div className="backdrop-blur-2xl bg-slate-950/75 border border-white/20 rounded-3xl p-6 shadow-2xl space-y-4 text-left">
-                <div className="flex items-center justify-between pb-3 border-b border-white/15">
-                  <div>
-                    <span className="text-[10px] font-extrabold tracking-wider uppercase text-amber-400 block">
-                      Booking Cepat 24 Jam
-                    </span>
-                    <h3 className="text-base font-bold text-white leading-tight">Cek Ketersediaan Armada</h3>
-                  </div>
-                  <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/20 border border-emerald-400/30 text-emerald-300 text-[10px] font-bold">
-                    <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+              <div className="backdrop-blur-xl bg-slate-950/65 border border-white/20 rounded-2xl p-5 shadow-2xl space-y-3.5 text-left max-w-sm ml-auto">
+                <div className="flex items-center justify-between pb-2.5 border-b border-white/15">
+                  <span className="text-[11px] font-bold tracking-wide uppercase text-amber-400">
+                    Cek Armada & Tarif
+                  </span>
+                  <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-emerald-500/20 border border-emerald-400/30 text-emerald-300 text-[10px] font-bold">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
                     <span>Unit Ready</span>
                   </div>
                 </div>
 
-                <div className="space-y-3 text-xs">
-                  <div>
-                    <label className="text-slate-300 font-semibold block mb-1">Pilihan Layanan</label>
-                    <div className="grid grid-cols-2 gap-2">
-                      <button
-                        type="button"
-                        onClick={() => setQuickServiceType('lepas-kunci')}
-                        className={`py-2 px-3 rounded-xl font-bold text-center transition-all ${
-                          quickServiceType === 'lepas-kunci'
-                            ? 'bg-indigo-600 text-white shadow-md'
-                            : 'bg-white/10 hover:bg-white/20 text-slate-200'
-                        }`}
-                      >
-                        Lepas Kunci
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setQuickServiceType('dengan-supir')}
-                        className={`py-2 px-3 rounded-xl font-bold text-center transition-all ${
-                          quickServiceType === 'dengan-supir'
-                            ? 'bg-indigo-600 text-white shadow-md'
-                            : 'bg-white/10 hover:bg-white/20 text-slate-200'
-                        }`}
-                      >
-                        Dengan Supir VIP
-                      </button>
-                    </div>
-                  </div>
+                {/* Car Selector */}
+                <div>
+                  <label className="text-[11px] text-slate-300 font-semibold block mb-1">
+                    Pilihan Mobil
+                  </label>
+                  <select
+                    value={quickSelectedCar}
+                    onChange={(e) => setQuickSelectedCar(e.target.value)}
+                    className="w-full py-2 px-2.5 rounded-xl bg-slate-900/90 border border-white/20 text-white text-xs focus:outline-none focus:border-indigo-400 cursor-pointer"
+                  >
+                    {vehicles.map((v) => (
+                      <option key={v.id} value={v.name} className="bg-slate-900 text-white">
+                        {v.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
 
-                  <div>
-                    <label className="text-slate-300 font-semibold block mb-1">Pilihan Mobil</label>
-                    <select
-                      value={quickSelectedCar}
-                      onChange={(e) => setQuickSelectedCar(e.target.value)}
-                      className="w-full py-2.5 px-3 rounded-xl bg-slate-900/90 border border-white/20 text-white text-xs focus:outline-none focus:border-indigo-400"
+                {/* Service Type Toggle & Price Preview */}
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="text-[11px] text-slate-300 font-semibold">Layanan</label>
+                    <span className="text-[11px] font-bold text-amber-300">
+                      {quickServiceType === 'lepas-kunci'
+                        ? (vehicles.find((v) => v.name === quickSelectedCar)?.priceLepasKunci || 'Tarif Menyesuaikan')
+                        : (vehicles.find((v) => v.name === quickSelectedCar)?.priceWithDriver || 'Tarif Menyesuaikan')}
+                      <span className="text-[9px] text-slate-400 font-normal"> / hari</span>
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setQuickServiceType('lepas-kunci')}
+                      className={`py-1.5 px-2.5 rounded-lg text-xs font-bold transition-all ${quickServiceType === 'lepas-kunci'
+                          ? 'bg-indigo-600 text-white shadow-sm'
+                          : 'bg-white/10 hover:bg-white/20 text-slate-300'
+                        }`}
                     >
-                      {vehicles.map((v) => (
-                        <option key={v.id} value={v.name} className="bg-slate-900 text-white">
-                          {v.name} ({v.priceLepasKunci || v.priceWithDriver})
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="text-slate-300 font-semibold block mb-1">Lokasi Penjemputan</label>
-                    <input
-                      type="text"
-                      value={quickLocation}
-                      onChange={(e) => setQuickLocation(e.target.value)}
-                      placeholder="Contoh: Bandara Soekarno Hatta / Hotel Jakarta"
-                      className="w-full py-2 px-3 rounded-xl bg-slate-900/90 border border-white/20 text-white placeholder:text-slate-400 text-xs focus:outline-none focus:border-indigo-400"
-                    />
+                      Lepas Kunci
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setQuickServiceType('dengan-supir')}
+                      className={`py-1.5 px-2.5 rounded-lg text-xs font-bold transition-all ${quickServiceType === 'dengan-supir'
+                          ? 'bg-indigo-600 text-white shadow-sm'
+                          : 'bg-white/10 hover:bg-white/20 text-slate-300'
+                        }`}
+                    >
+                      Dengan Supir VIP
+                    </button>
                   </div>
                 </div>
 
+                {/* Direct WhatsApp CTA */}
                 <a
                   href={`https://wa.me/${whatsappPhone}?text=${encodeURIComponent(
-                    `Halo Admin ${brandTitle}, saya ingin reservasi armada:\n- Unit: ${quickSelectedCar}\n- Layanan: ${
-                      quickServiceType === 'lepas-kunci' ? 'Lepas Kunci' : 'Dengan Supir VIP'
-                    }\n- Lokasi: ${quickLocation || 'Bandara / Hotel'}\nApakah unit masih tersedia?`
+                    `Halo Admin ${brandTitle}, saya ingin reservasi:\n- Mobil: ${quickSelectedCar}\n- Layanan: ${quickServiceType === 'lepas-kunci' ? 'Lepas Kunci' : 'Dengan Supir VIP'
+                    }\nApakah unit masih tersedia?`
                   )}`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="w-full py-3 px-4 rounded-xl font-bold text-xs text-white text-center flex items-center justify-center gap-2 shadow-lg transition-all transform hover:-translate-y-0.5 active:translate-y-0"
+                  className="w-full py-2.5 px-3.5 rounded-xl font-bold text-xs text-white text-center flex items-center justify-center gap-2 shadow-lg transition-all transform hover:-translate-y-0.5 active:translate-y-0"
                   style={{ backgroundColor: '#25D366' }}
                 >
                   <MessageSquare className="w-4 h-4 fill-white" />
-                  <span>Hubungi Admin & Konfirmasi Unit</span>
+                  <span>Pesan Unit Ini via WA</span>
                 </a>
-
-                <p className="text-[10px] text-slate-400 text-center">
-                  ✓ Tanpa survei rumit • Unit bersih wangi berkelas
-                </p>
               </div>
             </div>
           </div>
@@ -671,9 +737,8 @@ export default function PublicLanding({
                     key={sIdx}
                     type="button"
                     onClick={() => setCurrentSlideIndex(sIdx)}
-                    className={`h-1.5 rounded-full transition-all ${
-                      sIdx === currentSlideIndex ? 'w-6 bg-white' : 'w-2 bg-white/40 hover:bg-white/70'
-                    }`}
+                    className={`h-1.5 rounded-full transition-all ${sIdx === currentSlideIndex ? 'w-6 bg-white' : 'w-2 bg-white/40 hover:bg-white/70'
+                      }`}
                     aria-label={`Ke slide ${sIdx + 1}`}
                   />
                 ))}
@@ -696,7 +761,7 @@ export default function PublicLanding({
             href="#fleet"
             className="flex items-center gap-2 text-slate-300 hover:text-white transition-colors drop-shadow-sm font-medium animate-bounce"
           >
-            <span>Eksplorasi Armada</span>
+            <span>Scroll</span>
             <ChevronDown className="w-4 h-4" />
           </a>
         </div>
@@ -799,11 +864,10 @@ export default function PublicLanding({
                 key={cat}
                 type="button"
                 onClick={() => setSelectedCategory(cat)}
-                className={`px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all ${
-                  selectedCategory === cat
+                className={`px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all ${selectedCategory === cat
                     ? 'bg-slate-950 text-white shadow-md'
                     : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-100'
-                }`}
+                  }`}
               >
                 {cat}
               </button>
@@ -973,9 +1037,8 @@ export default function PublicLanding({
                 >
                   <span>{faq.q}</span>
                   <ChevronDown
-                    className={`w-4 h-4 text-slate-400 transition-transform duration-200 ${
-                      faqOpen === idx ? 'rotate-180 text-indigo-600' : ''
-                    }`}
+                    className={`w-4 h-4 text-slate-400 transition-transform duration-200 ${faqOpen === idx ? 'rotate-180 text-indigo-600' : ''
+                      }`}
                   />
                 </button>
                 {faqOpen === idx && (
@@ -1057,11 +1120,10 @@ export default function PublicLanding({
 
       {/* 7. SOLID WHITE MOBILE BOTTOM NAV (Curved Arch FOR ACTIVE TAB ONLY, Search in Center) */}
       <nav
-        className={`fixed bottom-0 inset-x-0 z-40 md:hidden transition-all duration-300 ease-out transform ${
-          scrolledPastHero
+        className={`fixed bottom-0 inset-x-0 z-40 md:hidden transition-all duration-300 ease-out transform ${scrolledPastHero
             ? 'translate-y-0 opacity-100 pointer-events-auto'
             : 'translate-y-full opacity-0 pointer-events-none'
-        }`}
+          }`}
         aria-label="Navigasi Bawah Mobile"
       >
         <div className="relative w-full max-w-md mx-auto">
@@ -1125,22 +1187,20 @@ export default function PublicLanding({
                   >
                     {/* Default Icon (hidden when lifted into the active bubble) */}
                     <span
-                      className={`transition-all duration-200 ${
-                        isActive
+                      className={`transition-all duration-200 ${isActive
                           ? 'opacity-0 -translate-y-2 pointer-events-none'
                           : 'opacity-100 translate-y-0 text-slate-500 group-hover:text-slate-900'
-                      }`}
+                        }`}
                     >
                       <Icon className="w-5 h-5 mb-0.5 text-slate-600 group-hover:text-slate-900 transition-colors" />
                     </span>
 
                     {/* Tab Label */}
                     <span
-                      className={`text-[10px] tracking-tight transition-all duration-200 ${
-                        isActive
+                      className={`text-[10px] tracking-tight transition-all duration-200 ${isActive
                           ? 'font-bold translate-y-1'
                           : 'font-medium text-slate-500 group-hover:text-slate-800'
-                      }`}
+                        }`}
                       style={{ color: isActive ? primaryColor : undefined }}
                     >
                       {tab.label}
@@ -1152,6 +1212,149 @@ export default function PublicLanding({
           </div>
         </div>
       </nav>
+
+      {/* Mega Search Modal (Command Hub Palette Style) */}
+      {searchModalOpen && (
+        <div
+          className="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-sm flex flex-col items-center pt-16 sm:pt-24 px-4 overflow-y-auto"
+          onClick={() => setSearchModalOpen(false)}
+        >
+          <div
+            className="w-full max-w-2xl bg-white rounded-3xl shadow-2xl border border-slate-200/90 overflow-hidden my-auto sm:my-0 animate-in fade-in zoom-in-95 duration-200 text-slate-900"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Search Input Header */}
+            <div className="p-4 sm:p-5 border-b border-slate-100 flex items-center gap-3">
+              <Search className="w-5 h-5 text-slate-400 shrink-0" />
+              <input
+                ref={modalInputRef}
+                type="text"
+                value={modalSearchTerm}
+                onChange={(e) => setModalSearchTerm(e.target.value)}
+                placeholder="Cari armada (contoh: Alphard, Innova, Hiace, Lepas Kunci)..."
+                className="w-full text-sm sm:text-base font-semibold text-slate-900 placeholder-slate-400 focus:outline-none bg-transparent"
+              />
+              {modalSearchTerm && (
+                <button
+                  type="button"
+                  onClick={() => setModalSearchTerm('')}
+                  className="p-1 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-600"
+                  aria-label="Hapus kata kunci"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={() => setSearchModalOpen(false)}
+                className="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 text-xs font-semibold shrink-0"
+              >
+                ESC
+              </button>
+            </div>
+
+            {/* Quick Suggestion Keyword Chips */}
+            <div className="px-4 sm:px-5 py-3 bg-slate-50 border-b border-slate-100 flex items-center gap-1.5 overflow-x-auto text-xs">
+              <span className="text-slate-400 font-medium shrink-0 flex items-center gap-1 mr-1">
+                <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+                <span>Pencarian Cepat:</span>
+              </span>
+              {popularKeywords.map((kw) => (
+                <button
+                  key={kw}
+                  type="button"
+                  onClick={() => setModalSearchTerm(kw)}
+                  className="px-2.5 py-1 rounded-lg bg-white border border-slate-200 hover:border-indigo-400 hover:text-indigo-600 font-medium text-slate-700 whitespace-nowrap transition-colors"
+                >
+                  {kw}
+                </button>
+              ))}
+            </div>
+
+            {/* Results List */}
+            <div className="p-3 sm:p-4 max-h-[58vh] overflow-y-auto divide-y divide-slate-100">
+              {modalFilteredVehicles.length === 0 ? (
+                <div className="py-12 text-center">
+                  <Car className="w-10 h-10 text-slate-300 mx-auto mb-2" />
+                  <p className="text-sm font-semibold text-slate-700">Tidak ada armada yang cocok</p>
+                  <p className="text-xs text-slate-400 mt-1">Coba kata kunci lain seperti Alphard atau Zenix.</p>
+                </div>
+              ) : (
+                modalFilteredVehicles.map((car) => (
+                  <div
+                    key={car.id}
+                    className="py-3 px-2 sm:px-3 rounded-2xl hover:bg-slate-50 transition-colors flex items-center justify-between gap-4 group"
+                  >
+                    <div
+                      className="flex items-center gap-3.5 cursor-pointer flex-1 min-w-0"
+                      onClick={() => handleSelectVehicleFromModal(car)}
+                    >
+                      <img
+                        src={car.imageUrl || car.image || 'https://images.unsplash.com/photo-1549399542-7e3f8b79c341?w=200&auto=format&fit=crop&q=80'}
+                        alt={car.name}
+                        className="w-16 h-12 rounded-xl object-cover border border-slate-200/80 shrink-0"
+                      />
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2">
+                          <h4 className="text-xs sm:text-sm font-bold text-slate-900 truncate group-hover:text-indigo-600 transition-colors">
+                            {car.name}
+                          </h4>
+                          <span className="text-[10px] font-semibold px-2 py-0.5 rounded-md bg-slate-100 text-slate-600 shrink-0">
+                            {car.category}
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-slate-500 font-medium mt-0.5">
+                          {car.priceLepasKunci || car.priceWithDriver ? (
+                            <>
+                              Mulai <span className="font-bold text-indigo-600">{car.priceLepasKunci || car.priceWithDriver}</span> / hari
+                            </>
+                          ) : (
+                            'Harga Hubungi Admin'
+                          )}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2 shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => handleSelectVehicleFromModal(car)}
+                        className="hidden sm:inline-flex px-3 py-1.5 rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-100 text-xs font-semibold transition-colors"
+                      >
+                        Detail
+                      </button>
+                      <a
+                        href={`https://wa.me/${whatsappPhone}?text=${encodeURIComponent(
+                          `Halo Admin ${brandTitle}, saya tertarik sewa armada ${car.name}. Apakah masih ready?`
+                        )}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="px-3 py-1.5 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-bold transition-all flex items-center gap-1.5 shadow-sm"
+                      >
+                        <MessageSquare className="w-3.5 h-3.5 fill-white" />
+                        <span>Pesan</span>
+                      </a>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+
+            {/* Modal Footer */}
+            <div className="p-3 bg-slate-50 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500 px-5">
+              <span>Menampilkan {modalFilteredVehicles.length} armada</span>
+              <button
+                type="button"
+                onClick={handleOpenFullCatalog}
+                className="text-indigo-600 hover:text-indigo-800 font-bold flex items-center gap-1"
+              >
+                <span>Lihat Semua di Katalog</span>
+                <ArrowRight className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

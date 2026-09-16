@@ -3,7 +3,8 @@ import {
   Car, Users, Zap, Fuel, Briefcase, Star, ShieldCheck, Clock,
   Award, Sparkles, Phone, MessageSquare, ArrowRight, CheckCircle2,
   ChevronLeft, ChevronRight, Search, SlidersHorizontal, MapPin,
-  Calendar, Check, Shield, ChevronDown, ExternalLink, Heart, X
+  Calendar, Check, Shield, ChevronDown, ExternalLink, Heart, X,
+  HelpCircle
 } from 'lucide-react';
 import FloatingWhatsapp from '../components/navigation/FloatingWhatsapp';
 
@@ -209,15 +210,19 @@ export default function PublicLanding({
   const [isScrolled, setIsScrolled] = useState(false);
   const [scrolledPastHero, setScrolledPastHero] = useState(false);
   const [activeBottomNav, setActiveBottomNav] = useState('hero');
-  const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [quickServiceType, setQuickServiceType] = useState('lepas-kunci');
+  const [quickSelectedCar, setQuickSelectedCar] = useState(vehicles[0]?.name || 'Toyota Alphard Transformer VIP');
+  const [quickLocation, setQuickLocation] = useState('');
   const lockScrollSpyRef = useRef(false);
   const unlockTimerRef = useRef(null);
 
+  // Strictly sequential with page layout from top to bottom:
+  // 1. Beranda (#hero) -> 2. Layanan (#features) -> 3. Armada (#fleet - Center!) -> 4. FAQ (#faq) -> 5. Kontak
   const navTabs = useMemo(() => [
     { id: 'hero', label: 'Beranda', icon: Car, href: '#hero' },
-    { id: 'fleet', label: 'Armada', icon: SlidersHorizontal, href: '#fleet' },
-    { id: 'search', label: 'Cari Mobil', icon: Search, isAction: true },
     { id: 'features', label: 'Layanan', icon: ShieldCheck, href: '#features' },
+    { id: 'fleet', label: 'Armada', icon: SlidersHorizontal, href: '#fleet' },
+    { id: 'faq', label: 'FAQ', icon: HelpCircle, href: '#faq' },
     { id: 'contact', label: 'Kontak', icon: Phone, href: `tel:+${whatsappPhone}` },
   ], [whatsappPhone]);
 
@@ -229,13 +234,6 @@ export default function PublicLanding({
   const ActiveIcon = navTabs[activeIndex]?.icon || Car;
 
   const handleTabClick = (e, tab) => {
-    if (tab.isAction && tab.id === 'search') {
-      e.preventDefault();
-      setActiveBottomNav('search');
-      setIsSearchOpen(true);
-      return;
-    }
-
     setActiveBottomNav(tab.id);
     lockScrollSpyRef.current = true;
     if (unlockTimerRef.current) clearTimeout(unlockTimerRef.current);
@@ -262,19 +260,40 @@ export default function PublicLanding({
 
       if (lockScrollSpyRef.current) return;
 
-      if (scrollTop <= 350) {
-        setActiveBottomNav('hero');
-      } else {
-        const fleetEl = document.getElementById('fleet');
-        const featuresEl = document.getElementById('features');
-        const fleetTop = fleetEl ? fleetEl.offsetTop - 120 : 600;
-        const featuresTop = featuresEl ? featuresEl.offsetTop - 120 : 1400;
+      const featuresEl = document.getElementById('features');
+      const fleetEl = document.getElementById('fleet');
+      const faqEl = document.getElementById('faq');
+      const contactEl = document.getElementById('contact');
 
-        if (scrollTop >= featuresTop && scrollTop < featuresTop + 800) {
-          setActiveBottomNav('features');
-        } else if (scrollTop >= fleetTop) {
-          setActiveBottomNav('fleet');
+      const scrollParent = containerRef.current?.closest('.overflow-y-auto');
+      const viewportH = scrollParent ? scrollParent.clientHeight : window.innerHeight;
+      const threshold = viewportH * 0.45;
+
+      const getTop = (el) => {
+        if (!el) return Infinity;
+        if (scrollParent) {
+          const elRect = el.getBoundingClientRect();
+          const parentRect = scrollParent.getBoundingClientRect();
+          return elRect.top - parentRect.top;
         }
+        return el.getBoundingClientRect().top;
+      };
+
+      const contactTop = getTop(contactEl);
+      const faqTop = getTop(faqEl);
+      const fleetTop = getTop(fleetEl);
+      const featuresTop = getTop(featuresEl);
+
+      if (contactTop <= threshold + 60) {
+        setActiveBottomNav('contact');
+      } else if (faqTop <= threshold) {
+        setActiveBottomNav('faq');
+      } else if (fleetTop <= threshold) {
+        setActiveBottomNav('fleet');
+      } else if (featuresTop <= threshold) {
+        setActiveBottomNav('features');
+      } else {
+        setActiveBottomNav('hero');
       }
     };
 
@@ -335,7 +354,7 @@ export default function PublicLanding({
         className={`fixed top-0 inset-x-0 z-40 transition-all duration-500 ${
           isScrolled
             ? 'bg-white/95 backdrop-blur-xl border-b border-slate-200/90 py-3 text-slate-900 shadow-md'
-            : 'bg-gradient-to-b from-slate-950/80 via-slate-950/30 to-transparent border-b border-transparent py-4 text-white'
+            : 'bg-transparent border-none py-4 text-white'
         }`}
       >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between">
@@ -445,20 +464,20 @@ export default function PublicLanding({
               <img
                 src={slide.imageUrl}
                 alt={slide.title || 'Slideshow Armada'}
-                className="w-full h-full object-cover object-center transition-transform duration-[9000ms] ease-out"
+                className="w-full h-full object-cover object-[center_35%] lg:object-[center_45%] transition-transform duration-[8000ms] ease-out"
                 style={{
-                  transform: idx === currentSlideIndex ? 'scale(1.08)' : 'scale(1.0)',
+                  transform: idx === currentSlideIndex ? 'scale(1.02)' : 'scale(1.0)',
                 }}
                 loading={idx === 0 ? 'eager' : 'lazy'}
                 fetchpriority={idx === 0 ? 'high' : undefined}
               />
 
-              {/* Luxury Double Gradient Overlay (crystal clear text readability) */}
+              {/* Luxury Soft Overlay - Keeps Car Crisp, Framed & Unclipped */}
               <div
-                className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/65 to-slate-950/50"
-                style={{ opacity: Math.max(0.45, heroOverlayOpacity / 100) }}
+                className="absolute inset-0 bg-gradient-to-t from-slate-950/90 via-slate-950/35 to-slate-950/10"
+                style={{ opacity: Math.max(0.35, heroOverlayOpacity / 100) }}
               />
-              <div className="absolute inset-0 bg-gradient-to-r from-slate-950/90 via-slate-950/45 to-transparent" />
+              <div className="absolute inset-0 bg-gradient-to-r from-slate-950/80 via-slate-950/30 to-transparent" />
             </div>
           ))}
 
@@ -477,61 +496,157 @@ export default function PublicLanding({
           )}
         </div>
 
-        {/* Hero Main Content (Vertically Centered with Topbar Offset) */}
+        {/* Hero Main Content (2-Column Grid on Desktop: Left Story, Right Quick Booking Card) */}
         <div className="relative z-20 flex-1 flex flex-col justify-center max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full pt-24 pb-8">
-          <div className="max-w-3xl space-y-6 text-left">
-            {/* Glassmorphism Badge */}
-            <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full backdrop-blur-md bg-white/20 border border-white/30 shadow-lg text-xs font-bold text-white">
-              <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-ping" />
-              <Sparkles className="w-3.5 h-3.5 text-amber-300" />
-              <span>{activeSlide.badge || 'Layanan VIP Rental 24 Jam • #1 Terpercaya'}</span>
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center w-full">
+            {/* Left Column: Headline, Story & Core CTAs */}
+            <div className="lg:col-span-7 space-y-6 text-left">
+              {/* Glassmorphism Badge */}
+              <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full backdrop-blur-md bg-white/20 border border-white/30 shadow-lg text-xs font-bold text-white">
+                <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-ping" />
+                <Sparkles className="w-3.5 h-3.5 text-amber-300" />
+                <span>{activeSlide.badge || 'Layanan VIP Rental 24 Jam • #1 Terpercaya'}</span>
+              </div>
+
+              {/* H1 Headline with High-Impact Typography */}
+              <h1 className="text-3xl sm:text-5xl lg:text-6xl font-black tracking-tight text-white leading-[1.08] drop-shadow-lg">
+                {activeSlide.title || 'Perjalanan Mewah & Berkelas dengan Armada Terbaik'}
+              </h1>
+
+              {/* Subtitle */}
+              <p className="text-base sm:text-lg text-slate-200 font-normal leading-relaxed max-w-2xl drop-shadow-md">
+                {activeSlide.subtitle || 'Unit terbaru, interior bersih wangi berkelas, siap lepas kunci atau supir eksekutif ramah berpengalaman.'}
+              </p>
+
+              {/* Dual Action CTAs */}
+              <div className="flex flex-wrap items-center gap-4 pt-1">
+                <a
+                  href={activeSlide.ctaPrimaryLink || '#fleet'}
+                  className="px-7 py-3.5 rounded-xl font-bold text-sm text-white shadow-2xl shadow-indigo-500/40 hover:shadow-indigo-500/60 transition-all transform hover:-translate-y-0.5 active:translate-y-0 flex items-center gap-2.5"
+                  style={{ backgroundColor: primaryColor }}
+                >
+                  <span>{activeSlide.ctaPrimaryText || 'Pilih Armada Mobil'}</span>
+                  <ArrowRight className="w-4 h-4" />
+                </a>
+
+                <a
+                  href={activeSlide.ctaSecondaryLink || `https://wa.me/${whatsappPhone}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="px-7 py-3.5 rounded-xl font-bold text-sm text-white backdrop-blur-md bg-white/15 border border-white/30 shadow-lg hover:bg-white/25 transition-all flex items-center gap-2.5"
+                >
+                  <MessageSquare className="w-4 h-4 text-emerald-400" />
+                  <span>{activeSlide.ctaSecondaryText || 'Chat WhatsApp 24 Jam'}</span>
+                </a>
+              </div>
+
+              {/* Trust Statistics Bar (Frosted Glass) */}
+              <div className="grid grid-cols-3 gap-3 pt-4 border-t border-white/20 max-w-lg">
+                <div className="backdrop-blur-sm bg-slate-900/40 p-2.5 rounded-xl border border-white/10">
+                  <span className="text-lg sm:text-xl font-black text-white block">50+</span>
+                  <span className="text-[10px] sm:text-[11px] font-medium text-slate-300 block">Unit Siap Jalan</span>
+                </div>
+                <div className="backdrop-blur-sm bg-slate-900/40 p-2.5 rounded-xl border border-white/10">
+                  <span className="text-lg sm:text-xl font-black text-white block">99.8%</span>
+                  <span className="text-[10px] sm:text-[11px] font-medium text-slate-300 block">On-Time Penjemputan</span>
+                </div>
+                <div className="backdrop-blur-sm bg-slate-900/40 p-2.5 rounded-xl border border-white/10">
+                  <span className="text-lg sm:text-xl font-black text-white block">100%</span>
+                  <span className="text-[10px] sm:text-[11px] font-medium text-slate-300 block">Asuransi All-Risk</span>
+                </div>
+              </div>
             </div>
 
-            {/* H1 Headline with High-Impact Typography */}
-            <h1 className="text-3xl sm:text-5xl lg:text-6xl xl:text-7xl font-black tracking-tight text-white leading-[1.08] drop-shadow-lg">
-              {activeSlide.title || 'Perjalanan Mewah & Berkelas dengan Armada Terbaik'}
-            </h1>
+            {/* Right Column: Desktop Quick Booking Card (Eliminates empty space on right) */}
+            <div className="hidden lg:block lg:col-span-5">
+              <div className="backdrop-blur-2xl bg-slate-950/75 border border-white/20 rounded-3xl p-6 shadow-2xl space-y-4 text-left">
+                <div className="flex items-center justify-between pb-3 border-b border-white/15">
+                  <div>
+                    <span className="text-[10px] font-extrabold tracking-wider uppercase text-amber-400 block">
+                      Booking Cepat 24 Jam
+                    </span>
+                    <h3 className="text-base font-bold text-white leading-tight">Cek Ketersediaan Armada</h3>
+                  </div>
+                  <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/20 border border-emerald-400/30 text-emerald-300 text-[10px] font-bold">
+                    <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                    <span>Unit Ready</span>
+                  </div>
+                </div>
 
-            {/* Subtitle */}
-            <p className="text-base sm:text-xl text-slate-200 font-normal leading-relaxed max-w-2xl drop-shadow-md">
-              {activeSlide.subtitle || 'Unit terbaru, interior bersih wangi berkelas, siap lepas kunci atau supir eksekutif ramah berpengalaman.'}
-            </p>
+                <div className="space-y-3 text-xs">
+                  <div>
+                    <label className="text-slate-300 font-semibold block mb-1">Pilihan Layanan</label>
+                    <div className="grid grid-cols-2 gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setQuickServiceType('lepas-kunci')}
+                        className={`py-2 px-3 rounded-xl font-bold text-center transition-all ${
+                          quickServiceType === 'lepas-kunci'
+                            ? 'bg-indigo-600 text-white shadow-md'
+                            : 'bg-white/10 hover:bg-white/20 text-slate-200'
+                        }`}
+                      >
+                        Lepas Kunci
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setQuickServiceType('dengan-supir')}
+                        className={`py-2 px-3 rounded-xl font-bold text-center transition-all ${
+                          quickServiceType === 'dengan-supir'
+                            ? 'bg-indigo-600 text-white shadow-md'
+                            : 'bg-white/10 hover:bg-white/20 text-slate-200'
+                        }`}
+                      >
+                        Dengan Supir VIP
+                      </button>
+                    </div>
+                  </div>
 
-            {/* Dual Action CTAs */}
-            <div className="flex flex-wrap items-center gap-4 pt-2">
-              <a
-                href={activeSlide.ctaPrimaryLink || '#fleet'}
-                className="px-7 py-4 rounded-xl font-bold text-sm text-white shadow-2xl shadow-indigo-500/40 hover:shadow-indigo-500/60 transition-all transform hover:-translate-y-0.5 active:translate-y-0 flex items-center gap-2.5"
-                style={{ backgroundColor: primaryColor }}
-              >
-                <span>{activeSlide.ctaPrimaryText || 'Pilih Armada Mobil'}</span>
-                <ArrowRight className="w-4 h-4" />
-              </a>
+                  <div>
+                    <label className="text-slate-300 font-semibold block mb-1">Pilihan Mobil</label>
+                    <select
+                      value={quickSelectedCar}
+                      onChange={(e) => setQuickSelectedCar(e.target.value)}
+                      className="w-full py-2.5 px-3 rounded-xl bg-slate-900/90 border border-white/20 text-white text-xs focus:outline-none focus:border-indigo-400"
+                    >
+                      {vehicles.map((v) => (
+                        <option key={v.id} value={v.name} className="bg-slate-900 text-white">
+                          {v.name} ({v.priceLepasKunci || v.priceWithDriver})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
 
-              <a
-                href={activeSlide.ctaSecondaryLink || `https://wa.me/${whatsappPhone}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="px-7 py-4 rounded-xl font-bold text-sm text-white backdrop-blur-md bg-white/15 border border-white/30 shadow-lg hover:bg-white/25 transition-all flex items-center gap-2.5"
-              >
-                <MessageSquare className="w-4 h-4 text-emerald-400" />
-                <span>{activeSlide.ctaSecondaryText || 'Chat WhatsApp 24 Jam'}</span>
-              </a>
-            </div>
+                  <div>
+                    <label className="text-slate-300 font-semibold block mb-1">Lokasi Penjemputan</label>
+                    <input
+                      type="text"
+                      value={quickLocation}
+                      onChange={(e) => setQuickLocation(e.target.value)}
+                      placeholder="Contoh: Bandara Soekarno Hatta / Hotel Jakarta"
+                      className="w-full py-2 px-3 rounded-xl bg-slate-900/90 border border-white/20 text-white placeholder:text-slate-400 text-xs focus:outline-none focus:border-indigo-400"
+                    />
+                  </div>
+                </div>
 
-            {/* Trust Statistics Bar (Frosted Glass) */}
-            <div className="grid grid-cols-3 gap-3 pt-6 border-t border-white/20 max-w-lg">
-              <div className="backdrop-blur-sm bg-slate-900/40 p-2.5 rounded-xl border border-white/10">
-                <span className="text-xl sm:text-2xl font-black text-white block">50+</span>
-                <span className="text-[11px] font-medium text-slate-300 block">Unit Siap Jalan</span>
-              </div>
-              <div className="backdrop-blur-sm bg-slate-900/40 p-2.5 rounded-xl border border-white/10">
-                <span className="text-xl sm:text-2xl font-black text-white block">99.8%</span>
-                <span className="text-[11px] font-medium text-slate-300 block">On-Time Penjemputan</span>
-              </div>
-              <div className="backdrop-blur-sm bg-slate-900/40 p-2.5 rounded-xl border border-white/10">
-                <span className="text-xl sm:text-2xl font-black text-white block">100%</span>
-                <span className="text-[11px] font-medium text-slate-300 block">Asuransi All-Risk</span>
+                <a
+                  href={`https://wa.me/${whatsappPhone}?text=${encodeURIComponent(
+                    `Halo Admin ${brandTitle}, saya ingin reservasi armada:\n- Unit: ${quickSelectedCar}\n- Layanan: ${
+                      quickServiceType === 'lepas-kunci' ? 'Lepas Kunci' : 'Dengan Supir VIP'
+                    }\n- Lokasi: ${quickLocation || 'Bandara / Hotel'}\nApakah unit masih tersedia?`
+                  )}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="w-full py-3 px-4 rounded-xl font-bold text-xs text-white text-center flex items-center justify-center gap-2 shadow-lg transition-all transform hover:-translate-y-0.5 active:translate-y-0"
+                  style={{ backgroundColor: '#25D366' }}
+                >
+                  <MessageSquare className="w-4 h-4 fill-white" />
+                  <span>Hubungi Admin & Konfirmasi Unit</span>
+                </a>
+
+                <p className="text-[10px] text-slate-400 text-center">
+                  ✓ Tanpa survei rumit • Unit bersih wangi berkelas
+                </p>
               </div>
             </div>
           </div>
@@ -875,7 +990,7 @@ export default function PublicLanding({
       </section>
 
       {/* 6. FOOTER */}
-      <footer className="bg-slate-950 text-slate-300 py-12 border-t border-slate-800 text-xs mt-auto">
+      <footer id="contact" className="bg-slate-950 text-slate-300 py-12 border-t border-slate-800 text-xs mt-auto">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-8">
             <div className="space-y-3 md:col-span-2">
@@ -1037,160 +1152,6 @@ export default function PublicLanding({
           </div>
         </div>
       </nav>
-
-      {/* Quick Fleet Search Modal (Activated via Center Mobile Bottom Nav "Cari Mobil") */}
-      {isSearchOpen && (
-        <div
-          className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-slate-950/60 backdrop-blur-xs animate-in fade-in duration-200"
-          onClick={() => setIsSearchOpen(false)}
-        >
-          <div
-            className="w-full max-w-lg bg-white rounded-t-3xl sm:rounded-2xl p-5 shadow-2xl border border-slate-200 max-h-[85vh] flex flex-col animate-in slide-in-from-bottom-6 duration-300"
-            onClick={(e) => e.stopPropagation()}
-          >
-            {/* Modal Header */}
-            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-              <div className="flex items-center gap-2.5">
-                <div
-                  className="w-8 h-8 rounded-lg flex items-center justify-center text-white shadow-xs"
-                  style={{ backgroundColor: primaryColor }}
-                >
-                  <Search className="w-4 h-4" />
-                </div>
-                <div>
-                  <h3 className="text-sm font-bold text-slate-900 leading-tight">Cari Armada Mobil</h3>
-                  <p className="text-[11px] text-slate-500">Temukan unit sewa mobil impian Anda</p>
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => setIsSearchOpen(false)}
-                className="p-1.5 rounded-full hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-colors"
-                aria-label="Tutup Pencarian"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            {/* Search Input */}
-            <div className="pt-3 pb-2">
-              <div className="relative">
-                <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                <input
-                  type="text"
-                  autoFocus
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Ketik Alphard, Zenix, Fortuner..."
-                  className="w-full pl-10 pr-8 py-2.5 rounded-xl bg-slate-100 border border-slate-200 text-xs text-slate-900 placeholder:text-slate-400 focus:bg-white focus:border-indigo-500 focus:outline-none transition-all"
-                />
-                {searchQuery && (
-                  <button
-                    type="button"
-                    onClick={() => setSearchQuery('')}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-1"
-                  >
-                    <X className="w-3.5 h-3.5" />
-                  </button>
-                )}
-              </div>
-            </div>
-
-            {/* Category Filter Pills */}
-            <div className="flex items-center gap-1.5 overflow-x-auto py-2 custom-scrollbar shrink-0">
-              {categories.map((cat) => (
-                <button
-                  key={cat}
-                  type="button"
-                  onClick={() => setSelectedCategory(cat)}
-                  className={`px-3 py-1 rounded-full text-[11px] font-semibold whitespace-nowrap transition-colors ${
-                    selectedCategory === cat
-                      ? 'bg-slate-900 text-white shadow-xs'
-                      : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                  }`}
-                >
-                  {cat}
-                </button>
-              ))}
-            </div>
-
-            {/* Filtered Vehicles List */}
-            <div className="flex-1 overflow-y-auto space-y-2.5 py-2 custom-scrollbar">
-              {filteredVehicles.length > 0 ? (
-                filteredVehicles.map((car) => (
-                  <div
-                    key={car.id}
-                    onClick={() => {
-                      setIsSearchOpen(false);
-                      setActiveBottomNav('fleet');
-                      const fleetSection = document.getElementById('fleet');
-                      if (fleetSection) {
-                        fleetSection.scrollIntoView({ behavior: 'smooth' });
-                      }
-                    }}
-                    className="p-2.5 rounded-xl border border-slate-200/80 hover:border-indigo-300 hover:bg-indigo-50/30 transition-all flex items-center gap-3 cursor-pointer group"
-                  >
-                    <img
-                      src={car.imageUrl}
-                      alt={car.name}
-                      className="w-16 h-12 rounded-lg object-cover bg-slate-100 shrink-0"
-                      loading="lazy"
-                    />
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-1.5">
-                        <span className="text-[10px] px-1.5 py-0.5 rounded-md bg-slate-100 font-semibold text-slate-600">
-                          {car.category}
-                        </span>
-                        {car.badge && (
-                          <span className="text-[9px] px-1.5 py-0.2 rounded-full bg-amber-100 text-amber-800 font-bold">
-                            {car.badge}
-                          </span>
-                        )}
-                      </div>
-                      <h4 className="font-bold text-xs text-slate-900 truncate mt-0.5 group-hover:text-indigo-600 transition-colors">
-                        {car.name}
-                      </h4>
-                      <p className="text-[11px] text-slate-500 font-semibold">
-                        Mulai <span className="text-indigo-600 font-bold">{car.priceLepasKunci || car.priceWithDriver}</span>
-                      </p>
-                    </div>
-                    <ArrowRight className="w-4 h-4 text-slate-400 group-hover:text-indigo-600 group-hover:translate-x-0.5 transition-all shrink-0" />
-                  </div>
-                ))
-              ) : (
-                <div className="text-center py-8 text-slate-400">
-                  <Car className="w-8 h-8 mx-auto mb-2 opacity-40" />
-                  <p className="text-xs">Tidak ditemukan armada yang cocok dengan pencarian.</p>
-                </div>
-              )}
-            </div>
-
-            {/* Modal Footer Quick Action */}
-            <div className="pt-3 border-t border-slate-100 flex items-center justify-between gap-2">
-              <a
-                href={`https://wa.me/${whatsappPhone}?text=Halo%20Admin,%20saya%20ingin%20tanya%20ketersediaan%20armada`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex-1 py-2 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs text-center flex items-center justify-center gap-1.5 shadow-xs transition-colors"
-              >
-                <MessageSquare className="w-3.5 h-3.5 fill-white" />
-                <span>Tanya via WhatsApp</span>
-              </a>
-              <button
-                type="button"
-                onClick={() => {
-                  setIsSearchOpen(false);
-                  setActiveBottomNav('fleet');
-                  document.getElementById('fleet')?.scrollIntoView({ behavior: 'smooth' });
-                }}
-                className="py-2 px-3 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-xs transition-colors"
-              >
-                Lihat Katalog
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

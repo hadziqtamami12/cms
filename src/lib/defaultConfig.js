@@ -8,8 +8,8 @@ export const DEFAULT_CONFIG = {
   themeId: 'fleet-grid',
   bottom_nav_variant: 'floating_dock',
   bottomNavStyle: 'dock',
-  brandName: 'CMS Enterprise Portal',
-  tagline: 'Inisialisasi Setup & Generator Landing Page Multi-Industri',
+  brandName: 'Royal Fleet Premiere',
+  tagline: 'Sewa Mobil & Armada Premium Terpercaya No. 1',
   phone: '+62 812-8899-0011',
   whatsapp: '6281288990011',
   floating_whatsapp: {
@@ -185,17 +185,17 @@ export const DEFAULT_CONFIG = {
     }
   ],
   seo: {
-    targetKeywords: ['cms multi industri', 'setup cms landing page', 'instalasi generator tema'],
-    title: 'Instalasi CMS Enterprise Multi-Industri | Setup Wizard',
-    metaDescription: 'Setup wizard inisialisasi CMS Multi-Industri dan generator landing page enterprise.',
-    slug: 'setup-cms-enterprise'
+    targetKeywords: ['sewa mobil jakarta', 'rental alphard bali', 'rental mobil lepas kunci'],
+    title: 'Sewa Mobil & Rental Armada Mewah Terpercaya | Royal Fleet 24 Jam',
+    metaDescription: 'Layanan sewa mobil terpercaya lepas kunci dan include driver di Jakarta dan Bali. Armada terbaru Alphard, Innova Zenix, Fortuner, dan HiAce.',
+    slug: 'sewa-mobil-mewah-jakarta'
   },
   adminSlug: 'admin',
   license: {
-    isInstalled: null,
-    status: 'unknown',
-    type: 'trial',
-    daysRemaining: 30,
+    isInstalled: true,
+    status: 'active',
+    type: 'enterprise',
+    daysRemaining: 365,
     isLocked: false
   }
 };

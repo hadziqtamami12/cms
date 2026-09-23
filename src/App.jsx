@@ -102,7 +102,7 @@ export const App = () => {
     if (typeof window !== 'undefined') {
       window.history.replaceState(null, '', '/');
     }
-    // Lanjutkan rendering landing page di bawah
+    setCurrentPath('/');
   }
 
   // B. Jika sistem BELUM TERINSTAL:
@@ -124,17 +124,6 @@ export const App = () => {
     );
   }
 
-  // 4. Splash Screen for Initial Landing Page Load (when already loaded from cache)
-  if (currentPath === '/' && config.splash_screen?.enabled !== false && !splashFinished) {
-    return (
-      <SplashScreen
-        brandName={config.brandName || 'OmniLanding CMS'}
-        tagline={config.tagline || 'Platform Website & CMS Multi-Industri Cepat'}
-        duration={config.splash_screen?.duration || 2.5}
-        onFinish={() => setSplashFinished(true)}
-      />
-    );
-  }
 
   // 3. Subscription Hold / Token Lockout State
   if (currentPath === '/subscription-hold' || (licenseStatus && licenseStatus.isLocked)) {

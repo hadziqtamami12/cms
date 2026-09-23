@@ -64,14 +64,26 @@ router.post('/complete', async (req, res) => {
       adminPassword,
       adminSlug,
       licenseKey,
+      planType = 'trial',
       clientName,
       selectedIndustry,
       selectedThemeId,
       bottomNavStyle
     } = req.body;
 
-    // 1. Verify License Key
-    const licenseCheck = verifyLicenseKey(licenseKey);
+    // 1. Resolve & Verify License Key
+    let finalLicenseKey = licenseKey;
+    if (planType === 'trial' || !finalLicenseKey) {
+      // First-Run Free 30-Day Trial is automatically generated
+      const trialGen = generateLicenseKey({
+        clientName: clientName || 'Trial Client',
+        type: 'trial',
+        customDays: 30
+      });
+      finalLicenseKey = trialGen.licenseKey;
+    }
+
+    const licenseCheck = verifyLicenseKey(finalLicenseKey);
     if (!licenseCheck.valid) {
       return res.status(400).json({
         success: false,

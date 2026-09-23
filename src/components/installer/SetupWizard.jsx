@@ -46,6 +46,7 @@ export const SetupWizard = ({ onComplete }) => {
 
   // Step 3: License Activation
   const [licenseConfig, setLicenseConfig] = useState({
+    planType: 'trial', // 'trial' (gratis) | 'yearly' (1 tahun dengan lisensi)
     licenseKey: '',
     clientName: 'Demo Enterprise Client'
   });
@@ -85,8 +86,8 @@ export const SetupWizard = ({ onComplete }) => {
 
   // Complete Installer Action
   const handleComplete = async () => {
-    if (!licenseConfig.licenseKey || licenseConfig.licenseKey.length < 19) {
-      setErrorMessage('Masukkan lisensi 16-karakter valid (XXXX-XXXX-XXXX-XXXX)');
+    if (licenseConfig.planType === 'yearly' && (!licenseConfig.licenseKey || licenseConfig.licenseKey.length < 19)) {
+      setErrorMessage('Untuk Paket 1 Tahun, silakan masukkan lisensi 16-karakter valid (XXXX-XXXX-XXXX-XXXX) atau pilih opsi Trial Gratis.');
       return;
     }
 
@@ -97,7 +98,8 @@ export const SetupWizard = ({ onComplete }) => {
       const payload = {
         ...dbConfig,
         ...adminConfig,
-        licenseKey: licenseConfig.licenseKey,
+        planType: licenseConfig.planType,
+        licenseKey: licenseConfig.planType === 'yearly' ? licenseConfig.licenseKey : '',
         clientName: licenseConfig.clientName || 'Enterprise Owner',
         selectedIndustry: starterConfig.selectedIndustry,
         selectedThemeId: starterConfig.selectedThemeId,
@@ -380,53 +382,133 @@ export const SetupWizard = ({ onComplete }) => {
             </div>
           )}
 
-          {/* STEP 3: LISENSI 16 KARAKTER */}
+          {/* STEP 3: AKTIVASI LISENSI ATAU TRIAL GRATIS */}
           {currentStep === 3 && (
             <div className="space-y-6">
               <div>
-                <h2 className="text-xl font-bold text-slate-900">Langkah 3: Aktivasi Lisensi & Token Proteksi</h2>
+                <h2 className="text-xl font-bold text-slate-900">Langkah 3: Pilihan Paket & Aktivasi Lisensi</h2>
                 <p className="text-sm text-slate-500 mt-1">
-                  Masukkan kunci lisensi 16 karakter alfanumerik yang diterbitkan oleh programmer resmi.
+                  Instalasi pertama dapat langsung dinikmati secara gratis dengan memilih <strong>Trial 30 Hari</strong>, atau masukkan lisensi untuk paket 1 tahun.
                 </p>
               </div>
 
+              {/* Paket Selector: Trial Gratis vs 1 Tahun */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div
+                  onClick={() => {
+                    setLicenseConfig({ ...licenseConfig, planType: 'trial' });
+                    setErrorMessage('');
+                  }}
+                  className={`p-4 rounded-2xl border cursor-pointer transition-all ${
+                    licenseConfig.planType === 'trial'
+                      ? 'border-emerald-600 bg-emerald-50/70 shadow-sm ring-2 ring-emerald-600'
+                      : 'border-slate-200 bg-white hover:border-slate-300'
+                  }`}
+                >
+                  <div className="flex items-center gap-2 mb-1">
+                    <Sparkles className="w-5 h-5 text-emerald-600" />
+                    <span className="font-extrabold text-slate-900 text-sm">Trial Gratis 30 Hari</span>
+                  </div>
+                  <p className="text-xs text-slate-600 leading-relaxed">
+                    Instalasi pertama gratis tanpa perlu kode lisensi. Kunci trial diterbitkan otomatis oleh sistem.
+                  </p>
+                  <span className="inline-block mt-3 px-2.5 py-0.5 rounded-full bg-emerald-200/80 text-emerald-800 text-[11px] font-bold">
+                    ⚡ Langsung Aktif Instan
+                  </span>
+                </div>
+
+                <div
+                  onClick={() => {
+                    setLicenseConfig({ ...licenseConfig, planType: 'yearly' });
+                    setErrorMessage('');
+                  }}
+                  className={`p-4 rounded-2xl border cursor-pointer transition-all ${
+                    licenseConfig.planType === 'yearly'
+                      ? 'border-blue-600 bg-blue-50/70 shadow-sm ring-2 ring-blue-600'
+                      : 'border-slate-200 bg-white hover:border-slate-300'
+                  }`}
+                >
+                  <div className="flex items-center gap-2 mb-1">
+                    <Key className="w-5 h-5 text-blue-600" />
+                    <span className="font-extrabold text-slate-900 text-sm">Paket Lisensi 1 Tahun</span>
+                  </div>
+                  <p className="text-xs text-slate-600 leading-relaxed">
+                    Aktivasi lisensi resmi 365 hari yang digenerate oleh programmer resmi.
+                  </p>
+                  <span className="inline-block mt-3 px-2.5 py-0.5 rounded-full bg-blue-200/80 text-blue-800 text-[11px] font-bold">
+                    🏢 Full Enterprise 365 Hari
+                  </span>
+                </div>
+              </div>
+
               <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-2">
+                <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
                   Nama Klien / ID Proyek
                 </label>
                 <input
                   type="text"
-                  placeholder="PT Maju Bersama Sejahtera"
+                  placeholder="Contoh: PT Maju Bersama Sejahtera"
                   value={licenseConfig.clientName}
                   onChange={(e) => setLicenseConfig({ ...licenseConfig, clientName: e.target.value })}
-                  className="w-full px-4 py-3 rounded-xl border border-slate-300 text-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-blue-600"
+                  className="w-full px-4 py-2.5 rounded-xl border border-slate-300 text-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-blue-600"
                 />
               </div>
 
-              <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-2">
-                  16-Character License Key (XXXX-XXXX-XXXX-XXXX)
-                </label>
-                <input
-                  type="text"
-                  placeholder="Y365-XXXX-XXXX-XXXX"
-                  maxLength={19}
-                  value={licenseConfig.licenseKey}
-                  onChange={(e) => setLicenseConfig({ ...licenseConfig, licenseKey: formatLicenseKey(e.target.value) })}
-                  className="w-full px-4 py-3 rounded-xl border border-slate-300 text-slate-800 text-lg font-mono tracking-widest uppercase focus:outline-none focus:ring-2 focus:ring-blue-600 text-center font-bold"
-                />
-                <p className="text-xs text-slate-500 mt-2 text-center">
-                  Format tepat: 16 karakter alfanumerik kapital dipisahkan tanda strip.
-                </p>
-              </div>
+              {/* Tampilan Kondisional untuk Paket 1 Tahun */}
+              {licenseConfig.planType === 'yearly' ? (
+                <div className="space-y-4 pt-2">
+                  <div>
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="block text-xs font-bold uppercase tracking-wider text-slate-700">
+                        16-Character License Key (XXXX-XXXX-XXXX-XXXX)
+                      </label>
+                      <a
+                        href="/keygen"
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-xs text-blue-600 font-bold hover:underline flex items-center gap-1"
+                      >
+                        <span>Buka Generator Lisensi (/keygen) ↗</span>
+                      </a>
+                    </div>
+                    <input
+                      type="text"
+                      placeholder="Y365-XXXX-XXXX-XXXX"
+                      maxLength={19}
+                      value={licenseConfig.licenseKey}
+                      onChange={(e) => setLicenseConfig({ ...licenseConfig, licenseKey: formatLicenseKey(e.target.value) })}
+                      className="w-full px-4 py-3 rounded-xl border border-slate-300 text-slate-800 text-lg font-mono tracking-widest uppercase focus:outline-none focus:ring-2 focus:ring-blue-600 text-center font-bold"
+                    />
+                    <p className="text-xs text-slate-500 mt-1 text-center">
+                      Format lisensi: 16 karakter alfanumerik dipisahkan strip.
+                    </p>
+                  </div>
 
-              <div className="p-4 rounded-xl bg-blue-50/70 border border-blue-100 flex items-start gap-3">
-                <Shield className="w-5 h-5 text-blue-600 shrink-0 mt-0.5" />
-                <p className="text-xs text-blue-800 leading-relaxed">
-                  Lisensi diverifikasi menggunakan algoritma HMAC matematis berkecepatan tinggi di backend.
-                  Jika belum memiliki kunci, Anda dapat membuatnya melalui <strong>Secret Programmer Keygen Portal</strong>.
-                </p>
-              </div>
+                  <div className="p-4 rounded-xl bg-blue-50/80 border border-blue-200 text-xs text-blue-900 space-y-2">
+                    <div className="font-bold flex items-center gap-1.5">
+                      <Key className="w-4 h-4 text-blue-600" />
+                      <span>Di Mana Halaman Generate Lisensinya?</span>
+                    </div>
+                    <p className="leading-relaxed">
+                      Programmer dapat membuka halaman rahasia di: <code className="bg-white px-2 py-0.5 rounded font-mono font-bold text-blue-700">http://localhost:3005/keygen</code> (atau rute <code className="bg-white px-2 py-0.5 rounded font-mono font-bold text-blue-700">/keygen</code>).
+                    </p>
+                    <p className="leading-relaxed">
+                      Passphrase Master Key Programmer: <code className="bg-white px-2 py-0.5 rounded font-mono font-bold text-slate-800">SuperSecretProgrammerKey2026!</code>
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                /* Tampilan Info untuk Trial Gratis */
+                <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-200 text-xs text-emerald-900 space-y-1.5">
+                  <div className="font-bold flex items-center gap-1.5">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                    <span>Mode Trial Gratis 30 Hari Terpilih</span>
+                  </div>
+                  <p className="leading-relaxed">
+                    Anda tidak perlu memasukkan kode serial apapun. Sistem akan langsung mengaktifkan masa uji coba penuh selama 30 hari secara otomatis saat instalasi selesai.
+                  </p>
+                </div>
+              )}
 
               <div className="flex items-center justify-between pt-6 border-t border-slate-100">
                 <button
@@ -441,8 +523,8 @@ export const SetupWizard = ({ onComplete }) => {
                 <button
                   type="button"
                   onClick={() => {
-                    if (!licenseConfig.licenseKey || licenseConfig.licenseKey.length < 19) {
-                      setErrorMessage('Format lisensi wajib 16 karakter dipisahkan strip (XXXX-XXXX-XXXX-XXXX).');
+                    if (licenseConfig.planType === 'yearly' && (!licenseConfig.licenseKey || licenseConfig.licenseKey.length < 19)) {
+                      setErrorMessage('Untuk Paket 1 Tahun, silakan masukkan lisensi 16-karakter valid (XXXX-XXXX-XXXX-XXXX) atau pilih opsi Trial Gratis.');
                       return;
                     }
                     setErrorMessage('');
@@ -450,7 +532,7 @@ export const SetupWizard = ({ onComplete }) => {
                   }}
                   className="px-6 py-2.5 rounded-xl bg-blue-600 text-white text-sm font-bold hover:bg-blue-700 flex items-center gap-2 shadow-sm"
                 >
-                  <span>Lanjutkan</span>
+                  <span>Lanjutkan ke Pilih Tema</span>
                   <ArrowRight className="w-4 h-4" />
                 </button>
               </div>
@@ -538,6 +620,21 @@ export const SetupWizard = ({ onComplete }) => {
               </div>
             </div>
           )}
+        </div>
+
+        {/* Footer Note & Direct Link to Keygen Portal */}
+        <div className="mt-6 text-center text-xs text-slate-500 flex items-center justify-center gap-3">
+          <span>Enterprise MultiCMS Setup</span>
+          <span>•</span>
+          <a
+            href="/keygen"
+            target="_blank"
+            rel="noreferrer"
+            className="text-blue-600 font-semibold hover:underline inline-flex items-center gap-1 bg-white px-3 py-1.5 rounded-lg border border-slate-200 shadow-sm"
+          >
+            <Key className="w-3.5 h-3.5" />
+            <span>Halaman Generator Lisensi (/keygen) ↗</span>
+          </a>
         </div>
       </div>
     </div>

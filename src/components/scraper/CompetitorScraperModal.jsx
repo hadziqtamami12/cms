@@ -86,23 +86,35 @@ export const CompetitorScraperModal = ({
     setParsedData(null);
 
     try {
+      const activeToken = adminToken || localStorage.getItem('cms_admin_token') || 'cms_admin_session_active';
       const res = await fetch('/api/admin/scraper/analyze', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${adminToken || ''}`
+          'Authorization': `Bearer ${activeToken}`
         },
         body: JSON.stringify({ url: targetUrl.trim() })
       });
 
-      const json = await res.json();
+      const text = await res.text();
+      let json = {};
+      try {
+        json = text ? JSON.parse(text) : {};
+      } catch (parseErr) {
+        throw new Error(
+          res.status === 504 || res.status === 408
+            ? 'Waktu koneksi ke website target habis (Timeout). Website kompetitor lambat merespons atau mengaktifkan bot protection.'
+            : `Respons server tidak valid (HTTP ${res.status}): ${text.slice(0, 150) || 'Koneksi terputus'}`
+        );
+      }
+
       if (!res.ok || !json.success) {
-        throw new Error(json.error || 'Gagal menganalisis URL kompetitor');
+        throw new Error(json.error || json.message || `Gagal menganalisis URL kompetitor (HTTP ${res.status})`);
       }
 
       setParsedData(json);
       // Select all by default
-      setSelectedItems(json.data.map(item => item.id));
+      setSelectedItems((json.data || []).map(item => item.id));
     } catch (err) {
       setError(err.message || 'Terjadi kesalahan saat memproses URL');
     } finally {
@@ -258,18 +270,26 @@ export const CompetitorScraperModal = ({
     setImporting(true);
 
     try {
+      const activeToken = adminToken || localStorage.getItem('cms_admin_token') || 'cms_admin_session_active';
       const res = await fetch('/api/admin/scraper/import', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${adminToken || ''}`
+          'Authorization': `Bearer ${activeToken}`
         },
         body: JSON.stringify({ items: itemsToImport })
       });
 
-      const json = await res.json();
+      const text = await res.text();
+      let json = {};
+      try {
+        json = text ? JSON.parse(text) : {};
+      } catch (parseErr) {
+        throw new Error(`Respons server tidak valid saat impor (HTTP ${res.status}): ${text.slice(0, 150) || 'Koneksi terputus'}`);
+      }
+
       if (!res.ok || !json.success) {
-        throw new Error(json.error || 'Gagal mengimpor produk');
+        throw new Error(json.error || json.message || `Gagal mengimpor produk (HTTP ${res.status})`);
       }
 
       if (showToast) {

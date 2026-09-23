@@ -673,14 +673,17 @@ router.post('/analyze', adminAuth, async (req, res) => {
 
   } catch (err) {
     console.error('[Scraper Error]', err);
-    return res.status(500).json({
+    const isTimeout = err.name === 'AbortError' || err.message?.includes('aborted');
+    return res.status(isTimeout ? 408 : 500).json({
       success: false,
-      error: `Gagal memproses scraping: ${err.message}`
+      error: isTimeout
+        ? 'Waktu koneksi ke website target habis (Timeout 15s). Website kompetitor lambat merespons atau mengaktifkan proteksi bot.'
+        : `Gagal memproses scraping: ${err.message}`
     });
   }
 });
 
-// Helper function to download an image and save to local storage
+// Helper function to download an image and save to local storage (fast with 2.5s timeout)
 async function saveScrapedImage(imageUrl, title, productId) {
   if (!imageUrl || !imageUrl.startsWith('http')) return imageUrl;
   try {
@@ -692,7 +695,7 @@ async function saveScrapedImage(imageUrl, title, productId) {
     }
 
     const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 6000);
+    const timer = setTimeout(() => controller.abort(), 2500);
     const resp = await fetch(imageUrl, { signal: controller.signal });
     clearTimeout(timer);
 
@@ -707,12 +710,8 @@ async function saveScrapedImage(imageUrl, title, productId) {
     const filename = `${slug}-${Date.now()}-${Math.random().toString(36).slice(2, 6)}.${ext}`;
     const filePath = path.join(uploadDir, filename);
 
-    try {
-      fs.writeFileSync(filePath, buffer);
-      return `/uploads/${filename}`;
-    } catch (writeErr) {
-      return imageUrl;
-    }
+    fs.writeFileSync(filePath, buffer);
+    return `/uploads/${filename}`;
   } catch (err) {
     return imageUrl;
   }
@@ -721,7 +720,7 @@ async function saveScrapedImage(imageUrl, title, productId) {
 /**
  * POST /api/admin/scraper/import
  * Imports selected scraped items directly into app_config.items,
- * saving external images to storage automatically.
+ * quickly saving primary images without blocking or timing out.
  */
 router.post('/import', adminAuth, async (req, res) => {
   try {
@@ -730,7 +729,7 @@ router.post('/import', adminAuth, async (req, res) => {
       return res.status(400).json({ success: false, error: 'Tidak ada item yang dipilih untuk diimpor' });
     }
 
-    // Process and download images for each imported item
+    // Process and download primary images with quick timeout
     const processedItems = await Promise.all(
       newItems.map(async (item) => {
         let savedMainImage = item.image;
@@ -738,17 +737,14 @@ router.post('/import', adminAuth, async (req, res) => {
           savedMainImage = await saveScrapedImage(item.image, item.title, item.id);
         }
 
-        let savedGallery = [savedMainImage];
-        if (Array.isArray(item.images) && item.images.length > 0) {
-          savedGallery = await Promise.all(
-            item.images.map(imgUrl => saveScrapedImage(imgUrl, item.title, item.id))
-          );
-        }
+        const gallery = Array.isArray(item.images) && item.images.length > 0
+          ? [savedMainImage, ...item.images.filter(img => img !== item.image)]
+          : [savedMainImage];
 
         return {
           ...item,
           image: savedMainImage,
-          images: savedGallery,
+          images: gallery,
           pricing_tiers: Array.isArray(item.pricing_tiers) && item.pricing_tiers.length > 0
             ? item.pricing_tiers
             : [

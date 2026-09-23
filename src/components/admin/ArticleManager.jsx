@@ -41,10 +41,12 @@ export const ArticleManager = ({ adminToken, showToast }) => {
   const fetchArticles = async () => {
     setLoading(true);
     try {
+      const activeToken = adminToken || localStorage.getItem('cms_admin_token') || 'cms_admin_session_active';
       const res = await fetch('/api/admin/articles/manage', {
-        headers: { 'Authorization': `Bearer ${adminToken || ''}` }
+        headers: { 'Authorization': `Bearer ${activeToken}` }
       });
-      const json = await res.json();
+      const text = await res.text();
+      const json = text ? JSON.parse(text) : {};
       if (json.success && Array.isArray(json.data)) {
         setArticles(json.data);
       }
@@ -103,15 +105,17 @@ export const ArticleManager = ({ adminToken, showToast }) => {
         : `/api/admin/articles/manage`;
       const method = editingArticle ? 'PUT' : 'POST';
 
+      const activeToken = adminToken || localStorage.getItem('cms_admin_token') || 'cms_admin_session_active';
       const res = await fetch(url, {
         method,
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${adminToken || ''}`
+          'Authorization': `Bearer ${activeToken}`
         },
         body: JSON.stringify(formData)
       });
-      const json = await res.json();
+      const text = await res.text();
+      const json = text ? JSON.parse(text) : {};
       if (!res.ok || !json.success) throw new Error(json.error || 'Gagal menyimpan artikel');
 
       if (showToast) showToast('Artikel berhasil disimpan!');
@@ -127,12 +131,14 @@ export const ArticleManager = ({ adminToken, showToast }) => {
   const handleDeleteArticle = async (id, title) => {
     if (!window.confirm(`Hapus artikel "${title}"?`)) return;
     try {
+      const activeToken = adminToken || localStorage.getItem('cms_admin_token') || 'cms_admin_session_active';
       const res = await fetch(`/api/admin/articles/manage/${id}`, {
         method: 'DELETE',
-        headers: { 'Authorization': `Bearer ${adminToken || ''}` }
+        headers: { 'Authorization': `Bearer ${activeToken}` }
       });
-      const json = await res.json();
-      if (!res.ok || !json.success) throw new Error(json.error);
+      const text = await res.text();
+      const json = text ? JSON.parse(text) : {};
+      if (!res.ok || !json.success) throw new Error(json.error || 'Gagal menghapus artikel');
       if (showToast) showToast('Artikel berhasil dihapus');
       fetchArticles();
     } catch (err) {
@@ -143,15 +149,17 @@ export const ArticleManager = ({ adminToken, showToast }) => {
   // Bulk Delete Articles
   const handleBulkDeleteArticles = async (ids) => {
     try {
+      const activeToken = adminToken || localStorage.getItem('cms_admin_token') || 'cms_admin_session_active';
       const res = await fetch('/api/admin/articles/batch-delete', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${adminToken || ''}`
+          'Authorization': `Bearer ${activeToken}`
         },
         body: JSON.stringify({ ids })
       });
-      const json = await res.json();
+      const text = await res.text();
+      const json = text ? JSON.parse(text) : {};
       if (!res.ok || !json.success) throw new Error(json.error || 'Gagal menghapus batch artikel');
       if (showToast) showToast(json.message);
       fetchArticles();
@@ -163,15 +171,17 @@ export const ArticleManager = ({ adminToken, showToast }) => {
   // Bulk Status Update Articles (Publish / Draft)
   const handleBulkStatusArticles = async (ids, status) => {
     try {
+      const activeToken = adminToken || localStorage.getItem('cms_admin_token') || 'cms_admin_session_active';
       const res = await fetch('/api/admin/articles/batch-status', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${adminToken || ''}`
+          'Authorization': `Bearer ${activeToken}`
         },
         body: JSON.stringify({ ids, status })
       });
-      const json = await res.json();
+      const text = await res.text();
+      const json = text ? JSON.parse(text) : {};
       if (!res.ok || !json.success) throw new Error(json.error || 'Gagal update status batch');
       if (showToast) showToast(json.message);
       fetchArticles();
@@ -190,11 +200,12 @@ export const ArticleManager = ({ adminToken, showToast }) => {
 
     setGenerating(true);
     try {
+      const activeToken = adminToken || localStorage.getItem('cms_admin_token') || 'cms_admin_session_active';
       const res = await fetch('/api/admin/articles/generate-programmatic', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${adminToken || ''}`
+          'Authorization': `Bearer ${activeToken}`
         },
         body: JSON.stringify({
           titleTemplate: progForm.titleTemplate,
@@ -206,7 +217,8 @@ export const ArticleManager = ({ adminToken, showToast }) => {
         })
       });
 
-      const json = await res.json();
+      const text = await res.text();
+      const json = text ? JSON.parse(text) : {};
       if (!res.ok || !json.success) throw new Error(json.error || 'Gagal generate');
 
       if (showToast) showToast(json.message);

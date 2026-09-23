@@ -20,7 +20,8 @@ export const ArticleDetailPage = ({ slug: propSlug }) => {
     setLoading(true);
     setError(null);
     fetch(`/api/articles/public/${currentSlug}`)
-      .then(res => res.json())
+      .then(res => res.text())
+      .then(text => (text ? JSON.parse(text) : {}))
       .then(json => {
         if (!json.success || !json.data) {
           throw new Error(json.error || 'Artikel tidak ditemukan');

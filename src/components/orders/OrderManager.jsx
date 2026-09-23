@@ -209,15 +209,17 @@ export const OrderManager = ({ adminToken, activeThemeName }) => {
   // Bulk Delete Orders
   const handleBulkDeleteOrders = async (ids) => {
     try {
+      const activeToken = adminToken || localStorage.getItem('cms_admin_token') || 'cms_admin_session_active';
       const res = await fetch('/api/admin/orders/batch-delete', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${adminToken || ''}`
+          'Authorization': `Bearer ${activeToken}`
         },
         body: JSON.stringify({ ids })
       });
-      const json = await res.json();
+      const text = await res.text();
+      const json = text ? JSON.parse(text) : {};
       if (!res.ok || !json.success) throw new Error(json.error || 'Gagal menghapus pesanan');
       showToast(json.message);
       loadOrders();
@@ -229,15 +231,17 @@ export const OrderManager = ({ adminToken, activeThemeName }) => {
   // Bulk Status Update Orders
   const handleBulkStatusOrders = async (ids, status) => {
     try {
+      const activeToken = adminToken || localStorage.getItem('cms_admin_token') || 'cms_admin_session_active';
       const res = await fetch('/api/admin/orders/batch-status', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${adminToken || ''}`
+          'Authorization': `Bearer ${activeToken}`
         },
         body: JSON.stringify({ ids, status })
       });
-      const json = await res.json();
+      const text = await res.text();
+      const json = text ? JSON.parse(text) : {};
       if (!res.ok || !json.success) throw new Error(json.error || 'Gagal update status');
       showToast(json.message);
       loadOrders();

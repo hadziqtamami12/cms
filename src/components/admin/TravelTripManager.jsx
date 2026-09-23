@@ -33,10 +33,12 @@ export const TravelTripManager = ({ adminToken, showToast }) => {
   const fetchTrips = async () => {
     setLoading(true);
     try {
+      const activeToken = adminToken || localStorage.getItem('cms_admin_token') || 'cms_admin_session_active';
       const res = await fetch('/api/admin/travel-trips/manage', {
-        headers: { 'Authorization': `Bearer ${adminToken || ''}` }
+        headers: { 'Authorization': `Bearer ${activeToken}` }
       });
-      const json = await res.json();
+      const text = await res.text();
+      const json = text ? JSON.parse(text) : {};
       if (json.success && Array.isArray(json.data)) {
         setTrips(json.data);
       }
@@ -93,15 +95,17 @@ export const TravelTripManager = ({ adminToken, showToast }) => {
     };
 
     try {
+      const activeToken = adminToken || localStorage.getItem('cms_admin_token') || 'cms_admin_session_active';
       const res = await fetch('/api/admin/travel-trips/manage', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${adminToken || ''}`
+          'Authorization': `Bearer ${activeToken}`
         },
         body: JSON.stringify(payload)
       });
-      const json = await res.json();
+      const text = await res.text();
+      const json = text ? JSON.parse(text) : {};
       if (!res.ok || !json.success) throw new Error(json.error || 'Gagal menyimpan');
 
       if (showToast) showToast('Paket tour berhasil disimpan ke database!');
@@ -117,12 +121,14 @@ export const TravelTripManager = ({ adminToken, showToast }) => {
   const handleDelete = async (id, title) => {
     if (!window.confirm(`Hapus paket tour "${title}"?`)) return;
     try {
+      const activeToken = adminToken || localStorage.getItem('cms_admin_token') || 'cms_admin_session_active';
       const res = await fetch(`/api/admin/travel-trips/manage/${id}`, {
         method: 'DELETE',
-        headers: { 'Authorization': `Bearer ${adminToken || ''}` }
+        headers: { 'Authorization': `Bearer ${activeToken}` }
       });
-      const json = await res.json();
-      if (!res.ok || !json.success) throw new Error(json.error);
+      const text = await res.text();
+      const json = text ? JSON.parse(text) : {};
+      if (!res.ok || !json.success) throw new Error(json.error || 'Gagal menghapus');
       if (showToast) showToast('Paket tour berhasil dihapus');
       fetchTrips();
     } catch (err) {
@@ -133,15 +139,17 @@ export const TravelTripManager = ({ adminToken, showToast }) => {
   // Bulk Delete Handler
   const handleBulkDeleteTrips = async (ids) => {
     try {
+      const activeToken = adminToken || localStorage.getItem('cms_admin_token') || 'cms_admin_session_active';
       const res = await fetch('/api/admin/travel-trips/batch-delete', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${adminToken || ''}`
+          'Authorization': `Bearer ${activeToken}`
         },
         body: JSON.stringify({ ids })
       });
-      const json = await res.json();
+      const text = await res.text();
+      const json = text ? JSON.parse(text) : {};
       if (!res.ok || !json.success) throw new Error(json.error || 'Gagal menghapus paket tour terpilih');
 
       if (showToast) showToast(json.message || `Berhasil menghapus ${ids.length} paket tour!`);
@@ -154,15 +162,17 @@ export const TravelTripManager = ({ adminToken, showToast }) => {
   // Bulk Status Update Handler
   const handleBulkStatusTrips = async (ids, status) => {
     try {
+      const activeToken = adminToken || localStorage.getItem('cms_admin_token') || 'cms_admin_session_active';
       const res = await fetch('/api/admin/travel-trips/batch-status', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${adminToken || ''}`
+          'Authorization': `Bearer ${activeToken}`
         },
         body: JSON.stringify({ ids, status })
       });
-      const json = await res.json();
+      const text = await res.text();
+      const json = text ? JSON.parse(text) : {};
       if (!res.ok || !json.success) throw new Error(json.error || 'Gagal mengubah status paket tour');
 
       if (showToast) showToast(json.message || `Status ${ids.length} paket tour berhasil diperbarui!`);

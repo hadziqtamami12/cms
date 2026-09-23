@@ -1,228 +1,320 @@
 import React, { useState, useEffect } from 'react';
-import { Database, Shield, Key, Sparkles, CheckCircle2, ArrowRight, ArrowLeft, Loader2, CloudUpload, Zap, Eye, EyeOff } from 'lucide-react';
-import { testInstallerDb, completeInstaller } from '../../lib/api';
+import {
+  Database, Shield, Key, Sparkles, CheckCircle2, ArrowRight, ArrowLeft,
+  Loader2, CloudUpload, Zap, Eye, EyeOff, Server, Globe, AlertCircle,
+  RefreshCw, Lock, Check, Radio
+} from 'lucide-react';
+import { fetchSetupEnvStatus, testSetupConnection, initializeSetup } from '../../lib/api';
 import { formatLicenseKey, generateClientLicenseKey } from '../../lib/licenseUtils';
 
+/**
+ * Enterprise Setup Installer Wizard (/setup atau /install)
+ * - Auto-Detection & Smart Pre-fill from .env (Database, Storage, Branding, License)
+ * - User-Defined Overrides for Admin Credentials & Dynamic URL Slug
+ * - Database Finalization: atomic persistence to app_settings & admin_users
+ * - Strict Zero Horizontal Overflow across all resolutions
+ */
 export const SetupWizard = ({ onComplete }) => {
   const [currentStep, setCurrentStep] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
+  const [successAnimation, setSuccessAnimation] = useState(false);
+  const [finalRedirectUrl, setFinalRedirectUrl] = useState('');
+
+  // Password visibility & confirmations
   const [showAdminPassword, setShowAdminPassword] = useState(false);
-  const [showR2Secret, setShowR2Secret] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
-  useEffect(() => {
-    document.title = 'Instalasi CMS Enterprise Multi-Industri | Setup Wizard';
-    // Auto-fetch demo key for convenience
-    fetch('/api/installer/demo-key')
-      .then(res => res.text())
-      .then(text => (text ? JSON.parse(text) : null))
-      .then(data => {
-        if (data && data.success && data.demoKey) {
-          setLicenseConfig(prev => ({
-            ...prev,
-            licenseKey: prev.licenseKey || data.demoKey,
-            clientName: prev.clientName || 'Demo Enterprise Client'
-          }));
-        }
-      })
-      .catch(() => {});
-  }, []);
+  // Auto-detection tracking
+  const [envLoaded, setEnvLoaded] = useState(false);
+  const [detectedFromEnv, setDetectedFromEnv] = useState({
+    databaseUrl: false,
+    appName: false,
+    appTagline: false,
+    licenseKey: false,
+    storage: false
+  });
 
-  // Step 1: Database & R2 Storage
+  // DB Connection Testing State
+  const [isTestingDb, setIsTestingDb] = useState(false);
+  const [dbTestResult, setDbTestResult] = useState(null); // { success: boolean, message: string }
+
+  // Step 1: Database & Storage Configuration
   const [dbConfig, setDbConfig] = useState({
-    dbType: 'static',
-    connectionString: '',
-    r2AccountId: '',
-    r2AccessKey: '',
-    r2SecretKey: '',
-    r2Bucket: 'cms-assets'
+    database_url: '',
+    db_provider: 'supabase',
+    storage_driver: 'supabase',
+    has_storage_keys: false
   });
-  const [dbTested, setDbTested] = useState(true);
 
-  // Step 2: Admin Slug & Account
+  // Step 2: Branding & Industry Configuration
+  const [brandingConfig, setBrandingConfig] = useState({
+    app_name: 'Royal Fleet Premiere',
+    app_tagline: 'Sewa Mobil & Armada Premium Terpercaya No. 1',
+    default_industry: 'automotive',
+    bottom_nav_variant: 'floating_dock'
+  });
+
+  // Step 3: Admin Account, Slug & License Configuration
   const [adminConfig, setAdminConfig] = useState({
-    adminSlug: 'admin',
-    adminUser: 'admin',
-    adminPassword: '',
-    confirmPassword: ''
+    admin_slug: 'admin',
+    admin_username: '',
+    admin_password: '',
+    confirm_password: '',
+    plan_type: 'trial', // 'trial' | 'custom'
+    license_key: ''
   });
 
-  // Step 3: License Activation
-  const [licenseConfig, setLicenseConfig] = useState({
-    planType: 'trial', // 'trial' (gratis) | 'yearly' (1 tahun dengan lisensi)
-    licenseKey: '',
-    clientName: 'Demo Enterprise Client'
-  });
-
-  // Step 4: Industry & Starter Theme
-  const [starterConfig, setStarterConfig] = useState({
-    selectedIndustry: 'automotive',
-    selectedThemeId: 'fleet-grid',
-    bottomNavStyle: 'dock'
-  });
-
+  // Industry Options
   const industries = [
-    { id: 'automotive', name: 'Rental & Otomotif', icon: '🚗', desc: 'Sewa mobil, motor, armada tour & chauffeur' },
-    { id: 'ecommerce', name: 'E-Commerce & Retail', icon: '🛍️', desc: 'Toko online, flash sale & brand showcase' },
-    { id: 'fnb', name: 'F&B & Kuliner', icon: '☕', desc: 'Resto, kafe, bakery & catering delivery' },
-    { id: 'services', name: 'Jasa Profesional', icon: '💼', desc: 'Konsultan, klinik kecantikan, bengkel & legal' },
-    { id: 'realestate', name: 'Properti & Real Estate', icon: '🏢', desc: 'Perumahan, villa, apartemen & ruko komersial' }
+    { id: 'automotive', name: 'Rental & Otomotif', icon: '🚗', desc: 'Sewa mobil, motor, armada luxury tour & chauffeur VIP' },
+    { id: 'ecommerce', name: 'E-Commerce & Retail', icon: '🛍️', desc: 'Toko online, flash sale katalog & brand official store' },
+    { id: 'fnb', name: 'F&B & Kuliner', icon: '☕', desc: 'Resto, kafe, coffee bistro & catering express delivery' },
+    { id: 'services', name: 'Jasa Profesional', icon: '💼', desc: 'Konsultan, klinik kecantikan, hukum & corporate services' },
+    { id: 'realestate', name: 'Properti & Real Estate', icon: '🏢', desc: 'Perumahan elit, villa, apartemen & ruko komersial' }
   ];
 
-  // Test DB Action
-  const handleTestDb = async () => {
-    setIsSubmitting(true);
-    setErrorMessage('');
+  // Mobile Bottom Nav Options
+  const bottomNavStyles = [
+    { id: 'floating_dock', label: 'Floating Dock' },
+    { id: 'fixed_curved', label: 'Fixed Curved Scoop' },
+    { id: 'floating_bubble', label: 'Floating Bubble' },
+    { id: 'floating_box', label: 'Modern Box' }
+  ];
 
-    // Static/memory DB needs no actual DB connection — auto-pass instantly
-    if (dbConfig.dbType === 'static' || dbConfig.dbType === 'memory') {
-      setDbTested(true);
-      setIsSubmitting(false);
-      return;
-    }
+  // 1. Auto-Fetch Runtime .env Status on Mount
+  useEffect(() => {
+    document.title = 'Instalasi CMS Enterprise Multi-Industri | Setup Wizard';
 
-    try {
-      const res = await testInstallerDb(dbConfig);
-      if (res && res.success) {
-        setDbTested(true);
-      } else if (res && res.error === 'Koneksi jaringan gagal') {
-        // Backend unreachable — auto-pass for dev / static mode
-        setDbTested(true);
-      } else {
-        setErrorMessage(res?.error || 'Gagal menyambung ke database.');
-      }
-    } catch (err) {
-      setErrorMessage(err.message || 'Koneksi database gagal');
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  // Complete Installer Action
-  const handleComplete = async () => {
-    if (licenseConfig.planType === 'yearly' && (!licenseConfig.licenseKey || licenseConfig.licenseKey.length < 19)) {
-      setErrorMessage('Untuk Paket 1 Tahun, silakan masukkan lisensi 16-karakter valid (XXXX-XXXX-XXXX-XXXX) atau pilih opsi Trial Gratis.');
-      return;
-    }
-
-    setIsSubmitting(true);
-    setErrorMessage('');
-
-    // Helper: complete setup on client side (Static DB / offline fallback)
-    const clientSideComplete = () => {
-      const planType = licenseConfig.planType || 'trial';
-      const generatedLicense = generateClientLicenseKey({
-        clientName: licenseConfig.clientName || 'Enterprise Client',
-        type: planType === 'trial' ? 'trial' : 'yearly',
-        customDays: planType === 'trial' ? 30 : 365
-      });
-      const finalKey = planType === 'yearly' && licenseConfig.licenseKey
-        ? licenseConfig.licenseKey
-        : generatedLicense.licenseKey;
-
-      const adminSlug = adminConfig.adminSlug || 'admin';
-      const adminUser = adminConfig.adminUser || 'admin';
-      const adminPassword = adminConfig.adminPassword || 'admin123';
-
-      // Persist setup state in localStorage for static-mode CMS
-      const setupState = {
-        isInstalled: true,
-        adminSlug,
-        adminUser,
-        adminPassword,
-        selectedIndustry: starterConfig.selectedIndustry,
-        selectedThemeId: starterConfig.selectedThemeId,
-        bottomNavStyle: starterConfig.bottomNavStyle,
-        licenseKey: finalKey,
-        licenseType: planType,
-        clientName: licenseConfig.clientName || 'Enterprise Client',
-        expiresAt: generatedLicense.expiresAt,
-        installedAt: new Date().toISOString()
-      };
-
-      try { 
-        localStorage.setItem('cms_setup_state', JSON.stringify(setupState)); 
-      } catch {}
-
-      // Proactively sync credentials to backend if available
+    const loadEnvStatus = async () => {
       try {
-        fetch('/api/admin/set-credentials', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ username: adminUser, password: adminPassword })
-        }).catch(() => {});
-      } catch {}
+        const res = await fetchSetupEnvStatus();
+        if (res && res.success && res.data) {
+          const d = res.data;
+          setDbConfig({
+            database_url: d.database_url || '',
+            db_provider: d.db_provider || 'supabase',
+            storage_driver: d.storage_driver || 'local',
+            has_storage_keys: Boolean(d.has_storage_keys)
+          });
 
-      if (onComplete) {
-        onComplete({ success: true, data: setupState, message: 'Instalasi CMS berhasil!' });
-      } else {
-        window.location.href = `/${adminSlug}`;
+          setBrandingConfig(prev => ({
+            ...prev,
+            app_name: d.app_name || prev.app_name,
+            app_tagline: d.app_tagline || prev.app_tagline
+          }));
+
+          setAdminConfig(prev => ({
+            ...prev,
+            admin_slug: d.default_admin_slug || prev.admin_slug,
+            admin_username: d.default_admin_user || '',
+            license_key: d.license_key || '',
+            plan_type: d.license_key ? 'custom' : 'trial'
+          }));
+
+          setDetectedFromEnv({
+            databaseUrl: Boolean(d.database_url),
+            appName: Boolean(d.app_name),
+            appTagline: Boolean(d.app_tagline),
+            licenseKey: Boolean(d.license_key),
+            storage: Boolean(d.has_storage_keys)
+          });
+        }
+      } catch (err) {
+        console.warn('[SetupWizard] Failed to auto-fetch env status:', err.message);
+      } finally {
+        setEnvLoaded(true);
       }
     };
 
-    try {
-      const payload = {
-        ...dbConfig,
-        ...adminConfig,
-        planType: licenseConfig.planType,
-        licenseKey: licenseConfig.planType === 'yearly' ? licenseConfig.licenseKey : '',
-        clientName: licenseConfig.clientName || 'Enterprise Owner',
-        selectedIndustry: starterConfig.selectedIndustry,
-        selectedThemeId: starterConfig.selectedThemeId,
-        bottomNavStyle: starterConfig.bottomNavStyle
-      };
+    loadEnvStatus();
+  }, []);
 
-      const res = await completeInstaller(payload);
+  // Password strength calculation
+  const getPasswordStrength = (pass) => {
+    if (!pass) return { score: 0, label: 'Kosong', color: 'bg-slate-200', text: 'text-slate-400' };
+    let score = 0;
+    if (pass.length >= 6) score += 1;
+    if (pass.length >= 8) score += 1;
+    if (/[A-Z]/.test(pass)) score += 1;
+    if (/[0-9]/.test(pass)) score += 1;
+    if (/[^A-Za-z0-9]/.test(pass)) score += 1;
+
+    if (score <= 2) return { score: 1, label: 'Lemah', color: 'bg-red-500', text: 'text-red-600' };
+    if (score <= 3) return { score: 2, label: 'Sedang', color: 'bg-amber-500', text: 'text-amber-600' };
+    return { score: 3, label: 'Kuat & Aman', color: 'bg-emerald-500', text: 'text-emerald-600' };
+  };
+
+  const passwordStrength = getPasswordStrength(adminConfig.admin_password);
+
+  // Test Database Connection Action
+  const handleTestDatabase = async () => {
+    setIsTestingDb(true);
+    setDbTestResult(null);
+    setErrorMessage('');
+
+    try {
+      const res = await testSetupConnection({
+        database_url: dbConfig.database_url
+      });
 
       if (res && res.success) {
-        if (onComplete) onComplete(res);
-        else window.location.href = `/${adminConfig.adminSlug || 'admin'}`;
-      } else if (res && (res.error === 'Koneksi jaringan gagal' || res.error?.includes('ECONNREFUSED') || res.status === 0)) {
-        // Backend unreachable: fall back to client-side Static DB completion
-        console.info('[Installer] Backend API tidak tersedia, menggunakan Static DB client-side fallback.');
-        clientSideComplete();
+        setDbTestResult({
+          success: true,
+          message: res.message || 'Koneksi ke database PostgreSQL / Supabase berhasil!'
+        });
       } else {
-        // Backend is up but returned an error — check for static DB mode
-        if (dbConfig.dbType === 'static' || !res || (!res.success && !res.error)) {
-          clientSideComplete();
-        } else {
-          setErrorMessage(res.error || 'Gagal menyelesaikan instalasi. Silakan coba lagi.');
-        }
+        setDbTestResult({
+          success: false,
+          message: res?.error || 'Gagal menghubungi database. Pastikan connection string benar.'
+        });
       }
     } catch (err) {
-      // Network error or JSON error — use client-side fallback
-      console.info('[Installer] Exception caught, falling back to client-side completion:', err.message);
-      clientSideComplete();
+      setDbTestResult({
+        success: false,
+        message: err.message || 'Koneksi jaringan database terputus.'
+      });
+    } finally {
+      setIsTestingDb(false);
+    }
+  };
+
+  // Step 1 Validation
+  const handleProceedStep1 = () => {
+    if (!dbConfig.database_url.trim()) {
+      setErrorMessage('URL koneksi basis data (DATABASE_URL) tidak boleh kosong.');
+      return;
+    }
+    setErrorMessage('');
+    setCurrentStep(2);
+  };
+
+  // Step 2 Validation
+  const handleProceedStep2 = () => {
+    if (!brandingConfig.app_name.trim()) {
+      setErrorMessage('Nama aplikasi / bisnis wajib diisi.');
+      return;
+    }
+    setErrorMessage('');
+    setCurrentStep(3);
+  };
+
+  // Step 3 Validation & Finalization (POST /api/setup/initialize)
+  const handleFinalizeSetup = async () => {
+    // 1. Validation
+    const cleanSlug = adminConfig.admin_slug.trim().toLowerCase().replace(/[^a-z0-9_-]/g, '');
+    const cleanUser = adminConfig.admin_username.trim();
+    const cleanPass = adminConfig.admin_password.trim();
+    const confirmPass = adminConfig.confirm_password.trim();
+
+    if (!cleanSlug) {
+      setErrorMessage('Dynamic Admin Slug wajib diisi.');
+      return;
+    }
+    if (!cleanUser || cleanUser.length < 3) {
+      setErrorMessage('Username admin wajib diisi minimal 3 karakter.');
+      return;
+    }
+    if (!cleanPass || cleanPass.length < 5) {
+      setErrorMessage('Password admin wajib diisi minimal 5 karakter demi keamanan.');
+      return;
+    }
+    if (cleanPass !== confirmPass) {
+      setErrorMessage('Konfirmasi password tidak cocok dengan password yang dimasukkan.');
+      return;
+    }
+    if (adminConfig.plan_type === 'custom' && (!adminConfig.license_key || adminConfig.license_key.length < 19)) {
+      setErrorMessage('Format lisensi tidak valid (Wajib 16 karakter: XXXX-XXXX-XXXX-XXXX) atau pilih Trial 30 Hari.');
+      return;
+    }
+
+    setErrorMessage('');
+    setIsSubmitting(true);
+
+    const payload = {
+      database_url: dbConfig.database_url,
+      app_name: brandingConfig.app_name,
+      app_tagline: brandingConfig.app_tagline,
+      admin_slug: cleanSlug,
+      admin_username: cleanUser,
+      admin_password: cleanPass,
+      license_key: adminConfig.plan_type === 'custom' ? adminConfig.license_key : '',
+      default_industry: brandingConfig.default_industry
+    };
+
+    try {
+      const res = await initializeSetup(payload);
+
+      if (res && res.success) {
+        const targetUrl = res.data?.redirectUrl || `/${cleanSlug}`;
+        setFinalRedirectUrl(targetUrl);
+        setSuccessAnimation(true);
+
+        // Save local setup state synchronously for immediate client-side ground truth
+        try {
+          const clientSetupState = {
+            isInstalled: true,
+            adminSlug: cleanSlug,
+            adminUser: cleanUser,
+            adminPassword: cleanPass,
+            appName: brandingConfig.app_name,
+            appTagline: brandingConfig.app_tagline,
+            selectedIndustry: brandingConfig.default_industry,
+            licenseKey: res.data?.licenseKey || adminConfig.license_key || 'TRIAL-PREACTIVE-2026',
+            installedAt: new Date().toISOString()
+          };
+          localStorage.setItem('cms_setup_state', JSON.stringify(clientSetupState));
+          localStorage.setItem('cms_active_theme_config', JSON.stringify({
+            brandName: brandingConfig.app_name,
+            tagline: brandingConfig.app_tagline,
+            industry: brandingConfig.default_industry,
+            bottom_nav_variant: brandingConfig.bottom_nav_variant,
+            adminSlug: cleanSlug,
+            is_installed: true
+          }));
+        } catch {}
+
+        setTimeout(() => {
+          if (onComplete) {
+            onComplete(res);
+          } else {
+            window.location.href = targetUrl;
+          }
+        }, 1800);
+      } else {
+        setErrorMessage(res?.error || 'Gagal menginisialisasi sistem ke database.');
+      }
+    } catch (err) {
+      setErrorMessage(err.message || 'Gagal menghubungi server untuk inisialisasi.');
     } finally {
       setIsSubmitting(false);
     }
   };
 
-
   return (
-    <div className="min-h-screen bg-surface-warm flex flex-col justify-center py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-3xl mx-auto w-full">
-        {/* Header */}
+    <div className="min-h-screen w-full max-w-full overflow-x-hidden min-w-0 bg-surface-warm flex flex-col justify-center py-10 sm:py-16 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-3xl mx-auto w-full min-w-0">
+        
+        {/* Main Header */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-blue-600 text-white shadow-lg shadow-blue-600/30 mb-4">
-            <Sparkles className="w-8 h-8" />
+          <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-gradient-to-tr from-blue-700 to-indigo-600 text-white shadow-xl shadow-blue-600/30 mb-3.5 transform hover:scale-105 transition-transform">
+            <Sparkles className="w-7 h-7" />
           </div>
-          <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight">
-            First-Run Setup Installer Wizard
+          <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
+            Setup Installer Wizard
           </h1>
-          <p className="mt-2 text-sm text-slate-600">
-            Inisialisasi sistem CMS Multi-Industri, proteksi lisensi, dan database dalam 4 langkah terpandu.
+          <p className="mt-1.5 text-xs sm:text-sm text-slate-500 max-w-lg mx-auto">
+            Inisialisasi sistem Web PWA Landing Page Generator & CMS Multi-Industri dengan integrasi database instan.
           </p>
         </div>
 
-        {/* Interactive Step Indicator */}
-        <div className="bg-white rounded-2xl border border-slate-200 p-4 sm:p-6 mb-8 shadow-sm">
-          <div className="grid grid-cols-4 gap-2 sm:gap-4 text-center">
+        {/* 3-Step Interactive Stepper Indicator */}
+        <div className="bg-white rounded-3xl border border-slate-200/80 p-4 sm:p-5 mb-6 shadow-xs w-full max-w-full">
+          <div className="grid grid-cols-3 gap-2 sm:gap-4 text-center">
             {[
-              { num: 1, label: 'DB & R2 Storage', icon: Database },
-              { num: 2, label: 'Admin Portal', icon: Shield },
-              { num: 3, label: 'Aktivasi Lisensi', icon: Key },
-              { num: 4, label: 'Kategori Industri', icon: Sparkles },
+              { num: 1, label: 'Koneksi Database', sub: 'Postgres & Storage', icon: Database },
+              { num: 2, label: 'Identitas & Industri', sub: 'Branding Bisnis', icon: Globe },
+              { num: 3, label: 'Admin & Keamanan', sub: 'Slug & Kredensial', icon: Shield },
             ].map((step) => {
               const Icon = step.icon;
               const isActive = currentStep === step.num;
@@ -230,20 +322,23 @@ export const SetupWizard = ({ onComplete }) => {
               return (
                 <div key={step.num} className="flex flex-col items-center">
                   <div
-                    className={`w-10 h-10 rounded-xl flex items-center justify-center font-bold text-sm transition-all duration-300 ${
+                    className={`w-10 h-10 sm:w-11 sm:h-11 rounded-2xl flex items-center justify-center font-bold text-sm transition-all duration-300 ${
                       isActive
-                        ? 'bg-blue-600 text-white shadow-md shadow-blue-600/30 scale-105'
+                        ? 'bg-blue-600 text-white shadow-md shadow-blue-600/30 ring-4 ring-blue-100 scale-105'
                         : isPast
-                        ? 'bg-emerald-100 text-emerald-700'
+                        ? 'bg-emerald-500 text-white shadow-xs'
                         : 'bg-slate-100 text-slate-400'
                     }`}
                   >
-                    {isPast ? <CheckCircle2 className="w-5 h-5 text-emerald-600" /> : <Icon className="w-5 h-5" />}
+                    {isPast ? <CheckCircle2 className="w-5 h-5" /> : <Icon className="w-5 h-5" />}
                   </div>
-                  <span className={`text-[11px] sm:text-xs mt-2 font-semibold transition-colors ${
-                    isActive ? 'text-blue-600' : isPast ? 'text-slate-700' : 'text-slate-400'
+                  <span className={`text-xs sm:text-sm mt-2 font-bold transition-colors ${
+                    isActive ? 'text-blue-600' : isPast ? 'text-slate-800' : 'text-slate-400'
                   }`}>
                     {step.label}
+                  </span>
+                  <span className="hidden sm:block text-[11px] text-slate-400 font-medium">
+                    {step.sub}
                   </span>
                 </div>
               );
@@ -251,477 +346,562 @@ export const SetupWizard = ({ onComplete }) => {
           </div>
         </div>
 
-        {/* Error Alert Box */}
+        {/* Global Error Banner */}
         {errorMessage && (
-          <div className="mb-6 p-4 rounded-xl bg-red-50 border border-red-200 text-red-700 text-sm font-medium flex items-center gap-3">
-            <span className="w-2 h-2 rounded-full bg-red-500 animate-ping" />
-            <span>{errorMessage}</span>
+          <div className="mb-6 p-4 rounded-2xl bg-red-50 border border-red-200 text-red-700 text-xs sm:text-sm font-semibold flex items-center gap-3 animate-shake">
+            <AlertCircle className="w-5 h-5 text-red-600 shrink-0" />
+            <span className="flex-1">{errorMessage}</span>
           </div>
         )}
 
-        {/* Wizard Form Container */}
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-elevated p-6 sm:p-10 step-slide-in">
-          {/* STEP 1: DB & R2 STORAGE */}
+        {/* Form Container with Zero Horizontal Overflow */}
+        <div className="bg-white rounded-3xl border border-slate-200/90 shadow-elevated p-6 sm:p-10 w-full max-w-full overflow-x-hidden min-w-0">
+          
+          {/* ========================================================
+           * LANGKAH 1: KONEKSI BASIS DATA & STORAGE
+           * ======================================================== */}
           {currentStep === 1 && (
-            <div className="space-y-6">
-              <div>
-                <h2 className="text-xl font-bold text-slate-900">Langkah 1: Koneksi Basis Data & Cloudflare R2</h2>
-                <p className="text-sm text-slate-500 mt-1">
-                  Pilih tipe basis data yang Anda gunakan (PostgreSQL/Supabase, MySQL, MongoDB, atau Memory Dev).
+            <div className="space-y-6 w-full max-w-full">
+              <div className="border-b border-slate-100 pb-4">
+                <div className="flex items-center justify-between gap-2 flex-wrap">
+                  <h2 className="text-lg sm:text-xl font-black text-slate-900 flex items-center gap-2">
+                    <Database className="w-5 h-5 text-blue-600" />
+                    <span>Langkah 1: Deteksi Koneksi Database & Storage</span>
+                  </h2>
+                  {detectedFromEnv.databaseUrl && (
+                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-bold">
+                      <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                      Terdeteksi dari .env
+                    </span>
+                  )}
+                </div>
+                <p className="text-xs sm:text-sm text-slate-500 mt-1">
+                  Sistem otomatis mendeteksi URL koneksi database PostgreSQL / Supabase dari file lingkungan runtime Anda.
                 </p>
               </div>
 
-              <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-2">Tipe Basis Data</label>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
-                  {[
-                    { id: 'static', label: 'Static (JSON)', desc: 'Zero-Config Instan' },
-                    { id: 'postgres', label: 'PostgreSQL', desc: 'Supabase / Neon' },
-                    { id: 'mysql', label: 'MySQL', desc: 'MariaDB / Cloud' },
-                    { id: 'mongodb', label: 'MongoDB', desc: 'Atlas / Cluster' }
-                  ].map((db) => (
-                    <button
-                      key={db.id}
-                      type="button"
-                      onClick={() => {
-                        setDbConfig({ ...dbConfig, dbType: db.id });
-                        if (db.id === 'static') setDbTested(true);
-                      }}
-                      className={`p-3 rounded-xl border text-left transition-all ${
-                        dbConfig.dbType === db.id
-                          ? 'border-blue-600 bg-blue-50 text-blue-900 shadow-sm ring-1 ring-blue-600'
-                          : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
-                      }`}
-                    >
-                      <div className="font-bold text-xs">{db.label}</div>
-                      <div className="text-[10px] text-slate-500 mt-0.5">{db.desc}</div>
-                    </button>
-                  ))}
+              {/* Provider Badge */}
+              <div className="flex items-center gap-3 p-3.5 rounded-2xl bg-slate-50 border border-slate-200/70">
+                <div className="w-9 h-9 rounded-xl bg-blue-600/10 text-blue-600 flex items-center justify-center font-black text-xs shrink-0">
+                  <Server className="w-5 h-5" />
                 </div>
-                {dbConfig.dbType === 'static' && (
-                  <p className="mt-2 text-xs text-emerald-700 font-medium flex items-center gap-1.5 bg-emerald-50 p-2.5 rounded-lg border border-emerald-200">
-                    <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-600" />
-                    <span>Mode Static Database aktif. Seluruh data CMS tersimpan secara instan tanpa perlu menginstall server database eksternal.</span>
-                  </p>
+                <div className="min-w-0 flex-1">
+                  <span className="text-[10px] uppercase font-bold text-slate-400 block tracking-wider">Tipe Database Terkonfigurasi</span>
+                  <span className="text-xs sm:text-sm font-bold text-slate-800 truncate block">
+                    {dbConfig.database_url?.includes('supabase') ? 'Supabase PostgreSQL Cloud Pooler' : 'PostgreSQL Database Engine'}
+                  </span>
+                </div>
+                <span className="px-2.5 py-1 rounded-full bg-blue-100 text-blue-700 text-[11px] font-bold shrink-0">
+                  SSL Active
+                </span>
+              </div>
+
+              {/* Input DATABASE_URL */}
+              <div>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="text-xs font-bold uppercase tracking-wider text-slate-700 block">
+                    DATABASE_URL Connection String:
+                  </label>
+                  <span className="text-[11px] text-slate-400 font-medium">Bisa diedit manual jika perlu</span>
+                </div>
+                <div className="relative">
+                  <input
+                    type="text"
+                    value={dbConfig.database_url}
+                    onChange={(e) => {
+                      setDbConfig({ ...dbConfig, database_url: e.target.value });
+                      setDbTestResult(null);
+                    }}
+                    placeholder="postgresql://postgres:password@aws-0-ap-northeast-1.pooler.supabase.com:6543/postgres"
+                    className="w-full px-4 py-3 rounded-2xl border border-slate-300 text-slate-800 text-xs sm:text-sm font-mono focus:bg-white focus:ring-2 focus:ring-blue-600 focus:border-transparent transition-all shadow-xs"
+                    required
+                  />
+                </div>
+                <p className="text-[11px] text-slate-400 mt-1.5 leading-relaxed">
+                  Mendukung connection string standar PostgreSQL dari Supabase, Neon, AWS RDS, atau server PostgreSQL lokal.
+                </p>
+              </div>
+
+              {/* Tombol Interaktif: Uji Koneksi Basis Data */}
+              <div className="bg-slate-50 p-4 sm:p-5 rounded-2xl border border-slate-200 space-y-3">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div>
+                    <span className="font-extrabold text-xs sm:text-sm text-slate-900 block">
+                      Verifikasi Keterjangkauan Database:
+                    </span>
+                    <span className="text-[11px] text-slate-500">
+                      Uji sambungan ke host sebelum melakukan pembuatan tabel dan inisialisasi.
+                    </span>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={handleTestDatabase}
+                    disabled={isTestingDb || !dbConfig.database_url.trim()}
+                    className="h-11 px-5 rounded-xl bg-white border border-slate-300 hover:border-blue-500 hover:bg-blue-50/50 text-slate-700 font-bold text-xs flex items-center justify-center gap-2 shadow-xs transition-all cursor-pointer disabled:opacity-50 shrink-0"
+                  >
+                    {isTestingDb ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin text-blue-600" />
+                        <span>Menguji Host...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Zap className="w-4 h-4 text-amber-500" />
+                        <span>Uji Koneksi Basis Data</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+
+                {/* Hasil Uji Koneksi */}
+                {dbTestResult && (
+                  <div className={`p-3.5 rounded-xl text-xs font-semibold flex items-center gap-2.5 animate-fadeIn ${
+                    dbTestResult.success
+                      ? 'bg-emerald-50 text-emerald-800 border border-emerald-200'
+                      : 'bg-red-50 text-red-800 border border-red-200'
+                  }`}>
+                    {dbTestResult.success ? (
+                      <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                    ) : (
+                      <AlertCircle className="w-4 h-4 text-red-600 shrink-0" />
+                    )}
+                    <span className="leading-snug">{dbTestResult.message}</span>
+                  </div>
                 )}
               </div>
 
-              <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-2">
-                  Connection String / URI URI (Opsional untuk Dev)
-                </label>
-                <input
-                  type="text"
-                  placeholder="postgresql://postgres:password@localhost:5432/cms_db"
-                  value={dbConfig.connectionString}
-                  onChange={(e) => setDbConfig({ ...dbConfig, connectionString: e.target.value })}
-                  className="w-full px-4 py-3 rounded-xl border border-slate-300 text-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent font-mono"
-                />
-                <p className="text-xs text-slate-400 mt-1">
-                  Biarkan kosong jika ingin menggunakan adapter in-memory fallback secara instan.
-                </p>
-              </div>
-
-              <div className="pt-4 border-t border-slate-100">
-                <div className="flex items-center gap-2 mb-3">
-                  <CloudUpload className="w-4 h-4 text-slate-600" />
-                  <h3 className="text-xs font-bold uppercase tracking-wider text-slate-700">Cloudflare R2 Media Storage (Opsional)</h3>
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-xs font-medium text-slate-600 mb-1">R2 Account ID</label>
-                    <input
-                      type="text"
-                      placeholder="e.g. 9a8b7c6d5e4f3a2b1..."
-                      value={dbConfig.r2AccountId}
-                      onChange={(e) => setDbConfig({ ...dbConfig, r2AccountId: e.target.value })}
-                      className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-slate-600 mb-1">R2 Access Key</label>
-                    <div className="relative">
-                      <input
-                        type={showR2Secret ? 'text' : 'password'}
-                        placeholder="Access Key ID"
-                        value={dbConfig.r2AccessKey}
-                        onChange={(e) => setDbConfig({ ...dbConfig, r2AccessKey: e.target.value })}
-                        className="w-full pl-3 pr-10 py-2 rounded-lg border border-slate-200 text-sm"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setShowR2Secret(!showR2Secret)}
-                        className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-1 rounded focus:outline-none"
-                        title={showR2Secret ? 'Sembunyikan' : 'Lihat'}
-                      >
-                        {showR2Secret ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
-                      </button>
+              {/* Status Storage CDN */}
+              <div className="pt-2">
+                <div className="flex items-center justify-between p-3.5 rounded-2xl border border-slate-200 bg-white">
+                  <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center shrink-0">
+                      <CloudUpload className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <span className="font-extrabold text-xs text-slate-900 block">Penyimpanan Media & Aset:</span>
+                      <span className="text-[11px] text-slate-500">
+                        {dbConfig.has_storage_keys ? 'Terhubung via Supabase Storage / Cloudflare R2' : 'Driver Lokal Siap Pakai'}
+                      </span>
                     </div>
                   </div>
+                  <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold ${
+                    dbConfig.has_storage_keys ? 'bg-purple-100 text-purple-700' : 'bg-slate-100 text-slate-600'
+                  }`}>
+                    {dbConfig.has_storage_keys ? 'Siap CDN' : 'Default Ready'}
+                  </span>
                 </div>
               </div>
 
-              <div className="flex items-center justify-between pt-6 border-t border-slate-100">
+              {/* Navigasi Step 1 */}
+              <div className="flex items-center justify-end pt-4 border-t border-slate-100">
                 <button
                   type="button"
-                  onClick={handleTestDb}
-                  disabled={isSubmitting}
-                  className="px-5 py-2.5 rounded-xl border border-slate-300 text-slate-700 text-sm font-semibold hover:bg-slate-50 transition-colors flex items-center gap-2"
+                  onClick={handleProceedStep1}
+                  className="h-12 px-7 rounded-2xl bg-blue-600 hover:bg-blue-700 active:scale-98 text-white font-extrabold text-xs sm:text-sm flex items-center gap-2 shadow-lg shadow-blue-600/25 transition-all cursor-pointer"
                 >
-                  {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
-                  <span>{dbTested ? '✓ Terkoneksi Sukses' : 'Uji Koneksi DB'}</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setCurrentStep(2)}
-                  className="px-6 py-2.5 rounded-xl bg-blue-600 text-white text-sm font-bold hover:bg-blue-700 transition-colors flex items-center gap-2 shadow-sm"
-                >
-                  <span>Lanjutkan</span>
+                  <span>Lanjutkan ke Identitas Bisnis</span>
                   <ArrowRight className="w-4 h-4" />
                 </button>
               </div>
             </div>
           )}
 
-          {/* STEP 2: ADMIN SLUG & ACCOUNT */}
+          {/* ========================================================
+           * LANGKAH 2: BRANDING & KATEGORI INDUSTRI AWAL
+           * ======================================================== */}
           {currentStep === 2 && (
-            <div className="space-y-6">
-              <div>
-                <h2 className="text-xl font-bold text-slate-900">Langkah 2: Dynamic Admin Slug & Akun Superadmin</h2>
-                <p className="text-sm text-slate-500 mt-1">
-                  Atur URL portal login admin secara dinamis untuk keamanan tingkat tinggi dan cegah brute-force crawler.
+            <div className="space-y-6 w-full max-w-full">
+              <div className="border-b border-slate-100 pb-4">
+                <div className="flex items-center justify-between gap-2 flex-wrap">
+                  <h2 className="text-lg sm:text-xl font-black text-slate-900 flex items-center gap-2">
+                    <Globe className="w-5 h-5 text-blue-600" />
+                    <span>Langkah 2: Identitas Bisnis & Kategori Industri</span>
+                  </h2>
+                  {detectedFromEnv.appName && (
+                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-bold">
+                      <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                      Nama Terisi dari .env
+                    </span>
+                  )}
+                </div>
+                <p className="text-xs sm:text-sm text-slate-500 mt-1">
+                  Tentukan nama aplikasi/bisnis dan pilih template industri pertama yang ingin langsung aktif.
                 </p>
               </div>
 
-              <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-2">
-                  Dynamic Admin URL Slug
+              {/* Form Input Branding */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="text-xs font-bold uppercase tracking-wider text-slate-700 block mb-1.5">
+                    Nama Bisnis / Judul Aplikasi:
+                  </label>
+                  <input
+                    type="text"
+                    value={brandingConfig.app_name}
+                    onChange={(e) => setBrandingConfig({ ...brandingConfig, app_name: e.target.value })}
+                    placeholder="Royal Fleet Premiere"
+                    className="w-full px-4 py-3 rounded-2xl border border-slate-300 text-slate-800 text-xs sm:text-sm font-bold focus:ring-2 focus:ring-blue-600 focus:outline-hidden"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs font-bold uppercase tracking-wider text-slate-700 block mb-1.5">
+                    Tagline / Slogan Bisnis:
+                  </label>
+                  <input
+                    type="text"
+                    value={brandingConfig.app_tagline}
+                    onChange={(e) => setBrandingConfig({ ...brandingConfig, app_tagline: e.target.value })}
+                    placeholder="Sewa Mobil Mewah & Armada Bisnis Terpercaya"
+                    className="w-full px-4 py-3 rounded-2xl border border-slate-300 text-slate-800 text-xs sm:text-sm focus:ring-2 focus:ring-blue-600 focus:outline-hidden"
+                  />
+                </div>
+              </div>
+
+              {/* Pilihan Radio Kartu Industri */}
+              <div className="space-y-2.5">
+                <label className="text-xs font-bold uppercase tracking-wider text-slate-700 block">
+                  Pilih Kategori Industri Awal:
                 </label>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {industries.map((ind) => {
+                    const isSelected = brandingConfig.default_industry === ind.id;
+                    return (
+                      <div
+                        key={ind.id}
+                        onClick={() => setBrandingConfig({ ...brandingConfig, default_industry: ind.id })}
+                        className={`p-4 rounded-2xl border cursor-pointer transition-all flex items-start gap-3 ${
+                          isSelected
+                            ? 'border-blue-600 bg-blue-50/60 ring-2 ring-blue-600/30 shadow-xs'
+                            : 'border-slate-200 bg-white hover:border-slate-300'
+                        }`}
+                      >
+                        <span className="text-2xl shrink-0 p-1.5 rounded-xl bg-white shadow-xs border border-slate-100">
+                          {ind.icon}
+                        </span>
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center justify-between">
+                            <span className="font-extrabold text-xs sm:text-sm text-slate-900 block truncate">
+                              {ind.name}
+                            </span>
+                            {isSelected && (
+                              <CheckCircle2 className="w-4 h-4 text-blue-600 shrink-0" />
+                            )}
+                          </div>
+                          <span className="text-[11px] text-slate-500 leading-tight block mt-0.5 line-clamp-2">
+                            {ind.desc}
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Pilihan Gaya Bottom Nav */}
+              <div>
+                <label className="text-xs font-bold uppercase tracking-wider text-slate-700 block mb-2">
+                  Gaya Mobile Bottom Navigation Bar:
+                </label>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                  {bottomNavStyles.map((style) => (
+                    <button
+                      key={style.id}
+                      type="button"
+                      onClick={() => setBrandingConfig({ ...brandingConfig, bottom_nav_variant: style.id })}
+                      className={`h-11 px-3 rounded-xl border text-xs font-bold transition-all ${
+                        brandingConfig.bottom_nav_variant === style.id
+                          ? 'border-blue-600 bg-blue-50 text-blue-700 shadow-xs ring-1 ring-blue-600'
+                          : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
+                      }`}
+                    >
+                      {style.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Navigasi Step 2 */}
+              <div className="flex items-center justify-between pt-4 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setCurrentStep(1)}
+                  className="h-12 px-6 rounded-2xl border border-slate-200 text-slate-600 hover:bg-slate-50 font-bold text-xs sm:text-sm flex items-center gap-2 transition-colors cursor-pointer"
+                >
+                  <ArrowLeft className="w-4 h-4" />
+                  <span>Kembali</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleProceedStep2}
+                  className="h-12 px-7 rounded-2xl bg-blue-600 hover:bg-blue-700 active:scale-98 text-white font-extrabold text-xs sm:text-sm flex items-center gap-2 shadow-lg shadow-blue-600/25 transition-all cursor-pointer"
+                >
+                  <span>Lanjutkan ke Akun Admin</span>
+                  <ArrowRight className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* ========================================================
+           * LANGKAH 3: AKUN ADMINISTRATOR, SLUG & LISENSI
+           * ======================================================== */}
+          {currentStep === 3 && (
+            <div className="space-y-6 w-full max-w-full">
+              <div className="border-b border-slate-100 pb-4">
+                <h2 className="text-lg sm:text-xl font-black text-slate-900 flex items-center gap-2">
+                  <Shield className="w-5 h-5 text-blue-600" />
+                  <span>Langkah 3: Akun Administrator & Kustomisasi Akses</span>
+                </h2>
+                <p className="text-xs sm:text-sm text-slate-500 mt-1">
+                  Atur URL portal login admin, username, dan kata sandi baru. Kredensial ini akan langsung disimpan ke database dengan enkripsi Bcrypt.
+                </p>
+              </div>
+
+              {/* Dynamic Admin Slug */}
+              <div>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="text-xs font-bold uppercase tracking-wider text-slate-700 block">
+                    URL Portal Admin Khusus (Dynamic Admin Slug):
+                  </label>
+                  <span className="text-[11px] text-blue-600 font-mono font-bold">
+                    /{adminConfig.admin_slug || 'admin'}
+                  </span>
+                </div>
                 <div className="flex items-center">
-                  <span className="px-4 py-3 bg-slate-100 border border-r-0 border-slate-300 rounded-l-xl text-slate-500 text-sm font-mono">
+                  <span className="px-4 py-3 bg-slate-100 border border-r-0 border-slate-300 rounded-l-2xl text-slate-500 text-xs sm:text-sm font-mono shrink-0 select-none">
                     https://domain.com/
                   </span>
                   <input
                     type="text"
-                    placeholder="sys-portal"
-                    value={adminConfig.adminSlug}
-                    onChange={(e) => setAdminConfig({ ...adminConfig, adminSlug: e.target.value.toLowerCase().replace(/[^a-z0-9_-]/g, '') })}
-                    className="flex-1 px-4 py-3 rounded-r-xl border border-slate-300 text-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-blue-600 font-mono font-bold"
+                    value={adminConfig.admin_slug}
+                    onChange={(e) => setAdminConfig({
+                      ...adminConfig,
+                      admin_slug: e.target.value.toLowerCase().replace(/[^a-z0-9_-]/g, '')
+                    })}
+                    placeholder="admin"
+                    className="flex-1 px-4 py-3 rounded-r-2xl border border-slate-300 text-slate-800 text-xs sm:text-sm font-mono font-black focus:ring-2 focus:ring-blue-600 focus:outline-hidden min-w-0"
+                    required
                   />
                 </div>
-                <p className="text-xs text-slate-400 mt-1">
-                  Contoh: <code className="text-blue-600">sys-portal</code>, <code className="text-blue-600">cms-panel</code>, atau default <code className="text-blue-600">admin</code>.
+                <p className="text-[11px] text-slate-400 mt-1.5 leading-relaxed">
+                  Ganti <code className="text-blue-600 font-bold">admin</code> dengan rute tersembunyi seperti <code className="text-blue-600 font-bold">panel-utama</code>, <code className="text-blue-600 font-bold">sys-portal</code>, atau <code className="text-blue-600 font-bold">cms-secure</code> untuk mengamankan portal dari bot crawler.
                 </p>
               </div>
 
+              {/* Kredensial Administrator */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {/* Username */}
                 <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-2">
-                    Superadmin Username
+                  <label className="text-xs font-bold uppercase tracking-wider text-slate-700 block mb-1.5">
+                    Username Superadmin:
                   </label>
                   <input
                     type="text"
-                    value={adminConfig.adminUser}
-                    onChange={(e) => setAdminConfig({ ...adminConfig, adminUser: e.target.value })}
-                    className="w-full px-4 py-3 rounded-xl border border-slate-300 text-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-blue-600"
+                    value={adminConfig.admin_username}
+                    onChange={(e) => setAdminConfig({ ...adminConfig, admin_username: e.target.value })}
+                    placeholder="Contoh: superadmin"
+                    className="w-full px-4 py-3 rounded-2xl border border-slate-300 text-slate-800 text-xs sm:text-sm font-bold focus:ring-2 focus:ring-blue-600 focus:outline-hidden"
+                    required
                   />
                 </div>
 
+                {/* Password Baru */}
                 <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-2">
-                    Superadmin Password
+                  <label className="text-xs font-bold uppercase tracking-wider text-slate-700 block mb-1.5">
+                    Password Superadmin Baru:
                   </label>
                   <div className="relative">
                     <input
                       type={showAdminPassword ? 'text' : 'password'}
-                      placeholder="Minimal 8 karakter"
-                      value={adminConfig.adminPassword}
-                      onChange={(e) => setAdminConfig({ ...adminConfig, adminPassword: e.target.value })}
-                      className="w-full pl-4 pr-12 py-3 rounded-xl border border-slate-300 text-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-blue-600 font-mono"
+                      value={adminConfig.admin_password}
+                      onChange={(e) => setAdminConfig({ ...adminConfig, admin_password: e.target.value })}
+                      placeholder="Minimal 5 karakter"
+                      className="w-full pl-4 pr-11 py-3 rounded-2xl border border-slate-300 text-slate-800 text-xs sm:text-sm font-mono focus:ring-2 focus:ring-blue-600 focus:outline-hidden"
+                      required
                     />
                     <button
                       type="button"
                       onClick={() => setShowAdminPassword(!showAdminPassword)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 p-1.5 rounded-lg focus:outline-none transition-colors"
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 p-1.5 rounded-lg focus:outline-hidden transition-colors"
                       title={showAdminPassword ? 'Sembunyikan password' : 'Lihat password'}
                     >
                       {showAdminPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                     </button>
                   </div>
-                </div>
-              </div>
 
-              <div className="flex items-center justify-between pt-6 border-t border-slate-100">
-                <button
-                  type="button"
-                  onClick={() => setCurrentStep(1)}
-                  className="px-5 py-2.5 rounded-xl border border-slate-200 text-slate-600 text-sm font-semibold hover:bg-slate-50 flex items-center gap-2"
-                >
-                  <ArrowLeft className="w-4 h-4" />
-                  <span>Kembali</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (!adminConfig.adminUser || !adminConfig.adminPassword) {
-                      setErrorMessage('Username dan password admin wajib diisi.');
-                      return;
-                    }
-                    setErrorMessage('');
-                    setCurrentStep(3);
-                  }}
-                  className="px-6 py-2.5 rounded-xl bg-blue-600 text-white text-sm font-bold hover:bg-blue-700 flex items-center gap-2 shadow-sm"
-                >
-                  <span>Lanjutkan</span>
-                  <ArrowRight className="w-4 h-4" />
-                </button>
-              </div>
-            </div>
-          )}
-
-          {/* STEP 3: AKTIVASI LISENSI ATAU TRIAL GRATIS */}
-          {currentStep === 3 && (
-            <div className="space-y-6">
-              <div>
-                <h2 className="text-xl font-bold text-slate-900">Langkah 3: Pilihan Paket & Aktivasi Lisensi</h2>
-                <p className="text-sm text-slate-500 mt-1">
-                  Instalasi pertama dapat langsung dinikmati secara gratis dengan memilih <strong>Trial 30 Hari</strong>, atau masukkan lisensi untuk paket 1 tahun.
-                </p>
-              </div>
-
-              {/* Paket Selector: Trial Gratis vs 1 Tahun */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div
-                  onClick={() => {
-                    setLicenseConfig({ ...licenseConfig, planType: 'trial' });
-                    setErrorMessage('');
-                  }}
-                  className={`p-4 rounded-2xl border cursor-pointer transition-all ${
-                    licenseConfig.planType === 'trial'
-                      ? 'border-emerald-600 bg-emerald-50/70 shadow-sm ring-2 ring-emerald-600'
-                      : 'border-slate-200 bg-white hover:border-slate-300'
-                  }`}
-                >
-                  <div className="flex items-center gap-2 mb-1">
-                    <Sparkles className="w-5 h-5 text-emerald-600" />
-                    <span className="font-extrabold text-slate-900 text-sm">Trial Gratis 30 Hari</span>
-                  </div>
-                  <p className="text-xs text-slate-600 leading-relaxed">
-                    Instalasi pertama gratis tanpa perlu kode lisensi. Kunci trial diterbitkan otomatis oleh sistem.
-                  </p>
-                  <span className="inline-block mt-3 px-2.5 py-0.5 rounded-full bg-emerald-200/80 text-emerald-800 text-[11px] font-bold">
-                    ⚡ Langsung Aktif Instan
-                  </span>
-                </div>
-
-                <div
-                  onClick={() => {
-                    setLicenseConfig({ ...licenseConfig, planType: 'yearly' });
-                    setErrorMessage('');
-                  }}
-                  className={`p-4 rounded-2xl border cursor-pointer transition-all ${
-                    licenseConfig.planType === 'yearly'
-                      ? 'border-blue-600 bg-blue-50/70 shadow-sm ring-2 ring-blue-600'
-                      : 'border-slate-200 bg-white hover:border-slate-300'
-                  }`}
-                >
-                  <div className="flex items-center gap-2 mb-1">
-                    <Key className="w-5 h-5 text-blue-600" />
-                    <span className="font-extrabold text-slate-900 text-sm">Paket Lisensi 1 Tahun</span>
-                  </div>
-                  <p className="text-xs text-slate-600 leading-relaxed">
-                    Aktivasi lisensi resmi 365 hari yang digenerate oleh programmer resmi.
-                  </p>
-                  <span className="inline-block mt-3 px-2.5 py-0.5 rounded-full bg-blue-200/80 text-blue-800 text-[11px] font-bold">
-                    🏢 Full Enterprise 365 Hari
-                  </span>
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
-                  Nama Klien / ID Proyek
-                </label>
-                <input
-                  type="text"
-                  placeholder="Contoh: PT Maju Bersama Sejahtera"
-                  value={licenseConfig.clientName}
-                  onChange={(e) => setLicenseConfig({ ...licenseConfig, clientName: e.target.value })}
-                  className="w-full px-4 py-2.5 rounded-xl border border-slate-300 text-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-blue-600"
-                />
-              </div>
-
-              {/* Tampilan Kondisional untuk Paket 1 Tahun */}
-              {licenseConfig.planType === 'yearly' ? (
-                <div className="space-y-4 pt-2">
-                  <div>
-                    <div className="flex items-center justify-between mb-1">
-                      <label className="block text-xs font-bold uppercase tracking-wider text-slate-700">
-                        16-Character License Key (XXXX-XXXX-XXXX-XXXX)
-                      </label>
-                      <a
-                        href="/keygen"
-                        target="_blank"
-                        rel="noreferrer"
-                        className="text-xs text-blue-600 font-bold hover:underline flex items-center gap-1"
-                      >
-                        <span>Buka Generator Lisensi (/keygen) ↗</span>
-                      </a>
+                  {/* Password Strength Indicator */}
+                  {adminConfig.admin_password && (
+                    <div className="mt-2 space-y-1">
+                      <div className="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden flex">
+                        <div
+                          className={`h-full ${passwordStrength.color} transition-all duration-300`}
+                          style={{ width: `${(passwordStrength.score / 3) * 100}%` }}
+                        />
+                      </div>
+                      <div className="flex items-center justify-between text-[10px]">
+                        <span className="text-slate-400">Kekuatan Sandi:</span>
+                        <span className={`font-bold ${passwordStrength.text}`}>
+                          {passwordStrength.label}
+                        </span>
+                      </div>
                     </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Konfirmasi Password */}
+              <div>
+                <label className="text-xs font-bold uppercase tracking-wider text-slate-700 block mb-1.5">
+                  Konfirmasi Password:
+                </label>
+                <div className="relative">
+                  <input
+                    type={showConfirmPassword ? 'text' : 'password'}
+                    value={adminConfig.confirm_password}
+                    onChange={(e) => setAdminConfig({ ...adminConfig, confirm_password: e.target.value })}
+                    placeholder="Ketik ulang password baru Anda"
+                    className="w-full pl-4 pr-11 py-3 rounded-2xl border border-slate-300 text-slate-800 text-xs sm:text-sm font-mono focus:ring-2 focus:ring-blue-600 focus:outline-hidden"
+                    required
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 p-1.5 rounded-lg focus:outline-hidden transition-colors"
+                    title={showConfirmPassword ? 'Sembunyikan password' : 'Lihat password'}
+                  >
+                    {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
+                {adminConfig.confirm_password && adminConfig.admin_password !== adminConfig.confirm_password && (
+                  <span className="text-[11px] text-red-600 font-semibold block mt-1">
+                    Password konfirmasi tidak cocok.
+                  </span>
+                )}
+              </div>
+
+              {/* Opsi Lisensi */}
+              <div className="pt-2 border-t border-slate-100 space-y-3">
+                <label className="text-xs font-bold uppercase tracking-wider text-slate-700 block">
+                  Aktivasi Lisensi Sistem:
+                </label>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div
+                    onClick={() => setAdminConfig({ ...adminConfig, plan_type: 'trial' })}
+                    className={`p-3.5 rounded-2xl border cursor-pointer transition-all flex items-start gap-3 ${
+                      adminConfig.plan_type === 'trial'
+                        ? 'border-emerald-600 bg-emerald-50/70 ring-2 ring-emerald-600/30'
+                        : 'border-slate-200 bg-white hover:border-slate-300'
+                    }`}
+                  >
+                    <Sparkles className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />
+                    <div>
+                      <span className="font-bold text-xs sm:text-sm text-slate-900 block">Trial Gratis 30 Hari</span>
+                      <span className="text-[11px] text-slate-500 leading-tight block mt-0.5">
+                        Aktif instan tanpa perlu kode serial lisensi.
+                      </span>
+                    </div>
+                  </div>
+
+                  <div
+                    onClick={() => setAdminConfig({ ...adminConfig, plan_type: 'custom' })}
+                    className={`p-3.5 rounded-2xl border cursor-pointer transition-all flex items-start gap-3 ${
+                      adminConfig.plan_type === 'custom'
+                        ? 'border-blue-600 bg-blue-50/70 ring-2 ring-blue-600/30'
+                        : 'border-slate-200 bg-white hover:border-slate-300'
+                    }`}
+                  >
+                    <Key className="w-5 h-5 text-blue-600 shrink-0 mt-0.5" />
+                    <div>
+                      <span className="font-bold text-xs sm:text-sm text-slate-900 block">Lisensi Enterprise Resmi</span>
+                      <span className="text-[11px] text-slate-500 leading-tight block mt-0.5">
+                        Masukkan kunci 16-karakter resmi.
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {adminConfig.plan_type === 'custom' && (
+                  <div>
                     <input
                       type="text"
-                      placeholder="Y365-XXXX-XXXX-XXXX"
+                      value={adminConfig.license_key}
+                      onChange={(e) => setAdminConfig({
+                        ...adminConfig,
+                        license_key: formatLicenseKey(e.target.value)
+                      })}
+                      placeholder="XXXX-XXXX-XXXX-XXXX"
                       maxLength={19}
-                      value={licenseConfig.licenseKey}
-                      onChange={(e) => setLicenseConfig({ ...licenseConfig, licenseKey: formatLicenseKey(e.target.value) })}
-                      className="w-full px-4 py-3 rounded-xl border border-slate-300 text-slate-800 text-lg font-mono tracking-widest uppercase focus:outline-none focus:ring-2 focus:ring-blue-600 text-center font-bold"
+                      className="w-full px-4 py-3 rounded-2xl border border-slate-300 text-slate-800 text-sm font-mono tracking-widest uppercase font-bold text-center focus:ring-2 focus:ring-blue-600"
                     />
-                    <p className="text-xs text-slate-500 mt-1 text-center">
-                      Format lisensi: 16 karakter alfanumerik dipisahkan strip.
-                    </p>
                   </div>
+                )}
+              </div>
 
-                  <div className="p-4 rounded-xl bg-blue-50/80 border border-blue-200 text-xs text-blue-900 space-y-2">
-                    <div className="font-bold flex items-center gap-1.5">
-                      <Key className="w-4 h-4 text-blue-600" />
-                      <span>Di Mana Halaman Generate Lisensinya?</span>
-                    </div>
-                    <p className="leading-relaxed">
-                      Programmer dapat membuka halaman rahasia di: <code className="bg-white px-2 py-0.5 rounded font-mono font-bold text-blue-700">http://localhost:3005/keygen</code> (atau rute <code className="bg-white px-2 py-0.5 rounded font-mono font-bold text-blue-700">/keygen</code>).
-                    </p>
-                    <p className="leading-relaxed">
-                      Passphrase Master Key Programmer: <code className="bg-white px-2 py-0.5 rounded font-mono font-bold text-slate-800">SuperSecretProgrammerKey2026!</code>
-                    </p>
-                  </div>
-                </div>
-              ) : (
-                /* Tampilan Info untuk Trial Gratis */
-                <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-200 text-xs text-emerald-900 space-y-1.5">
-                  <div className="font-bold flex items-center gap-1.5">
-                    <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-                    <span>Mode Trial Gratis 30 Hari Terpilih</span>
-                  </div>
-                  <p className="leading-relaxed">
-                    Anda tidak perlu memasukkan kode serial apapun. Sistem akan langsung mengaktifkan masa uji coba penuh selama 30 hari secara otomatis saat instalasi selesai.
-                  </p>
-                </div>
-              )}
-
-              <div className="flex items-center justify-between pt-6 border-t border-slate-100">
+              {/* Navigasi Step 3 & Eksekusi Finalisasi */}
+              <div className="flex items-center justify-between pt-4 border-t border-slate-100">
                 <button
                   type="button"
                   onClick={() => setCurrentStep(2)}
-                  className="px-5 py-2.5 rounded-xl border border-slate-200 text-slate-600 text-sm font-semibold hover:bg-slate-50 flex items-center gap-2"
-                >
-                  <ArrowLeft className="w-4 h-4" />
-                  <span>Kembali</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (licenseConfig.planType === 'yearly' && (!licenseConfig.licenseKey || licenseConfig.licenseKey.length < 19)) {
-                      setErrorMessage('Untuk Paket 1 Tahun, silakan masukkan lisensi 16-karakter valid (XXXX-XXXX-XXXX-XXXX) atau pilih opsi Trial Gratis.');
-                      return;
-                    }
-                    setErrorMessage('');
-                    setCurrentStep(4);
-                  }}
-                  className="px-6 py-2.5 rounded-xl bg-blue-600 text-white text-sm font-bold hover:bg-blue-700 flex items-center gap-2 shadow-sm"
-                >
-                  <span>Lanjutkan ke Pilih Tema</span>
-                  <ArrowRight className="w-4 h-4" />
-                </button>
-              </div>
-            </div>
-          )}
-
-          {/* STEP 4: STARTER INDUSTRY & THEME */}
-          {currentStep === 4 && (
-            <div className="space-y-6">
-              <div>
-                <h2 className="text-xl font-bold text-slate-900">Langkah 4: Pilih Industri & Tema Awal</h2>
-                <p className="text-sm text-slate-500 mt-1">
-                  Pilih kategori landing page yang ingin Anda gunakan. Anda dapat beralih ke 50 variasi tema lainnya kapan saja via admin dengan 1 klik.
-                </p>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {industries.map((ind) => (
-                  <div
-                    key={ind.id}
-                    onClick={() => setStarterConfig({ ...starterConfig, selectedIndustry: ind.id })}
-                    className={`p-4 rounded-xl border cursor-pointer transition-all ${
-                      starterConfig.selectedIndustry === ind.id
-                        ? 'border-blue-600 bg-blue-50/60 shadow-sm ring-2 ring-blue-600'
-                        : 'border-slate-200 hover:border-slate-300 bg-white'
-                    }`}
-                  >
-                    <div className="flex items-center gap-3">
-                      <span className="text-2xl">{ind.icon}</span>
-                      <div>
-                        <div className="font-bold text-sm text-slate-900">{ind.name}</div>
-                        <div className="text-xs text-slate-500 mt-0.5">{ind.desc}</div>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-2">
-                  Gaya Mobile Bottom Navigation
-                </label>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                  {[
-                    { id: 'dock', label: 'Floating Dock' },
-                    { id: 'curved', label: 'Fixed Curved Scoop' },
-                    { id: 'bubble', label: 'Floating Bubble' },
-                    { id: 'box', label: 'Modern Box' }
-                  ].map((nav) => (
-                    <button
-                      key={nav.id}
-                      type="button"
-                      onClick={() => setStarterConfig({ ...starterConfig, bottomNavStyle: nav.id })}
-                      className={`py-2.5 px-3 rounded-lg border text-xs font-semibold text-center transition-all ${
-                        starterConfig.bottomNavStyle === nav.id
-                          ? 'border-blue-600 bg-blue-50 text-blue-700 font-bold'
-                          : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
-                      }`}
-                    >
-                      {nav.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div className="flex items-center justify-between pt-6 border-t border-slate-100">
-                <button
-                  type="button"
-                  onClick={() => setCurrentStep(3)}
-                  className="px-5 py-2.5 rounded-xl border border-slate-200 text-slate-600 text-sm font-semibold hover:bg-slate-50 flex items-center gap-2"
-                >
-                  <ArrowLeft className="w-4 h-4" />
-                  <span>Kembali</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={handleComplete}
                   disabled={isSubmitting}
-                  className="px-8 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-bold shadow-md shadow-emerald-600/30 flex items-center gap-2"
+                  className="h-12 px-6 rounded-2xl border border-slate-200 text-slate-600 hover:bg-slate-50 font-bold text-xs sm:text-sm flex items-center gap-2 transition-colors cursor-pointer disabled:opacity-50"
                 >
-                  {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
-                  <span>Selesaikan & Luncurkan CMS</span>
+                  <ArrowLeft className="w-4 h-4" />
+                  <span>Kembali</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleFinalizeSetup}
+                  disabled={isSubmitting}
+                  className="h-12 px-8 rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 active:scale-98 text-white font-black text-xs sm:text-sm flex items-center gap-2.5 shadow-xl shadow-emerald-600/30 transition-all cursor-pointer disabled:opacity-50"
+                >
+                  {isSubmitting ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      <span>Menyimpan ke Database...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="w-4 h-4" />
+                      <span>Selesaikan & Pasang Sistem</span>
+                    </>
+                  )}
                 </button>
               </div>
             </div>
           )}
         </div>
 
-        {/* Footer Note & Direct Link to Keygen Portal */}
+        {/* Success Modal Animation Overlay */}
+        {successAnimation && (
+          <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4">
+            <div className="bg-white rounded-3xl p-8 max-w-md w-full text-center space-y-4 shadow-2xl animate-scaleUp">
+              <div className="w-16 h-16 rounded-full bg-emerald-100 text-emerald-600 mx-auto flex items-center justify-center">
+                <Check className="w-8 h-8 stroke-[3]" />
+              </div>
+              <h3 className="text-xl font-black text-slate-900">
+                Instalasi Berhasil Diselesaikan!
+              </h3>
+              <p className="text-xs sm:text-sm text-slate-500 leading-relaxed">
+                Tabel database telah diinisialisasi, akun superadmin berhasil disimpan, dan lisensi Anda telah aktif. Mengalihkan ke URL portal admin...
+              </p>
+              <div className="p-3 rounded-2xl bg-blue-50 border border-blue-100 text-blue-700 text-xs font-mono font-bold">
+                {finalRedirectUrl}
+              </div>
+              <div className="flex items-center justify-center gap-2 text-xs text-slate-400 pt-2">
+                <Loader2 className="w-4 h-4 animate-spin text-blue-600" />
+                <span>Membuka Portal Admin...</span>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Footer Note */}
         <div className="mt-6 text-center text-xs text-slate-500 flex items-center justify-center gap-3">
           <span>Enterprise MultiCMS Setup</span>
           <span>•</span>
@@ -729,7 +909,7 @@ export const SetupWizard = ({ onComplete }) => {
             href="/keygen"
             target="_blank"
             rel="noreferrer"
-            className="text-blue-600 font-semibold hover:underline inline-flex items-center gap-1 bg-white px-3 py-1.5 rounded-lg border border-slate-200 shadow-sm"
+            className="text-blue-600 font-semibold hover:underline inline-flex items-center gap-1 bg-white px-3 py-1.5 rounded-xl border border-slate-200 shadow-xs"
           >
             <Key className="w-3.5 h-3.5" />
             <span>Halaman Generator Lisensi (/keygen) ↗</span>

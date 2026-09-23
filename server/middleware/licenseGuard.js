@@ -19,6 +19,7 @@ export const licenseGuard = async (req, res, next) => {
     fullPath === '/api/settings/public' || path === '/settings/public' ||
     fullPath.startsWith('/api/settings') || path.startsWith('/settings') ||
     fullPath.startsWith('/api/admin') || path.startsWith('/admin') ||
+    fullPath.startsWith('/api/setup') || path.startsWith('/setup') ||
     fullPath.startsWith('/api/installer') || path.startsWith('/installer') ||
     fullPath.startsWith('/api/keygen') || path.startsWith('/keygen') ||
     fullPath.startsWith('/api/health') || path.startsWith('/health') ||

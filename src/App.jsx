@@ -15,6 +15,7 @@ export const App = () => {
     loading,
     adminToken,
     adminSlug,
+    setAdminSlug,
     licenseStatus,
     setLicenseStatus,
     updateConfigLocally,
@@ -78,11 +79,10 @@ export const App = () => {
     return (
       <SetupPage
         onComplete={(res) => {
-          // Immediately mark as installed and navigate — DO NOT call reloadConfig here
-          // reloadConfig would race and potentially reset isInstalled back to false
-          // if backend returns DEFAULT_CONFIG or stale in-memory state.
+          // Immediately mark as installed and navigate
           setLicenseStatus(prev => ({ ...prev, isInstalled: true, isLocked: false, status: 'active' }));
-          const slug = res?.data?.adminSlug || adminSlug || 'admin';
+          const slug = res?.data?.adminSlug || res?.adminSlug || adminSlug || 'admin';
+          if (setAdminSlug) setAdminSlug(slug);
           navigate(`/${slug}`);
         }}
       />

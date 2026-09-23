@@ -1,4 +1,6 @@
 import { Router } from 'express';
+import bcrypt from 'bcryptjs';
+import { query } from '../config/db.js';
 import { adminAuth, generateAdminToken, revokeAllAdminSessions } from '../middleware/adminAuth.js';
 import { getActiveThemeConfig, updateActiveThemeConfig, switchThemeVariant } from '../services/themeService.js';
 import { getPublicSettings, saveSettings } from '../services/configService.js';
@@ -49,12 +51,34 @@ router.post('/set-credentials', (req, res) => {
 
 /**
  * POST /api/admin/login
+ * Verifies credentials from database (admin_users with Bcrypt) or in-memory fallback
  */
-router.post('/login', (req, res) => {
+router.post('/login', async (req, res) => {
   const { username, password } = req.body || {};
   const cleanUser = String(username || '').trim();
   const cleanPass = String(password || '').trim();
 
+  // 1. Verify against database admin_users table
+  try {
+    const dbUsers = await query('SELECT * FROM admin_users WHERE LOWER(username) = LOWER($1) LIMIT 1', [cleanUser]);
+    if (dbUsers && dbUsers.length > 0) {
+      const dbUser = dbUsers[0];
+      const isBcryptMatch = await bcrypt.compare(cleanPass, dbUser.password_hash);
+      if (isBcryptMatch) {
+        const token = generateAdminToken({ id: dbUser.id || 'superadmin', username: dbUser.username });
+        return res.json({
+          success: true,
+          message: 'Login berhasil',
+          token,
+          adminSlug: getAdminSlug()
+        });
+      }
+    }
+  } catch (dbErr) {
+    // Database check optional fallback if db is not ready
+  }
+
+  // 2. In-memory / ENV Fallback
   const isConfigMatch = (cleanUser === adminCredentials.username && cleanPass === adminCredentials.password);
   const isDefaultMatch = (cleanUser.toLowerCase() === 'admin' && (cleanPass === 'admin123' || cleanPass === 'admin'));
 

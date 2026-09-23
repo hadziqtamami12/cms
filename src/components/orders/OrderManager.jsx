@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import {
   Search, Plus, Filter, MessageCircle, CheckCircle2, Clock,
   XCircle, AlertCircle, Trash2, Edit3, ChevronDown, RefreshCw,
-  ExternalLink, Calendar, DollarSign, User, Phone, Mail, FileText, X, Check
+  ExternalLink, Calendar, DollarSign, User, Phone, Mail, FileText,
+  X, Check, Copy, SlidersHorizontal
 } from 'lucide-react';
 import {
   fetchOrders,
@@ -20,6 +21,9 @@ export const OrderManager = ({ adminToken, activeThemeName }) => {
   const [statusFilter, setStatusFilter] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [toastMessage, setToastMessage] = useState('');
+
+  // Mobile Filter Drawer State
+  const [isMobileFilterOpen, setIsMobileFilterOpen] = useState(false);
 
   // Modal States
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -46,6 +50,13 @@ export const OrderManager = ({ adminToken, activeThemeName }) => {
     setTimeout(() => setToastMessage(''), 3500);
   };
 
+  const copyToClipboard = (text, label = 'Teks') => {
+    if (navigator?.clipboard?.writeText) {
+      navigator.clipboard.writeText(text);
+      showToast(`${label} disalin ke clipboard`);
+    }
+  };
+
   const loadOrders = async () => {
     setLoading(true);
     try {
@@ -70,7 +81,7 @@ export const OrderManager = ({ adminToken, activeThemeName }) => {
     loadOrders();
   }, [statusFilter, adminToken]);
 
-  // Debounced Search Handler
+  // Search Handler
   const handleSearchSubmit = (e) => {
     e.preventDefault();
     loadOrders();
@@ -82,7 +93,7 @@ export const OrderManager = ({ adminToken, activeThemeName }) => {
       const res = await updateOrderStatus(orderId, newStatus, adminToken);
       if (res && res.success) {
         setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: newStatus } : o));
-        showToast(`Status [${orderId}] berhasil diubah ke ${newStatus.toUpperCase()}`);
+        showToast(`Status [${orderId}] diubah ke ${newStatus.toUpperCase()}`);
         loadOrders();
       }
     } catch (err) {
@@ -208,14 +219,13 @@ export const OrderManager = ({ adminToken, activeThemeName }) => {
     };
 
     const cfg = statusMap[status] || statusMap.pending;
-    const Icon = cfg.icon;
 
     return (
       <div className="relative inline-block text-left">
         <select
           value={status}
           onChange={(e) => handleInlineStatusChange(orderId, e.target.value)}
-          className={`appearance-none text-xs font-bold px-3 py-1.5 pr-6 rounded-full border cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all ${cfg.bg}`}
+          className={`appearance-none text-xs font-bold px-2.5 py-1 pr-6 rounded-full border cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all ${cfg.bg}`}
           title="Klik untuk mengubah status pesanan"
         >
           <option value="pending">Pending</option>
@@ -223,7 +233,7 @@ export const OrderManager = ({ adminToken, activeThemeName }) => {
           <option value="completed">Selesai</option>
           <option value="cancelled">Dibatalkan</option>
         </select>
-        <ChevronDown className="w-3 h-3 absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none opacity-60" />
+        <ChevronDown className="w-3 h-3 absolute right-1.5 top-1/2 -translate-y-1/2 pointer-events-none opacity-60" />
       </div>
     );
   };
@@ -243,36 +253,40 @@ export const OrderManager = ({ adminToken, activeThemeName }) => {
         <div className="bg-white rounded-2xl border border-slate-200 p-4 sm:p-5 shadow-xs space-y-1 min-w-0">
           <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 block truncate">Total Pesanan</span>
           <div className="text-xl sm:text-2xl font-black text-slate-900">{counts.all}</div>
-          <span className="text-[11px] text-slate-500 font-medium">Semua transaksi masuk</span>
+          <span className="text-[11px] text-slate-500 font-medium truncate block">Semua transaksi</span>
         </div>
         <div className="bg-white rounded-2xl border border-slate-200 p-4 sm:p-5 shadow-xs space-y-1 min-w-0">
           <span className="text-[11px] font-bold uppercase tracking-wider text-amber-600 block truncate">Pending Review</span>
           <div className="text-xl sm:text-2xl font-black text-amber-600">{counts.pending}</div>
-          <span className="text-[11px] text-amber-700/80 font-medium">Perlu dikonfirmasi</span>
+          <span className="text-[11px] text-amber-700/80 font-medium truncate block">Perlu verifikasi</span>
         </div>
         <div className="bg-white rounded-2xl border border-slate-200 p-4 sm:p-5 shadow-xs space-y-1 min-w-0">
           <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-600 block truncate">Pesanan Selesai</span>
           <div className="text-xl sm:text-2xl font-black text-emerald-600">{counts.completed}</div>
-          <span className="text-[11px] text-emerald-700/80 font-medium">{counts.confirmed} aktif diproses</span>
+          <span className="text-[11px] text-emerald-700/80 font-medium truncate block">{counts.confirmed} aktif diproses</span>
         </div>
         <div className="bg-white rounded-2xl border border-slate-200 p-4 sm:p-5 shadow-xs space-y-1 min-w-0">
           <span className="text-[11px] font-bold uppercase tracking-wider text-blue-600 block truncate">Estimasi Omset</span>
           <div className="text-lg sm:text-xl font-black text-blue-600 truncate">
             {new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(totalRevenue)}
           </div>
-          <span className="text-[11px] text-slate-500 font-medium truncate block">Dari pesanan deal</span>
+          <span className="text-[11px] text-slate-500 font-medium truncate block">Pesanan terkonfirmasi</span>
         </div>
       </div>
 
       {/* Main Control Box */}
       <div className="bg-white rounded-3xl border border-slate-200 shadow-xs overflow-hidden">
         {/* Header & Actions */}
-        <div className="p-4 sm:p-6 border-b border-slate-100 flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div>
-            <h2 className="text-lg font-extrabold text-slate-900 tracking-tight">Manajemen Pesanan & Leads</h2>
-            <p className="text-xs text-slate-500 mt-0.5">Kelola transaksi, update status 1-klik, dan hubungi pelanggan via WhatsApp langsung.</p>
+        <div className="p-4 sm:p-6 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="min-w-0">
+            <h2 className="text-base sm:text-lg font-extrabold text-slate-900 tracking-tight truncate">
+              Manajemen Pesanan & Leads
+            </h2>
+            <p className="text-xs text-slate-500 mt-0.5 truncate">
+              Order CRUD, update status 1-klik, dan chat WhatsApp otomatis.
+            </p>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 shrink-0">
             <button
               onClick={loadOrders}
               className="p-2.5 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-600 transition-colors"
@@ -282,55 +296,100 @@ export const OrderManager = ({ adminToken, activeThemeName }) => {
             </button>
             <button
               onClick={openCreateModal}
-              className="px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-md shadow-blue-600/20 transition-all flex items-center gap-2"
+              className="px-3.5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-md shadow-blue-600/20 transition-all flex items-center gap-1.5"
             >
               <Plus className="w-4 h-4" />
-              <span>Tambah Pesanan Manual</span>
+              <span>Tambah Pesanan</span>
             </button>
           </div>
         </div>
 
-        {/* Filter Pills & Search Bar */}
-        <div className="p-4 sm:p-6 bg-slate-50/50 border-b border-slate-100 flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3">
-          {/* Status Filter Buttons */}
-          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0 scrollbar-none">
-            {[
-              { id: 'all', label: 'Semua', count: counts.all },
-              { id: 'pending', label: 'Pending', count: counts.pending },
-              { id: 'confirmed', label: 'Dikonfirmasi', count: counts.confirmed },
-              { id: 'completed', label: 'Selesai', count: counts.completed },
-              { id: 'cancelled', label: 'Dibatalkan', count: counts.cancelled },
-            ].map(tab => (
-              <button
-                key={tab.id}
-                onClick={() => setStatusFilter(tab.id)}
-                className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all flex items-center gap-1.5 ${
-                  statusFilter === tab.id
-                    ? 'bg-blue-600 text-white shadow-xs'
-                    : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-100'
-                }`}
-              >
-                <span>{tab.label}</span>
-                <span className={`text-[10px] px-1.5 py-0.2 rounded-full ${
-                  statusFilter === tab.id ? 'bg-white/25 text-white' : 'bg-slate-100 text-slate-500'
-                }`}>
-                  {tab.count}
-                </span>
-              </button>
-            ))}
+        {/* RESPONSIVE FILTER & TOOLBAR (Zero Horizontal Scroll!) */}
+        <div className="p-4 sm:p-6 bg-slate-50/50 border-b border-slate-100 space-y-3">
+          {/* DESKTOP TOOLBAR (Screens >= 768px): Wrapped Pills + Search */}
+          <div className="hidden md:flex flex-wrap items-center justify-between gap-3">
+            {/* Wrapped Status Pills */}
+            <div className="flex flex-wrap items-center gap-1.5">
+              {[
+                { id: 'all', label: 'Semua', count: counts.all },
+                { id: 'pending', label: 'Pending', count: counts.pending },
+                { id: 'confirmed', label: 'Dikonfirmasi', count: counts.confirmed },
+                { id: 'completed', label: 'Selesai', count: counts.completed },
+                { id: 'cancelled', label: 'Dibatalkan', count: counts.cancelled },
+              ].map(tab => (
+                <button
+                  key={tab.id}
+                  onClick={() => setStatusFilter(tab.id)}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
+                    statusFilter === tab.id
+                      ? 'bg-blue-600 text-white shadow-xs'
+                      : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-100'
+                  }`}
+                >
+                  <span>{tab.label}</span>
+                  <span className={`text-[10px] px-1.5 py-0.2 rounded-full ${
+                    statusFilter === tab.id ? 'bg-white/25 text-white' : 'bg-slate-100 text-slate-500'
+                  }`}>
+                    {tab.count}
+                  </span>
+                </button>
+              ))}
+            </div>
+
+            {/* Search Input */}
+            <form onSubmit={handleSearchSubmit} className="relative w-72">
+              <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+              <input
+                type="text"
+                placeholder="Cari nama, ID, WA..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full pl-9 pr-4 py-2 rounded-xl border border-slate-200 bg-white text-xs text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+              />
+            </form>
           </div>
 
-          {/* Search Form */}
-          <form onSubmit={handleSearchSubmit} className="relative w-full lg:w-72">
-            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-            <input
-              type="text"
-              placeholder="Cari nama, ID, WA..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-9 pr-4 py-2 rounded-xl border border-slate-200 bg-white text-xs text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
-            />
-          </form>
+          {/* MOBILE TOOLBAR (Screens < 768px): Full-Width Search + Compact Filter Button (No Scrollbar!) */}
+          <div className="flex md:hidden items-center gap-2 w-full">
+            <form onSubmit={handleSearchSubmit} className="relative flex-1 min-w-0">
+              <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+              <input
+                type="text"
+                placeholder="Cari pesanan..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-slate-200 bg-white text-xs text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+              />
+            </form>
+            <button
+              type="button"
+              onClick={() => setIsMobileFilterOpen(true)}
+              className={`px-3 py-2.5 rounded-xl border flex items-center gap-1.5 text-xs font-bold shrink-0 transition-colors ${
+                statusFilter !== 'all'
+                  ? 'bg-blue-600 text-white border-blue-600 shadow-xs'
+                  : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
+              }`}
+            >
+              <SlidersHorizontal className="w-4 h-4" />
+              <span>Filter</span>
+              {statusFilter !== 'all' && (
+                <span className="w-2 h-2 rounded-full bg-white animate-pulse" />
+              )}
+            </button>
+          </div>
+
+          {/* Active Filter Indicator on Mobile */}
+          {statusFilter !== 'all' && (
+            <div className="md:hidden flex items-center justify-between bg-blue-50 px-3 py-1.5 rounded-xl text-xs text-blue-700 font-semibold">
+              <span>Filter Aktif: <b className="capitalize">{statusFilter}</b></span>
+              <button
+                onClick={() => setStatusFilter('all')}
+                className="text-[11px] underline font-bold"
+              >
+                Reset
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Orders Content Area */}
@@ -367,29 +426,55 @@ export const OrderManager = ({ adminToken, activeThemeName }) => {
                       return (
                         <tr key={order.id} className="hover:bg-slate-50/70 transition-colors">
                           <td className="py-3.5 px-4 font-mono font-semibold text-slate-900 whitespace-nowrap">
-                            <span className="text-blue-600 font-bold block">{order.id}</span>
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-blue-600 font-bold">{order.id}</span>
+                              <button
+                                onClick={() => copyToClipboard(order.id, 'ID Pesanan')}
+                                className="p-1 rounded text-slate-400 hover:text-blue-600 transition-colors"
+                                title="Salin ID Pesanan"
+                              >
+                                <Copy className="w-3 h-3" />
+                              </button>
+                            </div>
                             <span className="text-[10px] text-slate-400 font-sans block">
                               {new Date(order.transactionDate).toLocaleDateString('id-ID', {
                                 day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit'
                               })}
                             </span>
                           </td>
-                          <td className="py-3.5 px-4 min-w-[160px]">
-                            <div className="font-bold text-slate-900 text-sm truncate">{order.customerName}</div>
-                            <div className="text-[11px] text-slate-500 font-mono truncate">{order.customerPhone}</div>
+                          <td className="py-3.5 px-4 min-w-[160px] max-w-[220px]">
+                            <div className="font-bold text-slate-900 text-sm truncate" title={order.customerName}>
+                              {order.customerName}
+                            </div>
+                            <div className="text-[11px] text-slate-500 font-mono truncate flex items-center gap-1">
+                              <span>{order.customerPhone}</span>
+                              <button
+                                onClick={() => copyToClipboard(order.customerPhone, 'No WhatsApp')}
+                                className="p-0.5 text-slate-400 hover:text-slate-700"
+                                title="Salin Nomor WA"
+                              >
+                                <Copy className="w-2.5 h-2.5" />
+                              </button>
+                            </div>
                             {order.customerEmail && (
-                              <div className="text-[10px] text-slate-400 truncate">{order.customerEmail}</div>
+                              <div className="text-[10px] text-slate-400 truncate" title={order.customerEmail}>
+                                {order.customerEmail}
+                              </div>
                             )}
                           </td>
-                          <td className="py-3.5 px-4 min-w-[200px]">
-                            <div className="font-semibold text-slate-800 line-clamp-1">{itemName}</div>
+                          <td className="py-3.5 px-4 min-w-[200px] max-w-[260px]">
+                            <div className="font-semibold text-slate-800 line-clamp-1 truncate" title={itemName}>
+                              {itemName}
+                            </div>
                             {itemCat && (
-                              <span className="text-[10px] bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded font-medium mt-0.5 inline-block">
+                              <span className="text-[10px] bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded font-medium mt-0.5 inline-block truncate max-w-full">
                                 {itemCat}
                               </span>
                             )}
                             {order.notes && (
-                              <p className="text-[11px] text-slate-400 italic line-clamp-1 mt-0.5">"{order.notes}"</p>
+                              <p className="text-[11px] text-slate-400 italic line-clamp-1 mt-0.5 truncate" title={order.notes}>
+                                "{order.notes}"
+                              </p>
                             )}
                           </td>
                           <td className="py-3.5 px-4 whitespace-nowrap font-bold text-slate-900">
@@ -435,7 +520,7 @@ export const OrderManager = ({ adminToken, activeThemeName }) => {
               </div>
 
               {/* MOBILE STACKED CARDS VIEW (Screens < 768px, Strict Zero Horizontal Overflow) */}
-              <div className="md:hidden space-y-3 w-full max-w-full">
+              <div className="md:hidden space-y-3 w-full max-w-full min-w-0">
                 {orders.map((order) => {
                   const itemName = typeof order.itemDetails === 'object' ? (order.itemDetails.name || '-') : String(order.itemDetails);
                   const itemCat = typeof order.itemDetails === 'object' ? order.itemDetails.category : null;
@@ -446,33 +531,44 @@ export const OrderManager = ({ adminToken, activeThemeName }) => {
                     >
                       {/* Card Header: ID, Date, & Status Dropdown */}
                       <div className="flex items-center justify-between gap-2 border-b border-slate-100 pb-2.5">
-                        <div>
-                          <span className="font-mono font-black text-blue-600 text-xs block">{order.id}</span>
-                          <span className="text-[10px] text-slate-400">
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-1.5">
+                            <span className="font-mono font-black text-blue-600 text-xs truncate">{order.id}</span>
+                            <button
+                              onClick={() => copyToClipboard(order.id, 'ID Pesanan')}
+                              className="p-0.5 text-slate-400 hover:text-blue-600"
+                              title="Salin ID"
+                            >
+                              <Copy className="w-3 h-3" />
+                            </button>
+                          </div>
+                          <span className="text-[10px] text-slate-400 block truncate">
                             {new Date(order.transactionDate).toLocaleDateString('id-ID', {
                               day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit'
                             })}
                           </span>
                         </div>
-                        <div>
+                        <div className="shrink-0">
                           {renderStatusBadge(order.status, order.id)}
                         </div>
                       </div>
 
                       {/* Card Body: Customer & Item */}
-                      <div className="space-y-1.5">
+                      <div className="space-y-1.5 min-w-0">
                         <div className="flex items-center justify-between gap-2">
-                          <span className="font-extrabold text-sm text-slate-900 truncate">{order.customerName}</span>
-                          <span className="font-bold text-xs text-slate-900 whitespace-nowrap">
+                          <span className="font-extrabold text-sm text-slate-900 truncate" title={order.customerName}>
+                            {order.customerName}
+                          </span>
+                          <span className="font-bold text-xs text-slate-900 whitespace-nowrap shrink-0">
                             {new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(order.totalAmount || 0)}
                           </span>
                         </div>
-                        <div className="text-xs text-slate-600 font-medium">
+                        <div className="text-xs text-slate-600 font-medium truncate" title={itemName}>
                           {itemName}
                         </div>
                         {order.notes && (
-                          <div className="text-[11px] text-slate-500 bg-slate-50 p-2 rounded-xl border border-slate-100 italic">
-                            Catatan: "{order.notes}"
+                          <div className="text-[11px] text-slate-500 bg-slate-50 p-2 rounded-xl border border-slate-100 italic break-words line-clamp-2" title={order.notes}>
+                            "{order.notes}"
                           </div>
                         )}
                       </div>
@@ -483,21 +579,21 @@ export const OrderManager = ({ adminToken, activeThemeName }) => {
                           href={getWhatsAppUrl(order)}
                           target="_blank"
                           rel="noreferrer"
-                          className="flex-1 py-2 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-xs"
+                          className="flex-1 py-2 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-xs truncate"
                         >
-                          <MessageCircle className="w-3.5 h-3.5" />
+                          <MessageCircle className="w-3.5 h-3.5 shrink-0" />
                           <span>Chat WhatsApp</span>
                         </a>
                         <button
                           onClick={() => openEditModal(order)}
-                          className="p-2 rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50"
+                          className="p-2 rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50 shrink-0"
                           title="Edit"
                         >
                           <Edit3 className="w-3.5 h-3.5" />
                         </button>
                         <button
                           onClick={() => setDeleteConfirmId(order.id)}
-                          className="p-2 rounded-xl border border-red-200 text-red-600 hover:bg-red-50"
+                          className="p-2 rounded-xl border border-red-200 text-red-600 hover:bg-red-50 shrink-0"
                           title="Hapus"
                         >
                           <Trash2 className="w-3.5 h-3.5" />
@@ -512,13 +608,83 @@ export const OrderManager = ({ adminToken, activeThemeName }) => {
         </div>
       </div>
 
-      {/* MODAL TAMBAH / EDIT PESANAN (Strict Zero Overflow & Mobile Friendly) */}
+      {/* MOBILE BOTTOM SHEET FILTER DRAWER (Strict Vertical Thumb-Friendly) */}
+      {isMobileFilterOpen && (
+        <div className="fixed inset-0 z-50 md:hidden flex flex-col justify-end">
+          <div
+            onClick={() => setIsMobileFilterOpen(false)}
+            className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs transition-opacity"
+          />
+          <div className="relative z-50 bg-white rounded-t-3xl border-t border-slate-200 p-5 space-y-4 max-h-[85vh] overflow-y-auto shadow-2xl animate-slide-up">
+            <div className="w-12 h-1.5 rounded-full bg-slate-300 mx-auto" />
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <div>
+                <h4 className="font-extrabold text-slate-900 text-sm">Filter & Urutkan Pesanan</h4>
+                <p className="text-[11px] text-slate-500">Pilih status pesanan untuk menyaring tampilan</p>
+              </div>
+              <button
+                onClick={() => setIsMobileFilterOpen(false)}
+                className="p-2 rounded-xl border border-slate-200 text-slate-500 hover:bg-slate-50"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="space-y-2">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 block">Status Pesanan</span>
+              <div className="grid grid-cols-1 gap-2">
+                {[
+                  { id: 'all', label: 'Semua Pesanan', count: counts.all },
+                  { id: 'pending', label: 'Pending Review', count: counts.pending },
+                  { id: 'confirmed', label: 'Dikonfirmasi', count: counts.confirmed },
+                  { id: 'completed', label: 'Selesai', count: counts.completed },
+                  { id: 'cancelled', label: 'Dibatalkan', count: counts.cancelled },
+                ].map(tab => (
+                  <button
+                    key={tab.id}
+                    onClick={() => {
+                      setStatusFilter(tab.id);
+                      setIsMobileFilterOpen(false);
+                    }}
+                    className={`w-full flex items-center justify-between p-3 rounded-xl text-xs font-bold transition-all border ${
+                      statusFilter === tab.id
+                        ? 'bg-blue-50 border-blue-600 text-blue-700'
+                        : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
+                    }`}
+                  >
+                    <span>{tab.label}</span>
+                    <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${
+                      statusFilter === tab.id ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-600'
+                    }`}>
+                      {tab.count}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="pt-2">
+              <button
+                onClick={() => {
+                  setStatusFilter('all');
+                  setIsMobileFilterOpen(false);
+                }}
+                className="w-full py-3 rounded-xl border border-slate-200 text-slate-600 font-bold text-xs hover:bg-slate-50"
+              >
+                Reset Semua Filter
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL TAMBAH / EDIT PESANAN */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4">
           <div className="bg-white rounded-3xl border border-slate-200 shadow-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto min-w-0">
             {/* Modal Header */}
             <div className="p-5 border-b border-slate-100 flex items-center justify-between sticky top-0 bg-white z-10">
-              <h3 className="text-base font-extrabold text-slate-900">
+              <h3 className="text-base font-extrabold text-slate-900 truncate">
                 {modalMode === 'create' ? 'Tambah Pesanan Manual' : `Edit Pesanan [${activeOrder?.id}]`}
               </h3>
               <button

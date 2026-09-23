@@ -615,44 +615,84 @@ export const InteractiveSeoDashboard = ({
           </span>
         </div>
 
-        <div className="p-4 sm:p-6 overflow-x-auto">
-          <table className="w-full text-left border-collapse text-xs">
-            <thead>
-              <tr className="bg-slate-50 text-[11px] font-bold text-slate-500 uppercase tracking-wider border-b border-slate-200">
-                <th className="py-2.5 px-3"># Rank</th>
-                <th className="py-2.5 px-3">Target Keyword</th>
-                <th className="py-2.5 px-3 text-center">Posisi Google</th>
-                <th className="py-2.5 px-3 text-center">Impresi</th>
-                <th className="py-2.5 px-3 text-center">Klik</th>
-                <th className="py-2.5 px-3 text-center">CTR</th>
-                <th className="py-2.5 px-3 text-right">Volume Pencarian</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {(analyticsData?.topKeywords || [
-                { rank: 1, keyword: 'sewa mobil jakarta', position: 1.8, impressions: 4800, clicks: 576, ctr: '12.0%', volume: '7,200/bln' },
-                { rank: 2, keyword: 'rental alphard bandara soekarno hatta', position: 2.4, impressions: 3950, clicks: 420, ctr: '10.6%', volume: '5,900/bln' },
-                { rank: 3, keyword: 'sewa innova zenix bulanan', position: 3.1, impressions: 3100, clicks: 310, ctr: '10.0%', volume: '4,650/bln' },
-                { rank: 4, keyword: 'jasa konsultan hukum bisnis jakarta', position: 3.8, impressions: 2600, clicks: 234, ctr: '9.0%', volume: '3,900/bln' },
-                { rank: 5, keyword: 'villa mewah seminyak private pool', position: 4.2, impressions: 2200, clicks: 176, ctr: '8.0%', volume: '3,300/bln' }
-              ]).map((kw, i) => (
-                <tr key={i} className="hover:bg-slate-50/70 transition-colors">
-                  <td className="py-3 px-3 font-mono font-bold text-slate-400">#{kw.rank || i + 1}</td>
-                  <td className="py-3 px-3 font-bold text-slate-900 flex items-center gap-1.5">
-                    <span>{kw.keyword}</span>
-                    <span className="text-[10px] text-emerald-600 bg-emerald-50 px-1.5 py-0.2 rounded font-semibold">Top 5</span>
-                  </td>
-                  <td className="py-3 px-3 text-center font-bold text-blue-600">
-                    #{kw.position}
-                  </td>
-                  <td className="py-3 px-3 text-center text-slate-700 font-mono">{kw.impressions.toLocaleString('id-ID')}</td>
-                  <td className="py-3 px-3 text-center text-slate-700 font-mono font-bold">{kw.clicks.toLocaleString('id-ID')}</td>
-                  <td className="py-3 px-3 text-center font-semibold text-emerald-600">{kw.ctr}</td>
-                  <td className="py-3 px-3 text-right font-mono text-slate-500">{kw.volume}</td>
+        <div className="p-4 sm:p-6 min-w-0">
+          {/* DESKTOP VIEW (Screens >= 768px) */}
+          <div className="hidden md:block overflow-x-auto rounded-2xl border border-slate-200">
+            <table className="w-full text-left border-collapse text-xs">
+              <thead>
+                <tr className="bg-slate-50 text-[11px] font-bold text-slate-500 uppercase tracking-wider border-b border-slate-200">
+                  <th className="py-2.5 px-3"># Rank</th>
+                  <th className="py-2.5 px-3">Target Keyword</th>
+                  <th className="py-2.5 px-3 text-center">Posisi Google</th>
+                  <th className="py-2.5 px-3 text-center">Impresi</th>
+                  <th className="py-2.5 px-3 text-center">Klik</th>
+                  <th className="py-2.5 px-3 text-center">CTR</th>
+                  <th className="py-2.5 px-3 text-right">Volume Pencarian</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {(analyticsData?.topKeywords || [
+                  { rank: 1, keyword: 'sewa mobil jakarta', position: 1.8, impressions: 4800, clicks: 576, ctr: '12.0%', volume: '7,200/bln' },
+                  { rank: 2, keyword: 'rental alphard bandara soekarno hatta', position: 2.4, impressions: 3950, clicks: 420, ctr: '10.6%', volume: '5,900/bln' },
+                  { rank: 3, keyword: 'sewa innova zenix bulanan', position: 3.1, impressions: 3100, clicks: 310, ctr: '10.0%', volume: '4,650/bln' },
+                  { rank: 4, keyword: 'jasa konsultan hukum bisnis jakarta', position: 3.8, impressions: 2600, clicks: 234, ctr: '9.0%', volume: '3,900/bln' },
+                  { rank: 5, keyword: 'villa mewah seminyak private pool', position: 4.2, impressions: 2200, clicks: 176, ctr: '8.0%', volume: '3,300/bln' }
+                ]).map((kw, i) => (
+                  <tr key={i} className="hover:bg-slate-50/70 transition-colors">
+                    <td className="py-3 px-3 font-mono font-bold text-slate-400">#{kw.rank || i + 1}</td>
+                    <td className="py-3 px-3 font-bold text-slate-900 flex items-center gap-1.5">
+                      <span>{kw.keyword}</span>
+                      <span className="text-[10px] text-emerald-600 bg-emerald-50 px-1.5 py-0.2 rounded font-semibold">Top 5</span>
+                    </td>
+                    <td className="py-3 px-3 text-center font-bold text-blue-600">
+                      #{kw.position}
+                    </td>
+                    <td className="py-3 px-3 text-center text-slate-700 font-mono">{kw.impressions.toLocaleString('id-ID')}</td>
+                    <td className="py-3 px-3 text-center text-slate-700 font-mono font-bold">{kw.clicks.toLocaleString('id-ID')}</td>
+                    <td className="py-3 px-3 text-center font-semibold text-emerald-600">{kw.ctr}</td>
+                    <td className="py-3 px-3 text-right font-mono text-slate-500">{kw.volume}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {/* MOBILE STACKED CARDS VIEW (Screens < 768px, Strict Zero Horizontal Overflow) */}
+          <div className="md:hidden space-y-2.5">
+            {(analyticsData?.topKeywords || [
+              { rank: 1, keyword: 'sewa mobil jakarta', position: 1.8, impressions: 4800, clicks: 576, ctr: '12.0%', volume: '7,200/bln' },
+              { rank: 2, keyword: 'rental alphard bandara soekarno hatta', position: 2.4, impressions: 3950, clicks: 420, ctr: '10.6%', volume: '5,900/bln' },
+              { rank: 3, keyword: 'sewa innova zenix bulanan', position: 3.1, impressions: 3100, clicks: 310, ctr: '10.0%', volume: '4,650/bln' },
+              { rank: 4, keyword: 'jasa konsultan hukum bisnis jakarta', position: 3.8, impressions: 2600, clicks: 234, ctr: '9.0%', volume: '3,900/bln' },
+              { rank: 5, keyword: 'villa mewah seminyak private pool', position: 4.2, impressions: 2200, clicks: 176, ctr: '8.0%', volume: '3,300/bln' }
+            ]).map((kw, i) => (
+              <div key={i} className="p-3.5 bg-slate-50/70 rounded-2xl border border-slate-200 space-y-2">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <span className="font-mono text-xs font-bold text-slate-400">#{kw.rank || i + 1}</span>
+                    <span className="font-bold text-xs text-slate-900 truncate">{kw.keyword}</span>
+                  </div>
+                  <span className="text-xs font-black text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full shrink-0">
+                    Pos #{kw.position}
+                  </span>
+                </div>
+                <div className="grid grid-cols-3 gap-2 text-[11px] pt-1 border-t border-slate-200/60">
+                  <div>
+                    <span className="text-slate-400 block text-[10px]">Impresi</span>
+                    <span className="font-mono font-semibold text-slate-800">{kw.impressions.toLocaleString('id-ID')}</span>
+                  </div>
+                  <div>
+                    <span className="text-slate-400 block text-[10px]">Klik</span>
+                    <span className="font-mono font-bold text-slate-800">{kw.clicks.toLocaleString('id-ID')}</span>
+                  </div>
+                  <div>
+                    <span className="text-slate-400 block text-[10px]">CTR</span>
+                    <span className="font-semibold text-emerald-600">{kw.ctr}</span>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
 

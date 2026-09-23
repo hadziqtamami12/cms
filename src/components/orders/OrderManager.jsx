@@ -12,6 +12,7 @@ import {
   updateOrderStatus,
   deleteOrder
 } from '../../lib/api';
+import DataTable from '../common/DataTable';
 
 export const OrderManager = ({ adminToken, activeThemeName }) => {
   const [orders, setOrders] = useState([]);
@@ -202,6 +203,46 @@ export const OrderManager = ({ adminToken, activeThemeName }) => {
       }
     } catch {
       showToast('Gagal menghapus pesanan');
+    }
+  };
+
+  // Bulk Delete Orders
+  const handleBulkDeleteOrders = async (ids) => {
+    try {
+      const res = await fetch('/api/admin/orders/batch-delete', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${adminToken || ''}`
+        },
+        body: JSON.stringify({ ids })
+      });
+      const json = await res.json();
+      if (!res.ok || !json.success) throw new Error(json.error || 'Gagal menghapus pesanan');
+      showToast(json.message);
+      loadOrders();
+    } catch (err) {
+      showToast('Gagal bulk delete pesanan: ' + err.message);
+    }
+  };
+
+  // Bulk Status Update Orders
+  const handleBulkStatusOrders = async (ids, status) => {
+    try {
+      const res = await fetch('/api/admin/orders/batch-status', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${adminToken || ''}`
+        },
+        body: JSON.stringify({ ids, status })
+      });
+      const json = await res.json();
+      if (!res.ok || !json.success) throw new Error(json.error || 'Gagal update status');
+      showToast(json.message);
+      loadOrders();
+    } catch (err) {
+      showToast('Gagal bulk update status: ' + err.message);
     }
   };
 
@@ -412,225 +453,167 @@ export const OrderManager = ({ adminToken, activeThemeName }) => {
               </p>
             </div>
           ) : (
-            <>
-              {/* DESKTOP TABLE VIEW (Screens >= 768px) */}
-              <div className="hidden md:block overflow-x-auto rounded-2xl border border-slate-200">
-                <table className="w-full text-left border-collapse text-xs">
-                  <thead>
-                    <tr className="bg-slate-50/80 border-b border-slate-200 text-[11px] font-bold text-slate-500 uppercase tracking-wider">
-                      <th className="py-3 px-4">ID & Tanggal</th>
-                      <th className="py-3 px-4">Pelanggan</th>
-                      <th className="py-3 px-4">Layanan / Item</th>
-                      <th className="py-3 px-4">Total</th>
-                      <th className="py-3 px-4">Status</th>
-                      <th className="py-3 px-4 text-right">Aksi</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100">
-                    {orders.map((order) => {
-                      const itemName = typeof order.itemDetails === 'object' ? (order.itemDetails.name || '-') : String(order.itemDetails);
-                      const itemCat = typeof order.itemDetails === 'object' ? order.itemDetails.category : null;
+            <div className="space-y-4">
+              <DataTable
+                columns={[
+                  {
+                    key: 'id',
+                    label: 'ID & Tanggal',
+                    sortable: true,
+                    render: (val, order) => {
                       const isCopied = copiedMap[order.id];
-
                       return (
-                        <tr key={order.id} className="hover:bg-slate-50/70 transition-colors">
-                          <td className="py-3.5 px-4 font-mono font-semibold text-slate-900 whitespace-nowrap">
-                            <div className="flex items-center gap-1.5">
-                              <span className="text-blue-600 font-bold">{order.id}</span>
-                              <button
-                                onClick={() => copyToClipboard(order.id, order.id, 'ID Pesanan')}
-                                className="p-1 rounded text-slate-400 hover:text-blue-600 transition-colors"
-                                title="Salin ID Pesanan"
-                              >
-                                {isCopied ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3 h-3" />}
-                              </button>
-                            </div>
-                            <span className="text-[10px] text-slate-400 font-sans block">
-                              {new Date(order.transactionDate).toLocaleDateString('id-ID', {
-                                day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit'
-                              })}
-                            </span>
-                          </td>
-                          <td className="py-3.5 px-4 min-w-[160px] max-w-[220px]">
-                            <div className="font-bold text-slate-900 text-sm truncate" title={order.customerName}>
-                              {order.customerName}
-                            </div>
-                            <div className="text-[11px] text-slate-500 font-mono truncate flex items-center gap-1">
-                              <span>{order.customerPhone}</span>
-                              <button
-                                onClick={() => copyToClipboard(order.customerPhone, `wa-${order.id}`, 'No WhatsApp')}
-                                className="p-0.5 text-slate-400 hover:text-slate-700"
-                                title="Salin Nomor WA"
-                              >
-                                {copiedMap[`wa-${order.id}`] ? <Check className="w-3 h-3 text-emerald-600" /> : <Copy className="w-2.5 h-2.5" />}
-                              </button>
-                            </div>
-                            {order.customerEmail && (
-                              <div className="text-[10px] text-slate-400 truncate" title={order.customerEmail}>
-                                {order.customerEmail}
-                              </div>
-                            )}
-                          </td>
-                          <td className="py-3.5 px-4 min-w-[200px] max-w-[260px]">
-                            <div className="font-semibold text-slate-800 line-clamp-1 truncate" title={itemName}>
-                              {itemName}
-                            </div>
-                            {itemCat && (
-                              <span className="text-[10px] bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded font-medium mt-0.5 inline-block truncate max-w-full">
-                                {itemCat}
-                              </span>
-                            )}
-                            {order.notes && (
-                              <p className="text-[11px] text-slate-400 italic line-clamp-1 mt-0.5 truncate" title={order.notes}>
-                                "{order.notes}"
-                              </p>
-                            )}
-                          </td>
-                          <td className="py-3.5 px-4 whitespace-nowrap font-bold text-slate-900">
-                            {new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(order.totalAmount || 0)}
-                          </td>
-                          <td className="py-3.5 px-4 whitespace-nowrap">
-                            {renderStatusBadge(order.status, order.id)}
-                          </td>
-                          <td className="py-3.5 px-4 whitespace-nowrap text-right space-x-1">
-                            {/* Detail Button */}
-                            <button
-                              onClick={() => setDetailOrder(order)}
-                              className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-slate-200 hover:bg-slate-50 text-slate-700 font-bold text-xs"
-                              title="Lihat Detail Lengkap"
-                            >
-                              <Eye className="w-3.5 h-3.5" />
-                              <span>Detail</span>
-                            </button>
-                            {/* WhatsApp Button */}
-                            <a
-                              href={getWhatsAppUrl(order)}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs transition-colors"
-                              title="Kirim pesan WhatsApp"
-                            >
-                              <MessageCircle className="w-3.5 h-3.5" />
-                              <span>WhatsApp</span>
-                            </a>
-                            {/* Edit Button */}
-                            <button
-                              onClick={() => openEditModal(order)}
-                              className="p-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50"
-                              title="Edit Pesanan"
-                            >
-                              <Edit3 className="w-3.5 h-3.5" />
-                            </button>
-                            {/* Delete Button */}
-                            <button
-                              onClick={() => setDeleteConfirmId(order.id)}
-                              className="p-1.5 rounded-lg border border-red-200 text-red-600 hover:bg-red-50"
-                              title="Hapus Pesanan"
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </button>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-
-              {/* MOBILE STACKED CARDS VIEW (Screens < 768px, Strict Zero Horizontal Overflow) */}
-              <div className="md:hidden space-y-3 w-full max-w-full min-w-0">
-                {orders.map((order) => {
-                  const itemName = typeof order.itemDetails === 'object' ? (order.itemDetails.name || '-') : String(order.itemDetails);
-                  const isCopied = copiedMap[order.id];
-
-                  return (
-                    <div
-                      key={order.id}
-                      className="bg-white rounded-2xl border border-slate-200 p-4 shadow-xs space-y-3 w-full min-w-0 break-words"
-                    >
-                      {/* Card Header: ID, Date, & Status Dropdown */}
-                      <div className="flex items-center justify-between gap-2 border-b border-slate-100 pb-2.5">
-                        <div className="min-w-0">
+                        <div className="font-mono font-semibold text-slate-900 whitespace-nowrap">
                           <div className="flex items-center gap-1.5">
-                            <span className="font-mono font-black text-blue-600 text-xs truncate">{order.id}</span>
+                            <span className="text-blue-600 font-bold">{order.id}</span>
                             <button
-                              onClick={() => copyToClipboard(order.id, order.id, 'ID')}
-                              className="p-0.5 text-slate-400 hover:text-blue-600"
-                              title="Salin ID"
+                              type="button"
+                              onClick={() => copyToClipboard(order.id, order.id, 'ID Pesanan')}
+                              className="p-1 rounded text-slate-400 hover:text-blue-600 transition-colors cursor-pointer"
+                              title="Salin ID Pesanan"
                             >
                               {isCopied ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3 h-3" />}
                             </button>
                           </div>
-                          <span className="text-[10px] text-slate-400 block truncate">
+                          <span className="text-[10px] text-slate-400 font-sans block">
                             {new Date(order.transactionDate).toLocaleDateString('id-ID', {
-                              day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit'
+                              day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit'
                             })}
                           </span>
                         </div>
-                        <div className="shrink-0">
-                          {renderStatusBadge(order.status, order.id)}
+                      );
+                    }
+                  },
+                  {
+                    key: 'customerName',
+                    label: 'Pelanggan',
+                    sortable: true,
+                    render: (val, order) => (
+                      <div className="min-w-[150px] max-w-[220px]">
+                        <div className="font-bold text-slate-900 text-sm truncate" title={order.customerName}>
+                          {order.customerName}
                         </div>
-                      </div>
-
-                      {/* Card Body: Customer & Item */}
-                      <div className="space-y-1.5 min-w-0">
-                        <div className="flex items-center justify-between gap-2">
-                          <span className="font-extrabold text-sm text-slate-900 truncate" title={order.customerName}>
-                            {order.customerName}
-                          </span>
-                          <span className="font-bold text-xs text-slate-900 whitespace-nowrap shrink-0">
-                            {new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(order.totalAmount || 0)}
-                          </span>
+                        <div className="text-[11px] text-slate-500 font-mono truncate flex items-center gap-1">
+                          <span>{order.customerPhone}</span>
+                          <button
+                            type="button"
+                            onClick={() => copyToClipboard(order.customerPhone, `wa-${order.id}`, 'No WhatsApp')}
+                            className="p-0.5 text-slate-400 hover:text-slate-700 cursor-pointer"
+                            title="Salin Nomor WA"
+                          >
+                            {copiedMap[`wa-${order.id}`] ? <Check className="w-3 h-3 text-emerald-600" /> : <Copy className="w-2.5 h-2.5" />}
+                          </button>
                         </div>
-                        <div className="text-xs text-slate-600 font-medium truncate" title={itemName}>
-                          {itemName}
-                        </div>
-                        {order.notes && (
-                          <div className="text-[11px] text-slate-500 bg-slate-50 p-2 rounded-xl border border-slate-100 italic break-words line-clamp-2" title={order.notes}>
-                            "{order.notes}"
+                        {order.customerEmail && (
+                          <div className="text-[10px] text-slate-400 truncate" title={order.customerEmail}>
+                            {order.customerEmail}
                           </div>
                         )}
                       </div>
-
-                      {/* Card Actions: WhatsApp, Detail Drawer, Edit, Delete */}
-                      <div className="pt-2 flex items-center justify-between gap-2 border-t border-slate-100">
-                        <a
-                          href={getWhatsAppUrl(order)}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="flex-1 py-2 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-xs truncate"
-                        >
-                          <MessageCircle className="w-3.5 h-3.5 shrink-0" />
-                          <span>WhatsApp</span>
-                        </a>
+                    )
+                  },
+                  {
+                    key: 'itemDetails',
+                    label: 'Layanan / Item',
+                    sortable: true,
+                    render: (val, order) => {
+                      const itemName = typeof order.itemDetails === 'object' ? (order.itemDetails.name || '-') : String(order.itemDetails);
+                      const itemCat = typeof order.itemDetails === 'object' ? order.itemDetails.category : null;
+                      return (
+                        <div className="min-w-[180px] max-w-[250px]">
+                          <div className="font-semibold text-slate-800 line-clamp-1 truncate" title={itemName}>
+                            {itemName}
+                          </div>
+                          {itemCat && (
+                            <span className="text-[10px] bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded font-medium mt-0.5 inline-block truncate max-w-full">
+                              {itemCat}
+                            </span>
+                          )}
+                          {order.notes && (
+                            <p className="text-[11px] text-slate-400 italic line-clamp-1 mt-0.5 truncate" title={order.notes}>
+                              "{order.notes}"
+                            </p>
+                          )}
+                        </div>
+                      );
+                    }
+                  },
+                  {
+                    key: 'totalAmount',
+                    label: 'Total',
+                    sortable: true,
+                    render: (val) => (
+                      <span className="whitespace-nowrap font-bold text-slate-900 font-mono">
+                        {new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(val || 0)}
+                      </span>
+                    )
+                  },
+                  {
+                    key: 'status',
+                    label: 'Status',
+                    sortable: true,
+                    render: (val, order) => renderStatusBadge(order.status, order.id)
+                  },
+                  {
+                    key: 'actions',
+                    label: 'Aksi',
+                    sortable: false,
+                    className: 'text-right',
+                    render: (_, order) => (
+                      <div className="whitespace-nowrap text-right space-x-1">
                         <button
+                          type="button"
                           onClick={() => setDetailOrder(order)}
-                          className="p-2 rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-50 shrink-0 font-bold text-xs flex items-center gap-1"
+                          className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-slate-200 hover:bg-slate-50 text-slate-700 font-bold text-xs cursor-pointer"
                           title="Lihat Detail Lengkap"
                         >
                           <Eye className="w-3.5 h-3.5" />
                           <span>Detail</span>
                         </button>
+                        <a
+                          href={getWhatsAppUrl(order)}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs transition-colors cursor-pointer"
+                          title="Kirim pesan WhatsApp"
+                        >
+                          <MessageCircle className="w-3.5 h-3.5" />
+                          <span>WhatsApp</span>
+                        </a>
                         <button
+                          type="button"
                           onClick={() => openEditModal(order)}
-                          className="p-2 rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50 shrink-0"
-                          title="Edit"
+                          className="p-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 cursor-pointer"
+                          title="Edit Pesanan"
                         >
                           <Edit3 className="w-3.5 h-3.5" />
                         </button>
                         <button
+                          type="button"
                           onClick={() => setDeleteConfirmId(order.id)}
-                          className="p-2 rounded-xl border border-red-200 text-red-600 hover:bg-red-50 shrink-0"
-                          title="Hapus"
+                          className="p-1.5 rounded-lg border border-red-200 text-red-600 hover:bg-red-50 cursor-pointer"
+                          title="Hapus Pesanan"
                         >
                           <Trash2 className="w-3.5 h-3.5" />
                         </button>
                       </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </>
+                    )
+                  }
+                ]}
+                data={orders}
+                rowKey="id"
+                searchPlaceholder="Cari pesanan (nama, nomor WA, ID, item)..."
+                emptyMessage="Tidak ada data pesanan yang sesuai."
+                onBulkDelete={handleBulkDeleteOrders}
+                onBulkStatusUpdate={handleBulkStatusOrders}
+                bulkStatusOptions={[
+                  { label: 'Set Dikonfirmasi', value: 'confirmed', color: 'emerald' },
+                  { label: 'Set Selesai', value: 'completed', color: 'emerald' },
+                  { label: 'Set Pending', value: 'pending', color: 'amber' },
+                  { label: 'Set Dibatalkan', value: 'cancelled', color: 'rose' }
+                ]}
+              />
+            </div>
           )}
         </div>
       </div>

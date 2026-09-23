@@ -1,15 +1,18 @@
 import React, { useState, useEffect } from 'react';
 import {
-  Compass, Plus, Edit2, Trash2, Check, X, RefreshCw, Star, Clock, Image as ImageIcon, MapPin
+  Compass, Plus, Edit2, Trash2, Check, X, RefreshCw, Star, Clock,
+  Image as ImageIcon, MapPin, LayoutGrid, Table, CheckCircle2, AlertCircle
 } from 'lucide-react';
+import DataTable from '../common/DataTable';
 
 /**
  * Travel Trip Manager for Admin Dashboard
- * Manages tour packages and travel trips in the database
+ * Manages tour packages and travel trips in the database with modern DataTable
  */
 export const TravelTripManager = ({ adminToken, showToast }) => {
   const [trips, setTrips] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [viewMode, setViewMode] = useState('table'); // 'table' | 'grid'
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingTrip, setEditingTrip] = useState(null);
   const [saving, setSaving] = useState(false);
@@ -127,6 +130,147 @@ export const TravelTripManager = ({ adminToken, showToast }) => {
     }
   };
 
+  // Bulk Delete Handler
+  const handleBulkDeleteTrips = async (ids) => {
+    try {
+      const res = await fetch('/api/admin/travel-trips/batch-delete', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${adminToken || ''}`
+        },
+        body: JSON.stringify({ ids })
+      });
+      const json = await res.json();
+      if (!res.ok || !json.success) throw new Error(json.error || 'Gagal menghapus paket tour terpilih');
+
+      if (showToast) showToast(json.message || `Berhasil menghapus ${ids.length} paket tour!`);
+      fetchTrips();
+    } catch (err) {
+      alert('Gagal bulk delete: ' + err.message);
+    }
+  };
+
+  // Bulk Status Update Handler
+  const handleBulkStatusTrips = async (ids, status) => {
+    try {
+      const res = await fetch('/api/admin/travel-trips/batch-status', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${adminToken || ''}`
+        },
+        body: JSON.stringify({ ids, status })
+      });
+      const json = await res.json();
+      if (!res.ok || !json.success) throw new Error(json.error || 'Gagal mengubah status paket tour');
+
+      if (showToast) showToast(json.message || `Status ${ids.length} paket tour berhasil diperbarui!`);
+      fetchTrips();
+    } catch (err) {
+      alert('Gagal bulk status update: ' + err.message);
+    }
+  };
+
+  // DataTable Column Definitions
+  const tripColumns = [
+    {
+      key: 'title',
+      label: 'Paket Wisata & Destinasi',
+      sortable: true,
+      render: (val, row) => (
+        <div className="flex items-center gap-3 min-w-[200px]">
+          <div className="w-12 h-10 rounded-xl overflow-hidden bg-slate-100 shrink-0 border border-slate-200">
+            <img
+              src={Array.isArray(row.images) ? row.images[0] : (row.image || 'https://images.unsplash.com/photo-1578637387939-43c525550085?auto=format&fit=crop&w=400&q=80')}
+              alt={val}
+              className="w-full h-full object-cover"
+              loading="lazy"
+            />
+          </div>
+          <div className="min-w-0">
+            <div className="font-extrabold text-slate-900 text-xs truncate max-w-xs">{val}</div>
+            <div className="text-[11px] text-slate-400 truncate flex items-center gap-1.5 mt-0.5">
+              <span>/{row.slug || '-'}</span>
+              {row.badge && (
+                <span className="px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700 font-bold text-[10px] border border-emerald-100">
+                  {row.badge}
+                </span>
+              )}
+            </div>
+          </div>
+        </div>
+      )
+    },
+    {
+      key: 'duration',
+      label: 'Durasi',
+      sortable: true,
+      render: (val) => (
+        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-slate-100 text-slate-700 font-medium text-xs">
+          <Clock className="w-3 h-3 text-slate-400" />
+          <span>{val || '-'}</span>
+        </span>
+      )
+    },
+    {
+      key: 'price_per_pax',
+      label: 'Tarif Per Pax',
+      sortable: true,
+      render: (val) => (
+        <span className="font-bold text-slate-900 font-mono text-xs">
+          {val || '-'}
+        </span>
+      )
+    },
+    {
+      key: 'price_per_group',
+      label: 'Tarif Group',
+      sortable: true,
+      render: (val) => (
+        <span className="font-bold text-emerald-700 font-mono text-xs">
+          {val || '-'}
+        </span>
+      )
+    },
+    {
+      key: 'is_active',
+      label: 'Status',
+      sortable: true,
+      render: (val) => {
+        const isActive = val !== false;
+        return (
+          <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold ${
+            isActive
+              ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+              : 'bg-amber-50 text-amber-700 border border-amber-200'
+          }`}>
+            <span className={`w-1.5 h-1.5 rounded-full ${isActive ? 'bg-emerald-500' : 'bg-amber-500'}`} />
+            <span>{isActive ? 'Aktif' : 'Nonaktif'}</span>
+          </span>
+        );
+      }
+    },
+    {
+      key: 'actions',
+      label: 'Aksi',
+      sortable: false,
+      className: 'text-right',
+      render: (_, row) => (
+        <div className="flex items-center justify-end gap-1.5">
+          <button
+            type="button"
+            onClick={() => handleDelete(row.id, row.title)}
+            className="p-1.5 rounded-lg border border-red-200 text-red-600 hover:bg-red-50 text-xs font-medium transition-colors cursor-pointer"
+            title="Hapus paket"
+          >
+            <Trash2 className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      )
+    }
+  ];
+
   return (
     <div className="space-y-6 w-full max-w-full min-w-0">
       <div className="bg-white rounded-3xl border border-slate-200 p-6 sm:p-7 shadow-xs">
@@ -148,18 +292,64 @@ export const TravelTripManager = ({ adminToken, showToast }) => {
             </p>
           </div>
 
-          <button
-            type="button"
-            onClick={handleOpenAdd}
-            className="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs sm:text-sm shadow-md shadow-emerald-600/20 flex items-center gap-2 cursor-pointer shrink-0"
-          >
-            <Plus className="w-4 h-4" />
-            <span>Tambah Paket Wisata</span>
-          </button>
+          <div className="flex items-center gap-2.5">
+            {/* View Switcher */}
+            <div className="flex items-center bg-slate-100 p-1 rounded-xl border border-slate-200 text-xs">
+              <button
+                type="button"
+                onClick={() => setViewMode('table')}
+                className={`p-1.5 rounded-lg transition-all ${
+                  viewMode === 'table'
+                    ? 'bg-white text-emerald-700 shadow-xs font-bold'
+                    : 'text-slate-500 hover:text-slate-800'
+                }`}
+                title="Tampilan Tabel Modern"
+              >
+                <Table className="w-4 h-4" />
+              </button>
+              <button
+                type="button"
+                onClick={() => setViewMode('grid')}
+                className={`p-1.5 rounded-lg transition-all ${
+                  viewMode === 'grid'
+                    ? 'bg-white text-emerald-700 shadow-xs font-bold'
+                    : 'text-slate-500 hover:text-slate-800'
+                }`}
+                title="Tampilan Grid Kartu"
+              >
+                <LayoutGrid className="w-4 h-4" />
+              </button>
+            </div>
+
+            <button
+              type="button"
+              onClick={handleOpenAdd}
+              className="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs sm:text-sm shadow-md shadow-emerald-600/20 flex items-center gap-2 cursor-pointer shrink-0"
+            >
+              <Plus className="w-4 h-4" />
+              <span>Tambah Paket Wisata</span>
+            </button>
+          </div>
         </div>
 
         {loading ? (
           <div className="py-12 text-center text-slate-400">Memuat paket tour...</div>
+        ) : viewMode === 'table' ? (
+          <div className="mt-6">
+            <DataTable
+              columns={tripColumns}
+              data={trips}
+              rowKey="id"
+              searchPlaceholder="Cari nama paket, durasi, atau harga..."
+              emptyMessage="Belum ada paket wisata. Klik 'Tambah Paket Wisata' untuk membuat paket baru."
+              onBulkDelete={handleBulkDeleteTrips}
+              onBulkStatusUpdate={handleBulkStatusTrips}
+              bulkStatusOptions={[
+                { label: 'Set Aktif (Tampil)', value: 'active', color: 'emerald' },
+                { label: 'Set Nonaktif (Sembunyi)', value: 'inactive', color: 'amber' }
+              ]}
+            />
+          </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-6">
             {trips.map((trip) => (

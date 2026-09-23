@@ -77,7 +77,7 @@ export const MobileBottomNav = ({
   const navItems = [
     { id: 'home', label: 'Beranda', icon: Home, href: '#' },
     { id: 'catalog', label: catalogMeta.label, icon: catalogMeta.icon, href: catalogMeta.href },
-    { id: 'pricing', label: 'Tarif', icon: Tag, href: '#pricing' },
+    { id: 'faq', label: 'FAQ', icon: HelpCircle, href: '#faq' },
     { id: 'testimonials', label: 'Testimoni', icon: MessageSquare, href: '#testimonials' },
     { id: 'contact', label: 'Kontak', icon: PhoneCall, href: '#footer', isContact: true }
   ];
@@ -142,21 +142,21 @@ export const MobileBottomNav = ({
    * ------------------------------------------------------------- */
   if (resolvedVariant === 'fixed_curved') {
     const activeIndex = Math.max(0, navItems.findIndex((item) => item.id === activeTab));
-    // Coordinate calculation in 375-width SVG grid:
-    const tabWidth = 75; // 375 / 5 tabs = 75
-    const cx = activeIndex * tabWidth + 37.5;
-    const barTop = 14;
+    const count = navItems.length || 5;
+    const tabWidth = 375 / count;
+    const cx = (activeIndex + 0.5) * tabWidth;
+    const barTop = 18;
 
-    // Symmetrical, perfectly smooth Bézier scoop cradling the 48px active circle with uniform clearance
-    const scoopPath = `M 0 ${barTop} L ${cx - 38} ${barTop} C ${cx - 26} ${barTop}, ${cx - 24} 24, ${cx - 18} 34 C ${cx - 12} 47, ${cx - 6} 49, ${cx} 49 C ${cx + 6} 49, ${cx + 12} 47, ${cx + 18} 34 C ${cx + 24} 24, ${cx + 26} ${barTop}, ${cx + 38} ${barTop} L 375 ${barTop} L 375 72 L 0 72 Z`;
-    const scoopBorder = `M 0 ${barTop} L ${cx - 38} ${barTop} C ${cx - 26} ${barTop}, ${cx - 24} 24, ${cx - 18} 34 C ${cx - 12} 47, ${cx - 6} 49, ${cx} 49 C ${cx + 6} 49, ${cx + 12} 47, ${cx + 18} 34 C ${cx + 24} 24, ${cx + 26} ${barTop}, ${cx + 38} ${barTop} L 375 ${barTop}`;
+    // Symmetrical, mathematically concentric Bézier scoop cradling the 48px circle with a clear 7px non-touching clearance
+    const scoopBorder = `M 0 ${barTop} L ${cx - 45} ${barTop} C ${cx - 36} ${barTop}, ${cx - 33} 24, ${cx - 29} 32 C ${cx - 22} 45, ${cx - 12} 49, ${cx} 49 C ${cx + 12} 49, ${cx + 22} 45, ${cx + 29} 32 C ${cx + 33} 24, ${cx + 36} ${barTop}, ${cx + 45} ${barTop} L 375 ${barTop}`;
+    const scoopPath = `M 0 ${barTop} L ${cx - 45} ${barTop} C ${cx - 36} ${barTop}, ${cx - 33} 24, ${cx - 29} 32 C ${cx - 22} 45, ${cx - 12} 49, ${cx} 49 C ${cx + 12} 49, ${cx + 22} 45, ${cx + 29} 32 C ${cx + 33} 24, ${cx + 36} ${barTop}, ${cx + 45} ${barTop} L 375 ${barTop} L 375 72 L 0 72 Z`;
 
     return (
-      <aside aria-label="Navigasi Bawah Mobile" className="md:hidden fixed bottom-0 inset-x-0 z-40 min-w-0 select-none pointer-events-none animate-bounce-in">
-        <div className="relative max-w-md mx-auto h-[68px]">
+      <aside aria-label="Navigasi Bawah Mobile" className={`md:hidden ${isAlwaysVisible ? 'absolute' : 'fixed'} bottom-0 inset-x-0 z-40 min-w-0 select-none ${isAlwaysVisible ? 'pointer-events-auto' : 'pointer-events-none'} animate-bounce-in`}>
+        <div className="relative max-w-md mx-auto h-[72px]">
           {/* Authentic SVG Scoop Background with smooth curved depression around active circle */}
           <svg
-            className="absolute bottom-0 inset-x-0 w-full h-[72px] filter drop-shadow-[0_-3px_12px_rgba(0,0,0,0.08)] pointer-events-auto"
+            className="absolute bottom-0 inset-x-0 w-full h-[72px] filter drop-shadow-[0_-4px_16px_rgba(15,23,42,0.08)] pointer-events-auto"
             viewBox="0 0 375 72"
             preserveAspectRatio="none"
           >
@@ -166,16 +166,16 @@ export const MobileBottomNav = ({
             <path d={scoopBorder} stroke="#E2E8F0" strokeWidth="1.5" fill="none" />
           </svg>
 
-          {/* Floating Detached Active Circle - Suspended with clearance in the curved cutout without touching */}
+          {/* Floating Detached Active Circle - Suspended with concentric clearance in the curved cutout without touching */}
           <div
             className="absolute z-20 pointer-events-auto transition-all duration-300 ease-out"
             style={{
-              left: `${(activeIndex * 20) + 10}%`,
-              top: '-10px',
+              left: `${((activeIndex + 0.5) / count) * 100}%`,
+              top: '-6px',
               transform: 'translateX(-50%)'
             }}
           >
-            <div className="w-12 h-12 rounded-full bg-blue-600 text-white flex items-center justify-center shadow-xl shadow-blue-600/35 border-3 border-white transform transition-transform active:scale-95">
+            <div className="w-12 h-12 rounded-full bg-blue-600 text-white flex items-center justify-center shadow-xl shadow-blue-600/35 border-2 border-white transform transition-transform active:scale-95">
               {(() => {
                 const ActiveIcon = navItems[activeIndex]?.icon || Home;
                 return <ActiveIcon className="w-5 h-5 stroke-[2.5]" />;
@@ -184,7 +184,7 @@ export const MobileBottomNav = ({
           </div>
 
           {/* Interactive Navigation Tab Links */}
-          <div className="relative z-10 flex items-center justify-around h-full pt-3 px-1 pointer-events-auto">
+          <div className="relative z-10 flex items-center justify-around h-full pt-4 px-1 pointer-events-auto">
             {navItems.map((item, idx) => {
               const Icon = item.icon;
               const isActive = activeIndex === idx;

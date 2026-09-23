@@ -227,4 +227,24 @@ router.get('/health', (req, res) => {
 });
 
 export const getLeads = () => leads;
+export const deleteLeads = (ids) => {
+  const idSet = new Set(ids);
+  for (let i = leads.length - 1; i >= 0; i--) {
+    if (idSet.has(leads[i].id)) {
+      leads.splice(i, 1);
+    }
+  }
+  return ids.length;
+};
+export const updateLeadsStatus = (ids, status) => {
+  const idSet = new Set(ids);
+  let count = 0;
+  for (const l of leads) {
+    if (idSet.has(l.id)) {
+      l.status = status;
+      count++;
+    }
+  }
+  return count;
+};
 export default router;

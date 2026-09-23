@@ -65,14 +65,7 @@ export const Navbar = ({ brandName, phone, whatsapp, tagline }) => {
             >
               Keunggulan
             </a>
-            <a
-              href="#pricing"
-              className={`text-sm font-semibold transition-colors ${
-                isScrolled ? 'text-slate-700 hover:text-blue-600' : 'text-white/90 hover:text-white drop-shadow-sm'
-              }`}
-            >
-              Paket Tarif
-            </a>
+
             <a
               href="#testimonials"
               className={`text-sm font-semibold transition-colors ${
@@ -166,14 +159,7 @@ export const Navbar = ({ brandName, phone, whatsapp, tagline }) => {
                 <span>Keunggulan Layanan</span>
                 <ChevronRight className="w-4 h-4 text-slate-400" />
               </a>
-              <a
-                href="#pricing"
-                onClick={() => setMobileMenuOpen(false)}
-                className="flex items-center justify-between text-base font-semibold text-slate-800 p-3.5 rounded-xl hover:bg-slate-50 transition-colors"
-              >
-                <span>Paket & Tarif</span>
-                <ChevronRight className="w-4 h-4 text-slate-400" />
-              </a>
+
               <a
                 href="#faq"
                 onClick={() => setMobileMenuOpen(false)}

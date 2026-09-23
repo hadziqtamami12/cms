@@ -138,7 +138,7 @@ export const AutomotiveThemeRenderer = ({ themeId, config, onSelectItem }) => {
             </p>
           </div>
           <a
-            href="#pricing"
+            href="#fleet"
             className="shrink-0 px-7 py-3.5 rounded-xl bg-white text-emerald-800 hover:bg-emerald-50 font-black text-xs sm:text-sm shadow-lg transition-all"
           >
             Cek Promo Harian
@@ -878,65 +878,6 @@ export const AutomotiveThemeRenderer = ({ themeId, config, onSelectItem }) => {
                 </div>
                 <h3 className="font-bold text-slate-900 text-lg leading-snug">{feat.title}</h3>
                 <p className="text-slate-600 text-sm leading-relaxed">{feat.desc}</p>
-              </div>
-            ))}
-          </div>
-        </section>
-      )}
-
-      {/* ----------------- PRICING PACKAGES SECTION ----------------- */}
-      {pricing.length > 0 && (
-        <section id="pricing" className="space-y-12 sm:space-y-16">
-          <div className="text-center max-w-2xl mx-auto space-y-4">
-            <span className="text-xs font-bold uppercase tracking-wider text-blue-600">Paket Tarif Transparan</span>
-            <h2 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold text-slate-900 tracking-tight leading-tight">
-              Pilihan Paket Sewa Fleksibel Sesuai Kebutuhan
-            </h2>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {pricing.map((p, idx) => (
-              <div
-                key={idx}
-                className={`rounded-3xl p-8 sm:p-10 flex flex-col justify-between transition-all space-y-8 ${
-                  p.popular
-                    ? 'bg-blue-600 text-white shadow-xl ring-2 ring-blue-600 scale-100 md:scale-105'
-                    : 'bg-white text-slate-900 border border-slate-200 shadow-subtle'
-                }`}
-              >
-                <div className="space-y-6">
-                  {p.badge && (
-                    <span className={`inline-block px-3.5 py-1.5 rounded-full text-xs font-bold ${
-                      p.popular ? 'bg-white/20 text-white' : 'bg-blue-50 text-blue-700'
-                    }`}>
-                      {p.badge}
-                    </span>
-                  )}
-                  <h3 className="text-2xl font-bold">{p.title}</h3>
-                  <div className="text-3xl sm:text-4xl font-extrabold">
-                    {p.price}
-                    <span className={`text-xs font-normal ml-1.5 ${p.popular ? 'text-blue-100' : 'text-slate-500'}`}>{p.period}</span>
-                  </div>
-                  <ul className="space-y-3.5 pt-6 border-t border-slate-200/40 text-sm">
-                    {p.features?.map((f, fIdx) => (
-                      <li key={fIdx} className="flex items-center gap-3">
-                        <Check className={`w-4 h-4 shrink-0 ${p.popular ? 'text-white' : 'text-blue-600'}`} />
-                        <span>{f}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-                <div className="pt-4">
-                  <a
-                    href={whatsapp ? `https://wa.me/${whatsapp.replace(/[^0-9]/g, '')}?text=Halo%20saya%20mau%20ambil%20${encodeURIComponent(p.title)}` : '#contact'}
-                    className={`w-full py-3.5 px-6 rounded-xl font-bold text-sm text-center block transition-all ${
-                      p.popular
-                        ? 'bg-white text-blue-700 hover:bg-slate-100 shadow-md'
-                        : 'bg-slate-900 text-white hover:bg-slate-800'
-                    }`}
-                  >
-                    Pilih Paket Ini
-                  </a>
-                </div>
               </div>
             ))}
           </div>

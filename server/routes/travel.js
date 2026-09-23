@@ -232,4 +232,65 @@ router.delete('/manage/:id', adminAuth, async (req, res) => {
   }
 });
 
+/**
+ * Admin: POST /api/admin/travel-trips/batch-delete
+ * Bulk delete travel packages by ID array
+ */
+router.post('/batch-delete', adminAuth, async (req, res) => {
+  try {
+    const { ids } = req.body;
+    if (!Array.isArray(ids) || ids.length === 0) {
+      return res.status(400).json({ success: false, error: 'Pilih minimal satu paket tour untuk dihapus' });
+    }
+
+    const dbType = getDbType();
+    if (dbType === 'postgres') {
+      await query('DELETE FROM travel_trips WHERE id = ANY($1)', [ids]);
+    } else if (dbType === 'mysql') {
+      const placeholders = ids.map(() => '?').join(',');
+      await query(`DELETE FROM travel_trips WHERE id IN (${placeholders})`, ids);
+    }
+
+    res.json({
+      success: true,
+      message: `Berhasil menghapus ${ids.length} paket tour secara serentak (bulk delete)!`,
+      deletedCount: ids.length
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+/**
+ * Admin: POST /api/admin/travel-trips/batch-status
+ * Bulk update travel packages active status
+ */
+router.post('/batch-status', adminAuth, async (req, res) => {
+  try {
+    const { ids, status } = req.body;
+    if (!Array.isArray(ids) || ids.length === 0) {
+      return res.status(400).json({ success: false, error: 'Pilih minimal satu paket tour' });
+    }
+
+    const isActive = status === 'active' || status === true;
+    const dbType = getDbType();
+
+    if (dbType === 'postgres') {
+      await query('UPDATE travel_trips SET is_active = $1, updated_at = CURRENT_TIMESTAMP WHERE id = ANY($2)', [isActive, ids]);
+    } else if (dbType === 'mysql') {
+      const placeholders = ids.map(() => '?').join(',');
+      await query(`UPDATE travel_trips SET is_active = ?, updated_at = CURRENT_TIMESTAMP WHERE id IN (${placeholders})`, [isActive, ...ids]);
+    }
+
+    res.json({
+      success: true,
+      message: `Berhasil memperbarui status ${ids.length} paket tour menjadi ${isActive ? 'Aktif' : 'Nonaktif'}!`,
+      updatedCount: ids.length,
+      is_active: isActive
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 export default router;

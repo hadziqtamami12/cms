@@ -57,7 +57,7 @@ export const ArticleDetailPage = ({ slug: propSlug }) => {
       const scriptEl = document.getElementById('article-json-ld');
       if (scriptEl) scriptEl.remove();
     };
-  }, [slug]);
+  }, [currentSlug]);
 
   if (loading) {
     return (

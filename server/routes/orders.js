@@ -375,6 +375,66 @@ router.delete('/:id', adminAuth, (req, res) => {
 });
 
 /**
+ * POST /api/admin/orders/batch-delete
+ * Bulk delete orders by ID array
+ */
+router.post('/batch-delete', adminAuth, (req, res) => {
+  try {
+    const { ids } = req.body;
+    if (!Array.isArray(ids) || ids.length === 0) {
+      return res.status(400).json({ success: false, error: 'Pilih minimal satu pesanan untuk dihapus' });
+    }
+
+    const idSet = new Set(ids);
+    const initialLen = orders.length;
+    orders = orders.filter(o => !idSet.has(o.id));
+    const deletedCount = initialLen - orders.length;
+
+    res.json({
+      success: true,
+      message: `Berhasil menghapus ${deletedCount} pesanan secara serentak (bulk delete)!`,
+      deletedCount
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+/**
+ * POST /api/admin/orders/batch-status
+ * Bulk update status for multiple orders
+ */
+router.post('/batch-status', adminAuth, (req, res) => {
+  try {
+    const { ids, status } = req.body;
+    if (!Array.isArray(ids) || ids.length === 0) {
+      return res.status(400).json({ success: false, error: 'Pilih minimal satu pesanan' });
+    }
+
+    const idSet = new Set(ids);
+    let updatedCount = 0;
+    const now = new Date().toISOString();
+
+    for (const order of orders) {
+      if (idSet.has(order.id)) {
+        order.status = status;
+        order.updatedAt = now;
+        updatedCount++;
+      }
+    }
+
+    res.json({
+      success: true,
+      message: `Berhasil memperbarui status ${updatedCount} pesanan menjadi "${status}"!`,
+      updatedCount,
+      status
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+/**
  * Public Order Submission Endpoint (e.g. from customer checkout / booking modal)
  */
 export const createPublicOrder = (orderData) => {

@@ -16,7 +16,8 @@ export const ArticlesPage = () => {
 
   useEffect(() => {
     fetch('/api/articles/public')
-      .then(res => res.json())
+      .then(res => res.text())
+      .then(text => (text ? JSON.parse(text) : {}))
       .then(json => {
         if (json.success && Array.isArray(json.data)) {
           setArticles(json.data);

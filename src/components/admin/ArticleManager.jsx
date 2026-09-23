@@ -3,6 +3,7 @@ import {
   FileText, Plus, Edit2, Trash2, Check, X, RefreshCw, Sparkles,
   MapPin, Eye, ExternalLink, Globe, Layers, ArrowRight
 } from 'lucide-react';
+import DataTable from '../common/DataTable';
 
 /**
  * Article & Programmatic Multi-Location SEO Manager
@@ -40,10 +41,12 @@ export const ArticleManager = ({ adminToken, showToast }) => {
   const fetchArticles = async () => {
     setLoading(true);
     try {
+      const activeToken = adminToken || localStorage.getItem('cms_admin_token') || 'cms_admin_session_active';
       const res = await fetch('/api/admin/articles/manage', {
-        headers: { 'Authorization': `Bearer ${adminToken || ''}` }
+        headers: { 'Authorization': `Bearer ${activeToken}` }
       });
-      const json = await res.json();
+      const text = await res.text();
+      const json = text ? JSON.parse(text) : {};
       if (json.success && Array.isArray(json.data)) {
         setArticles(json.data);
       }
@@ -102,15 +105,17 @@ export const ArticleManager = ({ adminToken, showToast }) => {
         : `/api/admin/articles/manage`;
       const method = editingArticle ? 'PUT' : 'POST';
 
+      const activeToken = adminToken || localStorage.getItem('cms_admin_token') || 'cms_admin_session_active';
       const res = await fetch(url, {
         method,
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${adminToken || ''}`
+          'Authorization': `Bearer ${activeToken}`
         },
         body: JSON.stringify(formData)
       });
-      const json = await res.json();
+      const text = await res.text();
+      const json = text ? JSON.parse(text) : {};
       if (!res.ok || !json.success) throw new Error(json.error || 'Gagal menyimpan artikel');
 
       if (showToast) showToast('Artikel berhasil disimpan!');
@@ -126,16 +131,62 @@ export const ArticleManager = ({ adminToken, showToast }) => {
   const handleDeleteArticle = async (id, title) => {
     if (!window.confirm(`Hapus artikel "${title}"?`)) return;
     try {
+      const activeToken = adminToken || localStorage.getItem('cms_admin_token') || 'cms_admin_session_active';
       const res = await fetch(`/api/admin/articles/manage/${id}`, {
         method: 'DELETE',
-        headers: { 'Authorization': `Bearer ${adminToken || ''}` }
+        headers: { 'Authorization': `Bearer ${activeToken}` }
       });
-      const json = await res.json();
-      if (!res.ok || !json.success) throw new Error(json.error);
+      const text = await res.text();
+      const json = text ? JSON.parse(text) : {};
+      if (!res.ok || !json.success) throw new Error(json.error || 'Gagal menghapus artikel');
       if (showToast) showToast('Artikel berhasil dihapus');
       fetchArticles();
     } catch (err) {
       alert('Gagal hapus: ' + err.message);
+    }
+  };
+
+  // Bulk Delete Articles
+  const handleBulkDeleteArticles = async (ids) => {
+    try {
+      const activeToken = adminToken || localStorage.getItem('cms_admin_token') || 'cms_admin_session_active';
+      const res = await fetch('/api/admin/articles/batch-delete', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${activeToken}`
+        },
+        body: JSON.stringify({ ids })
+      });
+      const text = await res.text();
+      const json = text ? JSON.parse(text) : {};
+      if (!res.ok || !json.success) throw new Error(json.error || 'Gagal menghapus batch artikel');
+      if (showToast) showToast(json.message);
+      fetchArticles();
+    } catch (err) {
+      alert('Gagal bulk delete: ' + err.message);
+    }
+  };
+
+  // Bulk Status Update Articles (Publish / Draft)
+  const handleBulkStatusArticles = async (ids, status) => {
+    try {
+      const activeToken = adminToken || localStorage.getItem('cms_admin_token') || 'cms_admin_session_active';
+      const res = await fetch('/api/admin/articles/batch-status', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${activeToken}`
+        },
+        body: JSON.stringify({ ids, status })
+      });
+      const text = await res.text();
+      const json = text ? JSON.parse(text) : {};
+      if (!res.ok || !json.success) throw new Error(json.error || 'Gagal update status batch');
+      if (showToast) showToast(json.message);
+      fetchArticles();
+    } catch (err) {
+      alert('Gagal bulk status: ' + err.message);
     }
   };
 
@@ -149,11 +200,12 @@ export const ArticleManager = ({ adminToken, showToast }) => {
 
     setGenerating(true);
     try {
+      const activeToken = adminToken || localStorage.getItem('cms_admin_token') || 'cms_admin_session_active';
       const res = await fetch('/api/admin/articles/generate-programmatic', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${adminToken || ''}`
+          'Authorization': `Bearer ${activeToken}`
         },
         body: JSON.stringify({
           titleTemplate: progForm.titleTemplate,
@@ -165,7 +217,8 @@ export const ArticleManager = ({ adminToken, showToast }) => {
         })
       });
 
-      const json = await res.json();
+      const text = await res.text();
+      const json = text ? JSON.parse(text) : {};
       if (!res.ok || !json.success) throw new Error(json.error || 'Gagal generate');
 
       if (showToast) showToast(json.message);
@@ -177,6 +230,115 @@ export const ArticleManager = ({ adminToken, showToast }) => {
       setGenerating(false);
     }
   };
+
+  // DataTable Column Definitions
+  const articleColumns = [
+    {
+      key: 'title',
+      label: 'Judul Artikel & Slug',
+      sortable: true,
+      render: (val, row) => (
+        <div className="space-y-0.5 max-w-sm">
+          <div className="font-extrabold text-slate-900 text-xs sm:text-sm line-clamp-1" title={row.title}>
+            {row.title}
+          </div>
+          <div className="text-[10px] text-slate-400 font-mono truncate">
+            /artikel/{row.slug}
+          </div>
+        </div>
+      )
+    },
+    {
+      key: 'category',
+      label: 'Kategori',
+      sortable: true,
+      render: (val) => (
+        <span className="px-2 py-0.5 rounded-md bg-indigo-50 text-indigo-700 text-[10px] font-bold">
+          {val || 'Umum'}
+        </span>
+      )
+    },
+    {
+      key: 'location_variable',
+      label: 'Lokasi Target',
+      sortable: true,
+      render: (val) => val ? (
+        <span className="px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-700 text-[10px] font-bold inline-flex items-center gap-1">
+          <MapPin className="w-3 h-3" />
+          <span>{val}</span>
+        </span>
+      ) : (
+        <span className="text-slate-400 text-[10px]">-</span>
+      )
+    },
+    {
+      key: 'views_count',
+      label: 'Pembaca',
+      sortable: true,
+      render: (val) => (
+        <span className="font-mono text-xs font-bold text-slate-700">
+          {(Number(val) || 0).toLocaleString('id-ID')}
+        </span>
+      )
+    },
+    {
+      key: 'is_published',
+      label: 'Status',
+      sortable: true,
+      render: (val) => (
+        <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+          val !== false ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'
+        }`}>
+          {val !== false ? 'Terbit' : 'Draf'}
+        </span>
+      )
+    },
+    {
+      key: 'created_at',
+      label: 'Tanggal Dibuat',
+      sortable: true,
+      render: (val) => (
+        <span className="text-[11px] text-slate-500 font-mono whitespace-nowrap">
+          {val ? new Date(val).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) : '-'}
+        </span>
+      )
+    },
+    {
+      key: 'actions',
+      label: 'Aksi',
+      sortable: false,
+      className: 'text-right',
+      render: (_, art) => (
+        <div className="flex items-center justify-end gap-1.5">
+          <a
+            href={`/artikel/${art.slug}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="p-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors"
+            title="Buka Halaman Publik"
+          >
+            <ExternalLink className="w-3.5 h-3.5" />
+          </a>
+          <button
+            type="button"
+            onClick={() => handleOpenEdit(art)}
+            className="p-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors cursor-pointer"
+            title="Edit Artikel"
+          >
+            <Edit2 className="w-3.5 h-3.5" />
+          </button>
+          <button
+            type="button"
+            onClick={() => handleDeleteArticle(art.id, art.title)}
+            className="p-1.5 rounded-lg border border-red-200 text-red-600 hover:bg-red-50 transition-colors cursor-pointer"
+            title="Hapus Artikel"
+          >
+            <Trash2 className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      )
+    }
+  ];
 
   return (
     <div className="space-y-6 w-full max-w-full min-w-0">
@@ -196,7 +358,7 @@ export const ArticleManager = ({ adminToken, showToast }) => {
               </span>
             </div>
             <p className="text-xs sm:text-sm text-slate-500">
-              Kelola artikel blog reguler atau duplikasi master artikel ke puluhan lokasi target secara otomatis.
+              Kelola artikel blog reguler atau duplikasi master artikel ke puluhan lokasi target secara otomatis dengan fitur DataTable modern.
             </p>
           </div>
 
@@ -204,7 +366,7 @@ export const ArticleManager = ({ adminToken, showToast }) => {
             <button
               type="button"
               onClick={() => setActiveSubTab('list')}
-              className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${
+              className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                 activeSubTab === 'list'
                   ? 'bg-slate-900 text-white'
                   : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-50'
@@ -215,7 +377,7 @@ export const ArticleManager = ({ adminToken, showToast }) => {
             <button
               type="button"
               onClick={handleOpenCreate}
-              className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
+              className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
                 activeSubTab === 'create'
                   ? 'bg-indigo-600 text-white'
                   : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-50'
@@ -227,7 +389,7 @@ export const ArticleManager = ({ adminToken, showToast }) => {
             <button
               type="button"
               onClick={() => setActiveSubTab('programmatic')}
-              className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
+              className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
                 activeSubTab === 'programmatic'
                   ? 'bg-emerald-600 text-white shadow-sm'
                   : 'bg-emerald-50 border border-emerald-200 text-emerald-700 hover:bg-emerald-100'
@@ -239,70 +401,28 @@ export const ArticleManager = ({ adminToken, showToast }) => {
           </div>
         </div>
 
-        {/* SUBTAB 1: ARTICLES LIST */}
+        {/* SUBTAB 1: ARTICLES LIST (POWERED BY MODERN DATATABLE) */}
         {activeSubTab === 'list' && (
-          <div className="mt-6 space-y-4">
+          <div className="mt-6">
             {loading ? (
-              <div className="py-12 text-center text-slate-400">Memuat artikel...</div>
-            ) : articles.length === 0 ? (
-              <div className="py-12 text-center text-slate-400">
-                Belum ada artikel. Klik "Tulis Artikel" atau gunakan "Programmatic SEO" untuk membuat puluhan artikel daerah instan.
+              <div className="py-16 text-center text-slate-400 space-y-2">
+                <RefreshCw className="w-6 h-6 animate-spin mx-auto text-indigo-600" />
+                <p className="text-xs font-medium">Memuat data artikel...</p>
               </div>
             ) : (
-              <div className="divide-y divide-slate-100">
-                {articles.map((art) => (
-                  <div key={art.id} className="py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                    <div className="space-y-1">
-                      <div className="flex items-center gap-2">
-                        <span className="px-2 py-0.5 rounded-md bg-indigo-50 text-indigo-700 text-[10px] font-bold">
-                          {art.category}
-                        </span>
-                        {art.location_variable && (
-                          <span className="px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-700 text-[10px] font-bold flex items-center gap-1">
-                            <MapPin className="w-3 h-3" />
-                            {art.location_variable}
-                          </span>
-                        )}
-                        <span className="text-[11px] text-slate-400 font-mono">
-                          {art.views_count || 0} Pembaca
-                        </span>
-                      </div>
-                      <h4 className="font-extrabold text-sm sm:text-base text-slate-900 leading-snug">
-                        {art.title}
-                      </h4>
-                      <p className="text-xs text-slate-500 font-mono">/artikel/{art.slug}</p>
-                    </div>
-
-                    <div className="flex items-center gap-2 shrink-0">
-                      <a
-                        href={`/artikel/${art.slug}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="p-2 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50"
-                        title="Buka Halaman Publik"
-                      >
-                        <ExternalLink className="w-3.5 h-3.5" />
-                      </a>
-                      <button
-                        type="button"
-                        onClick={() => handleOpenEdit(art)}
-                        className="p-2 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50"
-                        title="Edit Artikel"
-                      >
-                        <Edit2 className="w-3.5 h-3.5" />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleDeleteArticle(art.id, art.title)}
-                        className="p-2 rounded-lg border border-red-200 text-red-600 hover:bg-red-50"
-                        title="Hapus Artikel"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
+              <DataTable
+                columns={articleColumns}
+                data={articles}
+                rowKey="id"
+                searchPlaceholder="Cari judul artikel, kategori, atau lokasi target..."
+                emptyMessage="Belum ada artikel. Klik 'Tulis Artikel' atau gunakan 'Programmatic SEO'."
+                onBulkDelete={handleBulkDeleteArticles}
+                onBulkStatusUpdate={handleBulkStatusArticles}
+                bulkStatusOptions={[
+                  { label: 'Set Terbit (Aktif)', value: 'active', color: 'emerald' },
+                  { label: 'Set Draf (Nonaktif)', value: 'inactive', color: 'amber' }
+                ]}
+              />
             )}
           </div>
         )}

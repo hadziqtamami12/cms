@@ -2,11 +2,12 @@ import React, { useState } from 'react';
 import {
   Package, Plus, Search, Edit2, Trash2, Check, X,
   Image as ImageIcon, Sparkles, RefreshCw, AlertCircle, Eye, Tag,
-  Layers, CheckCircle2, ChevronRight, SlidersHorizontal
+  Layers, CheckCircle2, ChevronRight, SlidersHorizontal, LayoutGrid, Table
 } from 'lucide-react';
 import { updateAppSettings } from '../../lib/api';
 import { getPresetForIndustry } from '../../lib/industryCatalogs';
 import ProductMediaGalleryManager from './ProductMediaGalleryManager';
+import DataTable from '../common/DataTable';
 
 /**
  * Product Catalog Manager (Product Card CRUD Studio)
@@ -21,6 +22,7 @@ export const ProductCatalogManager = ({
   showToast
 }) => {
   const [productList, setProductList] = useState(items);
+  const [viewMode, setViewMode] = useState('table'); // 'table' | 'grid'
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('Semua');
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -332,6 +334,20 @@ export const ProductCatalogManager = ({
     await persistProducts(updatedList, `Produk "${title}" berhasil dihapus dari katalog.`);
   };
 
+  // Bulk Delete Products Handler
+  const handleBulkDeleteProducts = async (ids) => {
+    const updatedList = productList.filter(item => !ids.includes(item.id));
+    await persistProducts(updatedList, `Berhasil menghapus ${ids.length} produk secara serentak (bulk delete)!`);
+  };
+
+  // Bulk Status Update Products Handler
+  const handleBulkStatusProducts = async (ids, statusValue) => {
+    const updatedList = productList.map(item =>
+      ids.includes(item.id) ? { ...item, status: statusValue, is_active: statusValue === 'active' } : item
+    );
+    await persistProducts(updatedList, `Status ${ids.length} produk berhasil diperbarui!`);
+  };
+
   // Reset to industry default presets
   const handleResetPresets = async () => {
     if (!window.confirm(`Reset katalog ke produk default industri ${currentIndustry.toUpperCase()}? Seluruh item saat ini akan diganti dengan preset default.`)) {
@@ -340,6 +356,136 @@ export const ProductCatalogManager = ({
     const preset = getPresetForIndustry(currentIndustry);
     await persistProducts(preset.items, `Katalog di-reset ke default industri [${currentIndustry}]`);
   };
+
+  // DataTable Columns for Products
+  const productColumns = [
+    {
+      key: 'title',
+      label: 'Armada / Produk',
+      sortable: true,
+      render: (val, row) => (
+        <div className="flex items-center gap-3 min-w-[200px]">
+          <div className="w-12 h-10 rounded-xl overflow-hidden bg-slate-100 shrink-0 border border-slate-200">
+            <img
+              src={row.image || (Array.isArray(row.images) && row.images[0]) || 'https://images.unsplash.com/photo-1549399542-7e3f8b79c341?auto=format&fit=crop&w=400&q=80'}
+              alt={val}
+              className="w-full h-full object-cover"
+              loading="lazy"
+            />
+          </div>
+          <div className="min-w-0">
+            <div className="font-extrabold text-slate-900 text-xs truncate max-w-xs">{val}</div>
+            <div className="text-[11px] text-slate-400 flex items-center gap-1.5 mt-0.5">
+              {row.badge && (
+                <span className="px-1.5 py-0.5 rounded bg-blue-50 text-blue-700 font-bold text-[10px] border border-blue-100">
+                  {row.badge}
+                </span>
+              )}
+              {Array.isArray(row.images) && row.images.length > 1 && (
+                <span className="text-[10px] text-slate-400 flex items-center gap-0.5">
+                  <ImageIcon className="w-2.5 h-2.5" />
+                  <span>{row.images.length}</span>
+                </span>
+              )}
+            </div>
+          </div>
+        </div>
+      )
+    },
+    {
+      key: 'category',
+      label: 'Kategori',
+      sortable: true,
+      render: (val) => (
+        <span className="px-2.5 py-1 rounded-lg bg-slate-100 text-slate-700 text-xs font-semibold">
+          {val || 'Umum'}
+        </span>
+      )
+    },
+    {
+      key: 'price',
+      label: 'Harga Utama',
+      sortable: true,
+      render: (val, row) => (
+        <div>
+          <span className="font-black text-slate-900 font-mono text-xs">{val || '-'}</span>
+          {row.period && <span className="text-[10px] text-slate-400 ml-1">{row.period}</span>}
+        </div>
+      )
+    },
+    {
+      key: 'pricing_tiers',
+      label: 'Skema Tarif (Multi-Tiers)',
+      sortable: false,
+      render: (val, row) => {
+        const tiers = Array.isArray(val) && val.length > 0 ? val : (
+          row.price_self_drive || row.price_with_driver ? [
+            row.price_self_drive && { label: 'Lepas Kunci', price: row.price_self_drive },
+            row.price_with_driver && { label: 'Dengan Sopir', price: row.price_with_driver }
+          ].filter(Boolean) : []
+        );
+
+        if (tiers.length === 0) return <span className="text-slate-400 text-xs">-</span>;
+
+        return (
+          <div className="flex flex-wrap gap-1.5 max-w-xs">
+            {tiers.map((t, idx) => (
+              <span
+                key={idx}
+                className="px-2 py-0.5 rounded-md bg-blue-50 border border-blue-100 text-blue-700 text-[10px] font-bold"
+              >
+                {t.label}: <span className="font-mono text-slate-800">{t.price}</span>
+              </span>
+            ))}
+          </div>
+        );
+      }
+    },
+    {
+      key: 'status',
+      label: 'Status',
+      sortable: true,
+      render: (val, row) => {
+        const isActive = val !== 'inactive' && row.is_active !== false;
+        return (
+          <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold ${
+            isActive
+              ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+              : 'bg-amber-50 text-amber-700 border border-amber-200'
+          }`}>
+            <span className={`w-1.5 h-1.5 rounded-full ${isActive ? 'bg-emerald-500' : 'bg-amber-500'}`} />
+            <span>{isActive ? 'Aktif' : 'Nonaktif'}</span>
+          </span>
+        );
+      }
+    },
+    {
+      key: 'actions',
+      label: 'Aksi',
+      sortable: false,
+      className: 'text-right',
+      render: (_, row) => (
+        <div className="flex items-center justify-end gap-1.5">
+          <button
+            type="button"
+            onClick={() => handleOpenEdit(row)}
+            className="p-1.5 rounded-lg border border-slate-200 hover:border-blue-300 text-slate-600 hover:text-blue-600 hover:bg-blue-50 text-xs transition-colors cursor-pointer"
+            title="Edit produk"
+          >
+            <Edit2 className="w-3.5 h-3.5" />
+          </button>
+          <button
+            type="button"
+            onClick={() => handleDeleteProduct(row.id, row.title)}
+            className="p-1.5 rounded-lg border border-slate-200 hover:border-red-300 text-slate-400 hover:text-red-600 hover:bg-red-50 text-xs transition-colors cursor-pointer"
+            title="Hapus produk"
+          >
+            <Trash2 className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      )
+    }
+  ];
 
   return (
     <div className="space-y-6 w-full max-w-full min-w-0">
@@ -364,6 +510,34 @@ export const ProductCatalogManager = ({
           </div>
 
           <div className="flex items-center gap-2.5 flex-wrap sm:flex-nowrap shrink-0">
+            {/* View Switcher */}
+            <div className="flex items-center bg-slate-100 p-1 rounded-xl border border-slate-200 text-xs">
+              <button
+                type="button"
+                onClick={() => setViewMode('table')}
+                className={`p-1.5 rounded-lg transition-all ${
+                  viewMode === 'table'
+                    ? 'bg-white text-blue-700 shadow-xs font-bold'
+                    : 'text-slate-500 hover:text-slate-800'
+                }`}
+                title="Tampilan Tabel Modern"
+              >
+                <Table className="w-4 h-4" />
+              </button>
+              <button
+                type="button"
+                onClick={() => setViewMode('grid')}
+                className={`p-1.5 rounded-lg transition-all ${
+                  viewMode === 'grid'
+                    ? 'bg-white text-blue-700 shadow-xs font-bold'
+                    : 'text-slate-500 hover:text-slate-800'
+                }`}
+                title="Tampilan Grid Kartu"
+              >
+                <LayoutGrid className="w-4 h-4" />
+              </button>
+            </div>
+
             <button
               type="button"
               onClick={handleResetPresets}
@@ -419,134 +593,152 @@ export const ProductCatalogManager = ({
         </div>
       </div>
 
-      {/* Product Cards Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 w-full max-w-full min-w-0">
-        {filteredProducts.map((item) => (
-          <div
-            key={item.id}
-            className="group bg-white rounded-3xl border border-slate-200 overflow-hidden shadow-xs hover:shadow-card hover:border-blue-300 transition-all flex flex-col justify-between"
-          >
-            {/* Image & Badges */}
-            <div className="relative aspect-[16/10] overflow-hidden bg-slate-100">
-              <img
-                src={item.image || 'https://images.unsplash.com/photo-1549399542-7e3f8b79c341?auto=format&fit=crop&w=800&q=80'}
-                alt={item.title}
-                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                loading="lazy"
-              />
-              {item.badge && (
-                <span className="absolute top-3 left-3 px-3 py-1 rounded-full bg-blue-600 text-white text-[11px] font-black uppercase tracking-wider shadow-sm">
-                  {item.badge}
-                </span>
-              )}
-              {item.category && (
-                <span className="absolute bottom-3 right-3 px-2.5 py-1 rounded-lg bg-slate-900/80 backdrop-blur-xs text-white text-[10px] font-bold">
-                  {item.category}
-                </span>
-              )}
-              {Array.isArray(item.images) && item.images.length > 1 && (
-                <span className="absolute top-3 right-3 px-2 py-0.5 rounded-md bg-black/60 backdrop-blur-xs text-white text-[10px] font-mono font-bold flex items-center gap-1">
-                  <ImageIcon className="w-3 h-3" />
-                  <span>{item.images.length} Foto</span>
-                </span>
-              )}
-            </div>
+      {/* Main Product View: Modern DataTable or Cards Grid */}
+      {viewMode === 'table' ? (
+        <DataTable
+          columns={productColumns}
+          data={filteredProducts}
+          rowKey="id"
+          searchPlaceholder="Cari nama armada, kategori, atau harga..."
+          emptyMessage="Belum ada produk yang cocok dengan pencarian atau filter kategori."
+          onBulkDelete={handleBulkDeleteProducts}
+          onBulkStatusUpdate={handleBulkStatusProducts}
+          bulkStatusOptions={[
+            { label: 'Set Aktif (Tampil)', value: 'active', color: 'emerald' },
+            { label: 'Set Nonaktif (Sembunyi)', value: 'inactive', color: 'amber' }
+          ]}
+        />
+      ) : (
+        <>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 w-full max-w-full min-w-0">
+            {filteredProducts.map((item) => (
+              <div
+                key={item.id}
+                className="group bg-white rounded-3xl border border-slate-200 overflow-hidden shadow-xs hover:shadow-card hover:border-blue-300 transition-all flex flex-col justify-between"
+              >
+                {/* Image & Badges */}
+                <div className="relative aspect-[16/10] overflow-hidden bg-slate-100">
+                  <img
+                    src={item.image || 'https://images.unsplash.com/photo-1549399542-7e3f8b79c341?auto=format&fit=crop&w=800&q=80'}
+                    alt={item.title}
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                    loading="lazy"
+                  />
+                  {item.badge && (
+                    <span className="absolute top-3 left-3 px-3 py-1 rounded-full bg-blue-600 text-white text-[11px] font-black uppercase tracking-wider shadow-sm">
+                      {item.badge}
+                    </span>
+                  )}
+                  {item.category && (
+                    <span className="absolute bottom-3 right-3 px-2.5 py-1 rounded-lg bg-slate-900/80 backdrop-blur-xs text-white text-[10px] font-bold">
+                      {item.category}
+                    </span>
+                  )}
+                  {Array.isArray(item.images) && item.images.length > 1 && (
+                    <span className="absolute top-3 right-3 px-2 py-0.5 rounded-md bg-black/60 backdrop-blur-xs text-white text-[10px] font-mono font-bold flex items-center gap-1">
+                      <ImageIcon className="w-3 h-3" />
+                      <span>{item.images.length} Foto</span>
+                    </span>
+                  )}
+                </div>
 
-            {/* Card Content */}
-            <div className="p-5 flex-1 flex flex-col justify-between space-y-4">
-              <div className="space-y-3">
-                <h3 className="font-extrabold text-base text-slate-900 leading-snug line-clamp-2" title={item.title}>
-                  {item.title}
-                </h3>
+                {/* Card Content */}
+                <div className="p-5 flex-1 flex flex-col justify-between space-y-4">
+                  <div className="space-y-3">
+                    <h3 className="font-extrabold text-base text-slate-900 leading-snug line-clamp-2" title={item.title}>
+                      {item.title}
+                    </h3>
 
-                {/* Multi-Tarif Pricing Tiers Display */}
-                {Array.isArray(item.pricing_tiers) && item.pricing_tiers.length > 0 ? (
-                  <div className="space-y-1.5 p-2.5 bg-slate-50/80 rounded-2xl border border-slate-100">
-                    <div className="flex items-baseline justify-between">
-                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Pilihan Tarif:</span>
-                      <span className="text-xs font-bold text-blue-600">
-                        Mulai {item.pricing_tiers.find(t => t.is_default)?.price || item.price}
-                      </span>
-                    </div>
-                    <div className="flex flex-wrap gap-1.5">
-                      {item.pricing_tiers.map((tier, tIdx) => (
-                        <span
-                          key={tIdx}
-                          className={`px-2 py-0.5 rounded-md text-[10px] font-medium border ${
-                            tier.is_default
-                              ? 'bg-blue-50 text-blue-700 border-blue-200 font-bold'
-                              : 'bg-white text-slate-600 border-slate-200'
-                          }`}
-                        >
-                          {tier.label}: <strong className="font-bold text-slate-800">{tier.price}</strong>
-                          {tier.unit && <span className="opacity-70 text-[9px]"> {tier.unit}</span>}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                ) : (
-                  <div className="flex items-baseline gap-1">
-                    <span className="text-lg font-black text-blue-600">{item.price}</span>
-                    <span className="text-xs text-slate-400 font-medium">{item.period}</span>
-                  </div>
-                )}
+                    {/* Multi-Tarif Pricing Tiers Display */}
+                    {Array.isArray(item.pricing_tiers) && item.pricing_tiers.length > 0 ? (
+                      <div className="space-y-1.5 p-2.5 bg-slate-50/80 rounded-2xl border border-slate-100">
+                        <div className="flex items-baseline justify-between">
+                          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Pilihan Tarif:</span>
+                          <span className="text-xs font-bold text-blue-600">
+                            Mulai {item.pricing_tiers.find(t => t.is_default)?.price || item.price}
+                          </span>
+                        </div>
+                        <div className="flex flex-wrap gap-1.5">
+                          {item.pricing_tiers.map((tier, tIdx) => (
+                            <span
+                              key={tIdx}
+                              className={`px-2 py-0.5 rounded-md text-[10px] font-medium border ${
+                                tier.is_default
+                                  ? 'bg-blue-50 text-blue-700 border-blue-200 font-bold'
+                                  : 'bg-white text-slate-600 border-slate-200'
+                              }`}
+                            >
+                              {tier.label}: <strong className="font-bold text-slate-800">{tier.price}</strong>
+                              {tier.unit && <span className="opacity-70 text-[9px]"> {tier.unit}</span>}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="flex items-baseline gap-1">
+                        <span className="text-lg font-black text-blue-600">{item.price}</span>
+                        <span className="text-xs text-slate-400 font-medium">{item.period}</span>
+                      </div>
+                    )}
 
-                {/* Specs tags */}
-                {Array.isArray(item.specs) && item.specs.length > 0 && (
-                  <div className="flex flex-wrap gap-1.5 pt-1">
-                    {item.specs.slice(0, 4).map((spec, sIdx) => (
-                      <span
-                        key={sIdx}
-                        className="px-2 py-0.5 rounded-md bg-slate-100 text-slate-600 text-[10px] font-medium"
-                      >
-                        {spec}
-                      </span>
-                    ))}
-                    {item.specs.length > 4 && (
-                      <span className="px-1.5 py-0.5 rounded-md bg-slate-100 text-slate-400 text-[10px] font-medium">
-                        +{item.specs.length - 4}
-                      </span>
+                    {/* Specs tags */}
+                    {Array.isArray(item.specs) && item.specs.length > 0 && (
+                      <div className="flex flex-wrap gap-1.5 pt-1">
+                        {item.specs.slice(0, 4).map((spec, sIdx) => (
+                          <span
+                            key={sIdx}
+                            className="px-2 py-0.5 rounded-md bg-slate-100 text-slate-600 text-[10px] font-medium"
+                          >
+                            {spec}
+                          </span>
+                        ))}
+                        {item.specs.length > 4 && (
+                          <span className="px-1.5 py-0.5 rounded-md bg-slate-100 text-slate-400 text-[10px] font-medium">
+                            +{item.specs.length - 4}
+                          </span>
+                        )}
+                      </div>
                     )}
                   </div>
-                )}
-              </div>
 
-              {/* Action Buttons: Edit & Delete */}
-              <div className="pt-3 border-t border-slate-100 flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => handleOpenEdit(item)}
-                  className="flex-1 py-2 px-3 rounded-xl border border-slate-200 hover:border-blue-300 bg-white hover:bg-blue-50 text-slate-700 hover:text-blue-700 font-bold text-xs transition-colors flex items-center justify-center gap-1.5 shadow-2xs cursor-pointer"
-                >
-                  <Edit2 className="w-3.5 h-3.5" />
-                  <span>Edit Produk</span>
-                </button>
+                  {/* Action Buttons: Edit & Delete */}
+                  <div className="pt-3 border-t border-slate-100 flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => handleOpenEdit(item)}
+                      className="flex-1 py-2 px-3 rounded-xl border border-slate-200 hover:border-blue-300 bg-white hover:bg-blue-50 text-slate-700 hover:text-blue-700 font-bold text-xs transition-colors flex items-center justify-center gap-1.5 shadow-2xs cursor-pointer"
+                    >
+                      <Edit2 className="w-3.5 h-3.5" />
+                      <span>Edit Produk</span>
+                    </button>
 
-                <button
-                  type="button"
-                  onClick={() => handleDeleteProduct(item.id, item.title)}
-                  className="p-2 rounded-xl border border-slate-200 hover:border-red-300 bg-white hover:bg-red-50 text-slate-400 hover:text-red-600 transition-colors shadow-2xs cursor-pointer"
-                  title="Hapus produk"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </button>
+                    <button
+                      type="button"
+                      onClick={() => handleDeleteProduct(item.id, item.title)}
+                      className="p-2 rounded-xl border border-slate-200 hover:border-red-300 bg-white hover:bg-red-50 text-slate-400 hover:text-red-600 transition-colors shadow-2xs cursor-pointer"
+                      title="Hapus produk"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
               </div>
+            ))}
+          </div>
+
+          {/* Empty State */}
+          {filteredProducts.length === 0 && (
+            <div className="bg-white rounded-3xl border border-slate-200 p-12 text-center space-y-3">
+              <div className="w-12 h-12 rounded-2xl bg-slate-100 mx-auto flex items-center justify-center text-slate-400">
+                <Package className="w-6 h-6" />
+              </div>
+              <h4 className="font-extrabold text-slate-800 text-base">Belum Ada Produk Tersedia</h4>
+              <p className="text-xs text-slate-500 max-w-sm mx-auto">
+                Tidak ada produk yang cocok dengan pencarian Anda. Klik tombol Tambah Produk Baru di atas untuk mulai menambahkan item.
+              </p>
             </div>
-          </div>
-        ))}
-      </div>
-
-      {/* Empty State */}
-      {filteredProducts.length === 0 && (
-        <div className="bg-white rounded-3xl border border-slate-200 p-12 text-center space-y-3">
-          <div className="w-12 h-12 rounded-2xl bg-slate-100 mx-auto flex items-center justify-center text-slate-400">
-            <Package className="w-6 h-6" />
-          </div>
-          <h4 className="font-extrabold text-slate-800 text-base">Belum Ada Produk Tersedia</h4>
-          <p className="text-xs text-slate-500 max-w-sm mx-auto">
-            Tidak ada produk yang cocok dengan pencarian Anda. Klik tombol Tambah Produk Baru di atas untuk mulai menambahkan item.
-          </p>
-        </div>
+          )}
+        </>
       )}
 
       {/* Modal Add / Edit Product Drawer */}

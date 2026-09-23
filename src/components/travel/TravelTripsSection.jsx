@@ -14,7 +14,8 @@ export const TravelTripsSection = ({ whatsapp = '6281288990011', brandName = 'Ro
 
   useEffect(() => {
     fetch('/api/travel-trips/public')
-      .then(res => res.json())
+      .then(res => res.text())
+      .then(text => (text ? JSON.parse(text) : {}))
       .then(json => {
         if (json.success && Array.isArray(json.data)) {
           setTrips(json.data);

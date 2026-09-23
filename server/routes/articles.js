@@ -420,4 +420,65 @@ router.post('/generate-programmatic', adminAuth, async (req, res) => {
   }
 });
 
+/**
+ * Admin: POST /api/admin/articles/batch-delete
+ * Bulk delete articles by ID array
+ */
+router.post('/batch-delete', adminAuth, async (req, res) => {
+  try {
+    const { ids } = req.body;
+    if (!Array.isArray(ids) || ids.length === 0) {
+      return res.status(400).json({ success: false, error: 'Pilih minimal satu artikel untuk dihapus' });
+    }
+
+    const dbType = getDbType();
+    if (dbType === 'postgres') {
+      await query('DELETE FROM articles WHERE id = ANY($1)', [ids]);
+    } else if (dbType === 'mysql') {
+      const placeholders = ids.map(() => '?').join(',');
+      await query(`DELETE FROM articles WHERE id IN (${placeholders})`, ids);
+    }
+
+    res.json({
+      success: true,
+      message: `Berhasil menghapus ${ids.length} artikel secara serentak (bulk delete)!`,
+      deletedCount: ids.length
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+/**
+ * Admin: POST /api/admin/articles/batch-status
+ * Bulk update article publication status
+ */
+router.post('/batch-status', adminAuth, async (req, res) => {
+  try {
+    const { ids, status } = req.body;
+    if (!Array.isArray(ids) || ids.length === 0) {
+      return res.status(400).json({ success: false, error: 'Pilih minimal satu artikel' });
+    }
+
+    const isPublished = status === 'active' || status === true || status === 'published';
+    const dbType = getDbType();
+
+    if (dbType === 'postgres') {
+      await query('UPDATE articles SET is_published = $1, updated_at = CURRENT_TIMESTAMP WHERE id = ANY($2)', [isPublished, ids]);
+    } else if (dbType === 'mysql') {
+      const placeholders = ids.map(() => '?').join(',');
+      await query(`UPDATE articles SET is_published = ?, updated_at = CURRENT_TIMESTAMP WHERE id IN (${placeholders})`, [isPublished, ...ids]);
+    }
+
+    res.json({
+      success: true,
+      message: `Berhasil memperbarui status ${ids.length} artikel menjadi ${isPublished ? 'Terbit/Aktif' : 'Draf/Nonaktif'}!`,
+      updatedCount: ids.length,
+      is_published: isPublished
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 export default router;

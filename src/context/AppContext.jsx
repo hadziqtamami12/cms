@@ -1,11 +1,12 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { fetchConfig } from '../lib/api';
+import { DEFAULT_CONFIG } from '../lib/defaultConfig';
 
 const AppContext = createContext();
 
 export const AppProvider = ({ children }) => {
-  const [config, setConfig] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [config, setConfig] = useState(DEFAULT_CONFIG);
+  const [loading, setLoading] = useState(false);
   const [adminToken, setAdminToken] = useState(() => localStorage.getItem('cms_admin_token') || '');
   const [adminSlug, setAdminSlug] = useState('admin');
   const [licenseStatus, setLicenseStatus] = useState({

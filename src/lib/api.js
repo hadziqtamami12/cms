@@ -1,17 +1,18 @@
-/**
- * Frontend API Client with Automatic Lockout & Installer Redirection
- */
+import { DEFAULT_CONFIG } from './defaultConfig';
 
 const API_BASE = '/api';
 
 export const fetchConfig = async () => {
   try {
     const res = await fetch(`${API_BASE}/config`);
+    const contentType = res.headers.get('content-type') || '';
+    if (!res.ok || !contentType.includes('application/json')) {
+      return { success: true, data: DEFAULT_CONFIG, isFallback: true };
+    }
     const data = await res.json();
     return data;
   } catch (err) {
-    console.warn('[API Client] fetchConfig fallback:', err.message);
-    return { success: false, error: err.message };
+    return { success: true, data: DEFAULT_CONFIG, isFallback: true };
   }
 };
 

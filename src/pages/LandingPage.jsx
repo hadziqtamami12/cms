@@ -3,7 +3,7 @@ import Navbar from '../components/common/Navbar';
 import HeroSlideshow from '../components/common/HeroSlideshow';
 import MobileBottomNav from '../components/common/MobileBottomNav';
 import SeoHead from '../components/common/SeoHead';
-import ThemeRegistry from '../components/themes/ThemeRegistry';
+import ThemeRegistry from '../components/themes/ThemeRegistry.jsx';
 import { ShieldCheck, Phone, Mail, MapPin, ExternalLink } from 'lucide-react';
 
 export const LandingPage = ({ config }) => {

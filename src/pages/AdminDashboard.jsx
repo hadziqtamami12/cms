@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import {
   Palette, TrendingUp, Settings, Users, LogOut, CheckCircle2,
   RefreshCw, Globe, Shield, Smartphone, Layers, Save, AlertCircle,
-  Menu, X, ChevronRight, ExternalLink, Activity, Sparkles, Check
+  Menu, X, ChevronLeft, ChevronRight, ExternalLink, Activity, Sparkles, Check
 } from 'lucide-react';
 import SeoScoreChecker from '../components/seo/SeoScoreChecker';
 import ResponsiveTableCard from '../components/common/ResponsiveTableCard';
@@ -16,7 +16,8 @@ export const AdminDashboard = ({
   onConfigUpdated
 }) => {
   const [activeTab, setActiveTab] = useState('themes'); // 'themes' | 'seo' | 'leads' | 'settings'
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+  const [desktopSidebarOpen, setDesktopSidebarOpen] = useState(true);
   const [loading, setLoading] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
 
@@ -257,11 +258,13 @@ export const AdminDashboard = ({
         <div className="flex items-center gap-3">
           <button
             type="button"
-            onClick={() => setSidebarOpen(true)}
-            className="p-2 rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-50 active:bg-slate-100 focus:outline-none"
-            aria-label="Buka Menu"
+            onClick={() => setMobileSidebarOpen(prev => !prev)}
+            className="px-3 py-2 rounded-xl border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 active:bg-slate-100 focus:outline-none flex items-center gap-2 shadow-xs transition-colors"
+            aria-label="Toggle Sidebar Mobile"
+            id="mobile-sidebar-toggle"
           >
-            <Menu className="w-5 h-5" />
+            <Menu className="w-5 h-5 text-blue-600" />
+            <span className="text-xs font-bold text-slate-800">Menu</span>
           </button>
           <div className="flex items-center gap-2">
             <div className="w-8 h-8 rounded-xl bg-blue-600 text-white flex items-center justify-center font-black text-sm shadow-sm">
@@ -297,24 +300,26 @@ export const AdminDashboard = ({
       {/* ========================================================
        * MOBILE BACKDROP OVERLAY
        * ======================================================== */}
-      {sidebarOpen && (
+      {mobileSidebarOpen && (
         <div
-          onClick={() => setSidebarOpen(false)}
+          onClick={() => setMobileSidebarOpen(false)}
           className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs z-50 lg:hidden transition-opacity"
           aria-hidden="true"
         />
       )}
 
       {/* ========================================================
-       * SIDEBAR (Responsive: Drawer on mobile, Persistent on desktop)
+       * SIDEBAR (Responsive: Drawer on mobile, Toggleable on desktop)
        * ======================================================== */}
       <aside
-        className={`fixed top-0 bottom-0 left-0 z-50 w-72 bg-white border-r border-slate-200 flex flex-col justify-between transition-transform duration-300 ease-in-out lg:translate-x-0 ${
-          sidebarOpen ? 'translate-x-0 shadow-2xl' : '-translate-x-full'
+        className={`fixed top-0 bottom-0 left-0 z-50 w-72 bg-white border-r border-slate-200 flex flex-col justify-between transition-transform duration-300 ease-in-out ${
+          mobileSidebarOpen ? 'translate-x-0 shadow-2xl' : '-translate-x-full'
+        } ${
+          desktopSidebarOpen ? 'lg:translate-x-0' : 'lg:-translate-x-full'
         }`}
       >
         {/* Sidebar Brand Header */}
-        <div className="p-6 border-b border-slate-100 flex items-center justify-between">
+        <div className="p-5 border-b border-slate-100 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-2xl bg-blue-600 text-white flex items-center justify-center font-black shadow-md shadow-blue-600/20">
               M
@@ -326,13 +331,25 @@ export const AdminDashboard = ({
               </span>
             </div>
           </div>
-          <button
-            onClick={() => setSidebarOpen(false)}
-            className="lg:hidden p-1.5 rounded-xl border border-slate-200 text-slate-500 hover:bg-slate-50"
-            aria-label="Tutup Menu"
-          >
-            <X className="w-4 h-4" />
-          </button>
+          <div className="flex items-center gap-1">
+            {/* Desktop Collapse / Hide Button */}
+            <button
+              onClick={() => setDesktopSidebarOpen(false)}
+              className="hidden lg:flex p-2 rounded-xl border border-slate-200 text-slate-500 hover:text-slate-800 hover:bg-slate-100 transition-colors"
+              title="Tutup / Sembunyikan Sidebar"
+              aria-label="Tutup Sidebar"
+            >
+              <ChevronLeft className="w-4 h-4" />
+            </button>
+            {/* Mobile Close Button */}
+            <button
+              onClick={() => setMobileSidebarOpen(false)}
+              className="lg:hidden p-2 rounded-xl border border-slate-200 text-slate-500 hover:bg-slate-100"
+              aria-label="Tutup Menu"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
         </div>
 
         {/* Sidebar Navigation Links */}
@@ -348,7 +365,7 @@ export const AdminDashboard = ({
                 key={item.id}
                 onClick={() => {
                   setActiveTab(item.id);
-                  setSidebarOpen(false);
+                  setMobileSidebarOpen(false);
                 }}
                 className={`w-full flex items-center justify-between px-3.5 py-3 rounded-2xl text-sm font-semibold transition-all ${
                   isActive
@@ -411,24 +428,58 @@ export const AdminDashboard = ({
         </div>
       </aside>
 
+      {/* Floating Re-Open Sidebar Button for Desktop when closed */}
+      {!desktopSidebarOpen && (
+        <button
+          onClick={() => setDesktopSidebarOpen(true)}
+          className="hidden lg:flex fixed bottom-6 left-6 z-40 px-4 py-3 rounded-2xl bg-blue-600 text-white shadow-xl shadow-blue-600/30 hover:bg-blue-700 items-center gap-2.5 text-xs font-bold transition-all hover:scale-105 active:scale-95"
+          title="Buka Sidebar"
+          id="floating-open-sidebar"
+        >
+          <Menu className="w-4 h-4" />
+          <span>Buka Sidebar</span>
+        </button>
+      )}
+
       {/* ========================================================
-       * MAIN CONTENT AREA (Offset by sidebar on desktop)
+       * MAIN CONTENT AREA (Offset by sidebar on desktop if open)
        * ======================================================== */}
-      <main className="flex-1 lg:pl-72 flex flex-col min-w-0">
-        {/* Desktop Sticky Header */}
+      <main className={`flex-1 flex flex-col min-w-0 transition-all duration-300 ease-in-out ${
+        desktopSidebarOpen ? 'lg:pl-72' : 'lg:pl-0'
+      }`}>
+        {/* Desktop Sticky Header with Toggle Sidebar Button */}
         <header className="hidden lg:flex bg-white border-b border-slate-200 sticky top-0 z-30 px-8 py-4 items-center justify-between shadow-xs">
-          <div>
-            <div className="flex items-center gap-2 text-xs font-medium text-slate-400 mb-0.5">
-              <span>Admin Portal</span>
-              <ChevronRight className="w-3.5 h-3.5" />
-              <span className="text-blue-600 font-bold capitalize">{activeTab}</span>
+          <div className="flex items-center gap-4">
+            {/* Desktop Toggle Button */}
+            <button
+              type="button"
+              onClick={() => setDesktopSidebarOpen(prev => !prev)}
+              className="px-3.5 py-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 active:bg-slate-100 text-slate-700 flex items-center gap-2 shadow-xs transition-colors"
+              title={desktopSidebarOpen ? "Sembunyikan Sidebar" : "Buka Sidebar"}
+              aria-label="Toggle Sidebar Desktop"
+              id="desktop-sidebar-toggle"
+            >
+              <Menu className="w-5 h-5 text-blue-600" />
+              <span className="text-xs font-bold text-slate-700">
+                {desktopSidebarOpen ? 'Tutup Sidebar' : 'Buka Sidebar'}
+              </span>
+            </button>
+
+            <div className="h-6 w-px bg-slate-200" />
+
+            <div>
+              <div className="flex items-center gap-2 text-xs font-medium text-slate-400 mb-0.5">
+                <span>Admin Portal</span>
+                <ChevronRight className="w-3.5 h-3.5" />
+                <span className="text-blue-600 font-bold capitalize">{activeTab}</span>
+              </div>
+              <h1 className="text-xl font-extrabold text-slate-900 tracking-tight">
+                {activeTab === 'themes' && 'Engine 50 Tema Multi-Industri'}
+                {activeTab === 'seo' && 'SEO #1 Audit & Keyword Engine'}
+                {activeTab === 'leads' && 'Data Pesanan & Leads Masuk'}
+                {activeTab === 'settings' && 'Pengaturan Portal & Dynamic Slug'}
+              </h1>
             </div>
-            <h1 className="text-xl font-extrabold text-slate-900 tracking-tight">
-              {activeTab === 'themes' && 'Engine 50 Tema Multi-Industri'}
-              {activeTab === 'seo' && 'SEO #1 Audit & Keyword Engine'}
-              {activeTab === 'leads' && 'Data Pesanan & Leads Masuk'}
-              {activeTab === 'settings' && 'Pengaturan Portal & Dynamic Slug'}
-            </h1>
           </div>
 
           <div className="flex items-center gap-3">

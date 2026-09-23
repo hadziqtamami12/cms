@@ -23,7 +23,13 @@ export const SubscriptionHold = ({ onRenewSuccess, programmerContact = '+62 812-
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ licenseKey: newKey })
       });
-      const data = await res.json();
+      const text = await res.text();
+      let data = {};
+      try {
+        data = text ? JSON.parse(text) : {};
+      } catch (e) {
+        data = { success: false, error: 'Respon server tidak valid' };
+      }
       if (data.success) {
         setStatusMessage({ type: 'success', text: 'Lisensi berhasil diperpanjang! Mengalihkan...' });
         setTimeout(() => {

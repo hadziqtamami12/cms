@@ -29,8 +29,8 @@ const programmerAuth = (req, res, next) => {
  * Validates programmer passphrase
  */
 router.post('/login', (req, res) => {
-  const { masterKey } = req.body;
-  if (verifyProgrammerPassphrase(masterKey)) {
+  const masterKey = req.body?.masterKey;
+  if (masterKey && verifyProgrammerPassphrase(masterKey)) {
     return res.json({
       success: true,
       message: 'Otorisasi Programmer Berhasil. Portal Keygen Terbuka.'
@@ -61,7 +61,7 @@ router.get('/status', programmerAuth, async (req, res) => {
  */
 router.post('/generate', programmerAuth, (req, res) => {
   try {
-    const { clientName, type, customDays } = req.body;
+    const { clientName, type, customDays } = req.body || {};
     if (!clientName) {
       return res.status(400).json({ success: false, error: 'Nama klien / ID proyek wajib diisi' });
     }
@@ -87,7 +87,7 @@ router.post('/generate', programmerAuth, (req, res) => {
  * Validates any given license key against the mathematical algorithm
  */
 router.post('/verify-key', programmerAuth, (req, res) => {
-  const { licenseKey } = req.body;
+  const { licenseKey } = req.body || {};
   const result = verifyLicenseKey(licenseKey);
   res.json({ success: true, result });
 });
@@ -98,9 +98,9 @@ router.post('/verify-key', programmerAuth, (req, res) => {
  */
 router.post('/override-unlock', programmerAuth, async (req, res) => {
   try {
-    const { masterKey, note } = req.body;
+    const { masterKey, note } = req.body || {};
     const unlock = await programmerOverrideUnlock({
-      masterKey,
+      masterKey: masterKey || req.headers['x-programmer-key'],
       note: note || 'Programmer Emergency Override Unlock'
     });
     res.json(unlock);

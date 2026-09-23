@@ -12,9 +12,10 @@ export const SetupWizard = ({ onComplete }) => {
     document.title = 'Instalasi CMS Enterprise Multi-Industri | Setup Wizard';
     // Auto-fetch demo key for convenience
     fetch('/api/installer/demo-key')
-      .then(res => res.json())
+      .then(res => res.text())
+      .then(text => (text ? JSON.parse(text) : null))
       .then(data => {
-        if (data.success && data.demoKey) {
+        if (data && data.success && data.demoKey) {
           setLicenseConfig(prev => ({
             ...prev,
             licenseKey: prev.licenseKey || data.demoKey,

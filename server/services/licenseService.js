@@ -275,7 +275,8 @@ export const programmerOverrideUnlock = async ({ masterKey, note = 'Programmer e
  * Verify Programmer Master Passphrase
  */
 export const verifyProgrammerPassphrase = (passphrase) => {
-  return passphrase === PROGRAMMER_SECRET_KEY;
+  if (!passphrase) return false;
+  return String(passphrase).trim() === String(PROGRAMMER_SECRET_KEY).trim();
 };
 
 export const setInitialInstalledState = (installed) => {

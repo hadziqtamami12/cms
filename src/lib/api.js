@@ -30,7 +30,15 @@ const safeFetchJson = async (url, options = {}) => {
 
 export const fetchConfig = async () => {
   try {
-    const res = await fetch(`${API_BASE}/config`);
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 3500);
+
+    const res = await fetch(`${API_BASE}/config?_t=${Date.now()}`, {
+      cache: 'no-store',
+      signal: controller.signal
+    });
+    clearTimeout(timeoutId);
+
     const contentType = res.headers.get('content-type') || '';
     const text = await res.text();
     if (!res.ok || !text || !contentType.includes('application/json')) {
@@ -45,20 +53,13 @@ export const fetchConfig = async () => {
 
 export const fetchPublicSettings = async () => {
   try {
-    const res = await fetch(`${API_BASE}/settings/public?_t=${Date.now()}`, {
-      cache: 'no-store'
-    });
-    const contentType = res.headers.get('content-type') || '';
-    const text = await res.text();
-    if (!res.ok || !text || !contentType.includes('application/json')) {
-      return await fetchConfig();
-    }
-    const data = JSON.parse(text);
-    return data;
-  } catch (err) {
+    // Queries canonical /config directly to eliminate 404 errors on existing servers and avoid hanging
     return await fetchConfig();
+  } catch (err) {
+    return { success: true, data: DEFAULT_CONFIG, isFallback: true };
   }
 };
+
 
 export const submitLead = async (leadData) => {
   return await safeFetchJson(`${API_BASE}/leads`, {

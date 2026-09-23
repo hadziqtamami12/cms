@@ -6,10 +6,6 @@
 
 import { query, getDbType, getMemoryStore } from '../config/db.js';
 import { getCache, setCache, delCache } from '../config/cache.js';
-
-let isDbTableEnsured = false;
-let inMemoryConfig = null;
-
 // Base Default Configuration
 export const DEFAULT_APP_CONFIG = {
   industry: 'automotive',

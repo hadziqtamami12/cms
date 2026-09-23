@@ -12,7 +12,7 @@ export const AppProvider = ({ children }) => {
     } catch {}
     return DEFAULT_CONFIG;
   });
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   const [adminToken, setAdminToken] = useState(() => localStorage.getItem('cms_admin_token') || '');
   const [adminSlug, setAdminSlug] = useState(() => {

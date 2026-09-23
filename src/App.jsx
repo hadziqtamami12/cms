@@ -5,6 +5,7 @@ import AdminDashboard from './pages/AdminDashboard';
 import SetupPage from './pages/SetupPage';
 import LockoutPage from './pages/LockoutPage';
 import ProgrammerPortalPage from './pages/ProgrammerPortalPage';
+import LandingPageSkeleton from './components/common/LandingPageSkeleton';
 import { adminLogin } from './lib/api';
 import { ShieldCheck, Lock, ArrowRight, Loader2, Eye, EyeOff } from 'lucide-react';
 
@@ -48,6 +49,15 @@ export const App = () => {
   };
 
   if (loading) {
+    const cleanPath = currentPath.replace(/^\/+|\/+$/g, '');
+    const activeSlug = (adminSlug || 'admin').replace(/^\/+|\/+$/g, '');
+    const isAdminRoute = cleanPath === activeSlug || cleanPath.startsWith(`${activeSlug}/`);
+
+    // High-fidelity Landing Page Skeleton while fetching data on public routes
+    if (!isAdminRoute && currentPath !== '/install' && currentPath !== '/setup' && currentPath !== '/keygen' && currentPath !== '/secret-keygen') {
+      return <LandingPageSkeleton />;
+    }
+
     return (
       <div className="min-h-screen bg-surface-warm flex items-center justify-center">
         <div className="flex flex-col items-center gap-3 text-slate-500">

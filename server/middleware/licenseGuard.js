@@ -9,9 +9,10 @@
 import { getSystemLicenseStatus } from '../services/licenseService.js';
 
 export const licenseGuard = async (req, res, next) => {
-  // Allow static files, installer, keygen, and health checks to bypass guard
+  // Allow static files, installer, keygen, health checks, and config to bypass guard
   const path = req.path;
   const isBypassRoute = (
+    path === '/api/config' ||
     path.startsWith('/api/installer') ||
     path.startsWith('/api/keygen') ||
     path.startsWith('/api/health') ||

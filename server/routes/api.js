@@ -24,6 +24,7 @@ router.get('/config', async (req, res) => {
         ...themeConfig,
         adminSlug: getAdminSlug(),
         license: {
+          isInstalled: licenseStatus.isInstalled,
           status: licenseStatus.status,
           type: licenseStatus.type,
           daysRemaining: licenseStatus.daysRemaining,

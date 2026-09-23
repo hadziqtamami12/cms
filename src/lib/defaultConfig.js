@@ -171,8 +171,8 @@ export const DEFAULT_CONFIG = {
   },
   adminSlug: 'admin',
   license: {
-    isInstalled: false,
-    status: 'uninstalled',
+    isInstalled: null,
+    status: 'unknown',
     type: 'trial',
     daysRemaining: 30,
     isLocked: false

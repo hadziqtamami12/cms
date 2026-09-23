@@ -60,10 +60,11 @@ export const App = () => {
     return (
       <SetupPage
         onComplete={(res) => {
-          // Immediately mark as installed in context so routing doesn't loop back to /install
+          // Immediately mark as installed and navigate — DO NOT call reloadConfig here
+          // reloadConfig would race and potentially reset isInstalled back to false
+          // if backend returns DEFAULT_CONFIG or stale in-memory state.
           setLicenseStatus(prev => ({ ...prev, isInstalled: true, isLocked: false, status: 'active' }));
           const slug = res?.data?.adminSlug || adminSlug || 'admin';
-          reloadConfig();
           navigate(`/${slug}`);
         }}
       />

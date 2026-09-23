@@ -49,15 +49,46 @@ export const AppProvider = ({ children }) => {
     try {
       setLoading(true);
 
+      // Read current local setup state (ground truth for static mode)
+      let localSetup = null;
+      try {
+        const raw = localStorage.getItem('cms_setup_state');
+        if (raw) localSetup = JSON.parse(raw);
+      } catch {}
+
       const res = await fetchConfig();
-      if (res && res.success && res.data) {
+
+      if (res && res.success && res.data && !res.isFallback) {
+        // Live server response (not fallback)
         setConfig(res.data);
         if (res.data.adminSlug) setAdminSlug(res.data.adminSlug);
+
         if (res.data.license) {
-          setLicenseStatus(res.data.license);
+          const serverLicense = res.data.license;
+          // CRITICAL: Never overwrite isInstalled=true with server's isInstalled=false
+          // This happens when the Express server restarts and loses in-memory state.
+          // localStorage is ground truth for static DB mode.
+          if (serverLicense.isInstalled === false && localSetup?.isInstalled === true) {
+            // Server lost state — keep local state
+            const expiresAt = localSetup.expiresAt ? new Date(localSetup.expiresAt) : null;
+            const daysRemaining = expiresAt
+              ? Math.max(0, Math.floor((expiresAt - Date.now()) / (1000 * 60 * 60 * 24)))
+              : 30;
+            setLicenseStatus({
+              isInstalled: true,
+              isLocked: daysRemaining <= 0,
+              status: daysRemaining > 0 ? 'active' : 'expired',
+              daysRemaining,
+              licenseKey: localSetup.licenseKey,
+              licenseType: localSetup.licenseType || 'trial'
+            });
+          } else if (serverLicense.isInstalled !== null && serverLicense.isInstalled !== undefined) {
+            setLicenseStatus(serverLicense);
+          }
+          // If serverLicense.isInstalled is null (DEFAULT_CONFIG fallback marker), skip — keep current state
         }
       }
-      // If backend not available, the synchronous localStorage state already set correctly above
+      // If isFallback: localStorage state is already correct from synchronous useState init — do nothing
     } catch (err) {
       console.error('[AppContext] Failed to load configuration:', err);
     } finally {

@@ -1069,23 +1069,6 @@ export const AdminDashboard = ({
         </div>
       </main>
 
-      {/* Live Split/Modal Preview Studio */}
-      <LiveThemeStudioModal
-        isOpen={isPreviewOpen}
-        onClose={handleClosePreview}
-        theme={previewTheme}
-        industry={previewIndustry}
-        config={config}
-        onActivate={async (indId, thId) => {
-          await handleSwitchTheme(indId, thId);
-          handleClosePreview();
-        }}
-        isActiveTheme={
-          previewTheme &&
-          currentIndustry === previewIndustry?.id &&
-          currentThemeId === previewTheme?.id
-        }
-      />
     </div>
   );
 };

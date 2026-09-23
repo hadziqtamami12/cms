@@ -1,23 +1,46 @@
 {
-  "name": "ultra-cms-monorepo",
-  "version": "1.0.0",
+  "name": "enterprise-cms-engine",
   "private": true,
-  "description": "Ultra Performance Multi-Purpose Headless CMS & Page Builder",
+  "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "dev": "concurrently -n \"SERVER,CLIENT\" -c \"cyan,magenta\" \"node api/index.js\" \"npm --prefix client run dev\"",
-    "build": "npm --prefix client run build",
-    "server": "node api/index.js",
-    "client": "npm --prefix client run dev",
-    "install:all": "npm install && npm --prefix client install && npm --prefix api install"
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "server": "node server/index.js",
+    "migrate": "node server/scripts/db/runner.js migrate",
+    "migrate:rollback": "node server/scripts/db/runner.js rollback",
+    "migrate:fresh": "node server/scripts/db/runner.js fresh",
+    "migrate:status": "node server/scripts/db/runner.js status",
+    "db:seed": "node server/scripts/db/runner.js seed",
+    "db:reset": "node server/scripts/db/runner.js reset"
   },
   "dependencies": {
-    "cookie-parser": "^1.4.7",
+    "@aws-sdk/client-s3": "^3.654.0",
+    "@aws-sdk/s3-request-presigner": "^3.654.0",
+    "bcryptjs": "^2.4.3",
+    "clsx": "^2.1.1",
     "cors": "^2.8.5",
-    "express": "^4.21.2",
-    "jsonwebtoken": "^9.0.2"
+    "crypto-js": "^4.2.0",
+    "dotenv": "^16.4.5",
+    "express": "^4.21.0",
+    "ioredis": "^5.4.1",
+    "jsonwebtoken": "^9.0.2",
+    "lucide-react": "^0.447.0",
+    "mongodb": "^6.9.0",
+    "mysql2": "^3.11.3",
+    "pg": "^8.13.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "tailwind-merge": "^2.5.2"
   },
   "devDependencies": {
-    "concurrently": "^9.1.2"
+    "@types/react": "^18.3.10",
+    "@types/react-dom": "^18.3.0",
+    "@vitejs/plugin-react": "^4.3.1",
+    "autoprefixer": "^10.4.20",
+    "postcss": "^8.4.47",
+    "tailwindcss": "^3.4.13",
+    "vite": "^5.4.8"
   }
 }

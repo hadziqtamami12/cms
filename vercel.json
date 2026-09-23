@@ -1,58 +1,53 @@
 {
   "version": 2,
-  "builds": [
+  "rewrites": [
     {
-      "src": "api/index.js",
-      "use": "@vercel/node"
+      "source": "/api/(.*)",
+      "destination": "/server/index.js"
     },
     {
-      "src": "client/package.json",
-      "use": "@vercel/static-build",
-      "config": { "distDir": "dist" }
+      "source": "/server/(.*)",
+      "destination": "/server/index.js"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
     }
   ],
-  "routes": [
+  "headers": [
     {
-      "src": "^/(sitemap_index\\.xml|sitemap\\.xml|page-sitemap\\.xml|page\\.xml|post-sitemap\\.xml|post\\.xml)$",
-      "dest": "/api/index.js",
-      "headers": {
-        "Content-Type": "application/xml; charset=utf-8",
-        "Cache-Control": "public, s-maxage=3600, stale-while-revalidate=86400",
-        "X-Robots-Tag": "noindex"
-      }
+      "source": "/(.*)",
+      "headers": [
+        {
+          "key": "X-Content-Type-Options",
+          "value": "nosniff"
+        },
+        {
+          "key": "X-Frame-Options",
+          "value": "DENY"
+        },
+        {
+          "key": "X-XSS-Protection",
+          "value": "1; mode=block"
+        },
+        {
+          "key": "Referrer-Policy",
+          "value": "strict-origin-when-cross-origin"
+        },
+        {
+          "key": "Permissions-Policy",
+          "value": "camera=(), microphone=(), geolocation=()"
+        }
+      ]
     },
     {
-      "src": "^/(robots\\.txt)$",
-      "dest": "/api/index.js",
-      "headers": {
-        "Content-Type": "text/plain; charset=utf-8",
-        "Cache-Control": "public, s-maxage=86400, stale-while-revalidate=43200"
-      }
-    },
-    {
-      "src": "/api/(.*)",
-      "dest": "/api/index.js",
-      "headers": {
-        "Cache-Control": "no-cache, no-store, must-revalidate"
-      }
-    },
-    {
-      "src": "/assets/(.*)",
-      "dest": "/client/assets/$1",
-      "headers": {
-        "Cache-Control": "public, max-age=31536000, immutable"
-      }
-    },
-    {
-      "src": "/(.*\\.(?:js|css|ico|png|jpg|jpeg|svg|webp|woff2|json))$",
-      "dest": "/client/$1",
-      "headers": {
-        "Cache-Control": "public, max-age=86400"
-      }
-    },
-    {
-      "src": "/(.*)",
-      "dest": "/client/index.html"
+      "source": "/(assets|icons)/(.*)",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=31536000, immutable"
+        }
+      ]
     }
   ]
 }

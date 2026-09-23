@@ -1,0 +1,112 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --bg-page: #fafaf9;
+    --bg-surface: #ffffff;
+    --text-primary: #0f172a;
+    --text-secondary: #475569;
+    --text-muted: #64748b;
+    --border-color: #e2e8f0;
+  }
+
+  html {
+    scroll-behavior: smooth;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  }
+
+  body {
+    background-color: var(--bg-page);
+    color: var(--text-primary);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+}
+
+/* Crisp Clean Enterprise Utility Classes (No Generic AI Dark Gradient) */
+.enterprise-card {
+  background-color: #ffffff;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 1px 3px 0 rgba(15, 23, 42, 0.05);
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.enterprise-card:hover {
+  border-color: #cbd5e1;
+  box-shadow: 0 10px 15px -3px rgba(15, 23, 42, 0.07);
+}
+
+/* Responsive Table into Stacked Cards on Mobile (No Horizontal Scroll) */
+@media (max-width: 767px) {
+  .responsive-table thead {
+    display: none;
+  }
+
+  .responsive-table, 
+  .responsive-table tbody, 
+  .responsive-table tr, 
+  .responsive-table td {
+    display: block;
+    width: 100%;
+  }
+
+  .responsive-table tr {
+    margin-bottom: 1rem;
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 0.75rem;
+    padding: 1rem;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  }
+
+  .responsive-table td {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.5rem 0;
+    border-bottom: 1px solid #f1f5f9;
+    text-align: right;
+  }
+
+  .responsive-table td:last-child {
+    border-bottom: none;
+    padding-top: 0.75rem;
+  }
+
+  .responsive-table td::before {
+    content: attr(data-label);
+    font-weight: 600;
+    font-size: 0.8125rem;
+    color: #64748b;
+    text-align: left;
+    margin-right: 1rem;
+  }
+}
+
+/* Bottom Nav Curved Scoop Shape */
+.nav-curved-bar {
+  filter: drop-shadow(0 -4px 16px rgba(15, 23, 42, 0.08));
+}
+
+/* Floating Bubble Transition */
+.bubble-active-circle {
+  transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* Stepper Animation */
+@keyframes slideInRight {
+  from {
+    opacity: 0;
+    transform: translateX(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.step-slide-in {
+  animation: slideInRight 0.35s ease-out forwards;
+}

@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
-import { Key, Unlock, ShieldCheck, Copy, Check, AlertCircle, RefreshCw, Sparkles } from 'lucide-react';
+import { Key, Unlock, ShieldCheck, Copy, Check, AlertCircle, RefreshCw, Sparkles, Eye, EyeOff } from 'lucide-react';
 import { programmerKeygenLogin, generateKeygenLicense, emergencyOverrideUnlock } from '../../lib/api';
 
 export const KeygenPortal = () => {
   const [masterKey, setMasterKey] = useState('');
+  const [showMasterKey, setShowMasterKey] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -126,13 +127,23 @@ export const KeygenPortal = () => {
                 <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
                   Master Passphrase
                 </label>
-                <input
-                  type="password"
-                  placeholder="Masukkan master key programmer..."
-                  value={masterKey}
-                  onChange={(e) => setMasterKey(e.target.value)}
-                  className="w-full px-4 py-3 rounded-xl border border-slate-300 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-600"
-                />
+                <div className="relative">
+                  <input
+                    type={showMasterKey ? 'text' : 'password'}
+                    placeholder="Masukkan master key programmer..."
+                    value={masterKey}
+                    onChange={(e) => setMasterKey(e.target.value)}
+                    className="w-full pl-4 pr-12 py-3 rounded-xl border border-slate-300 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-600"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowMasterKey(!showMasterKey)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 p-1.5 rounded-lg focus:outline-none transition-colors"
+                    title={showMasterKey ? 'Sembunyikan' : 'Lihat'}
+                  >
+                    {showMasterKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
               </div>
 
               <button

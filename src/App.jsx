@@ -6,7 +6,7 @@ import SetupPage from './pages/SetupPage';
 import LockoutPage from './pages/LockoutPage';
 import ProgrammerPortalPage from './pages/ProgrammerPortalPage';
 import { adminLogin } from './lib/api';
-import { ShieldCheck, Lock, ArrowRight, Loader2 } from 'lucide-react';
+import { ShieldCheck, Lock, ArrowRight, Loader2, Eye, EyeOff } from 'lucide-react';
 
 export const App = () => {
   const {
@@ -23,8 +23,16 @@ export const App = () => {
   } = useApp();
 
   const [currentPath, setCurrentPath] = useState(() => window.location.pathname);
-  const [loginUser, setLoginUser] = useState('');
+  const [loginUser, setLoginUser] = useState(() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem('cms_setup_state') || '{}');
+      return saved.adminUser || 'admin';
+    } catch {
+      return 'admin';
+    }
+  });
   const [loginPass, setLoginPass] = useState('');
+  const [showLoginPassword, setShowLoginPassword] = useState(false);
   const [loginLoading, setLoginLoading] = useState(false);
   const [loginError, setLoginError] = useState('');
 
@@ -144,13 +152,24 @@ export const App = () => {
                   <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
                     Password
                   </label>
-                  <input
-                    type="password"
-                    required
-                    value={loginPass}
-                    onChange={(e) => setLoginPass(e.target.value)}
-                    className="w-full px-4 py-3 rounded-xl border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-blue-600"
-                  />
+                  <div className="relative">
+                    <input
+                      type={showLoginPassword ? 'text' : 'password'}
+                      required
+                      value={loginPass}
+                      onChange={(e) => setLoginPass(e.target.value)}
+                      placeholder="Masukkan password admin"
+                      className="w-full pl-4 pr-12 py-3 rounded-xl border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-blue-600"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowLoginPassword(!showLoginPassword)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 p-1.5 rounded-lg focus:outline-none transition-colors"
+                      title={showLoginPassword ? 'Sembunyikan password' : 'Lihat password'}
+                    >
+                      {showLoginPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
                 </div>
 
                 <button
@@ -161,6 +180,10 @@ export const App = () => {
                   {loginLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Lock className="w-4 h-4" />}
                   <span>Masuk Panel Admin</span>
                 </button>
+
+                <p className="text-[11px] text-slate-500 text-center pt-2 leading-relaxed">
+                  💡 Kredensial default: <code className="text-blue-600 font-mono font-bold bg-blue-50 px-1 py-0.5 rounded">admin</code> / <code className="text-blue-600 font-mono font-bold bg-blue-50 px-1 py-0.5 rounded">admin123</code> (atau kredensial yang dibuat saat instalasi).
+                </p>
               </form>
             </div>
           </div>

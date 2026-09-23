@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Database, Shield, Key, Sparkles, CheckCircle2, ArrowRight, ArrowLeft, Loader2, CloudUpload, Zap } from 'lucide-react';
+import { Database, Shield, Key, Sparkles, CheckCircle2, ArrowRight, ArrowLeft, Loader2, CloudUpload, Zap, Eye, EyeOff } from 'lucide-react';
 import { testInstallerDb, completeInstaller } from '../../lib/api';
 import { formatLicenseKey, generateClientLicenseKey } from '../../lib/licenseUtils';
 
@@ -7,6 +7,8 @@ export const SetupWizard = ({ onComplete }) => {
   const [currentStep, setCurrentStep] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
+  const [showAdminPassword, setShowAdminPassword] = useState(false);
+  const [showR2Secret, setShowR2Secret] = useState(false);
 
   useEffect(() => {
     document.title = 'Instalasi CMS Enterprise Multi-Industri | Setup Wizard';
@@ -119,12 +121,15 @@ export const SetupWizard = ({ onComplete }) => {
         : generatedLicense.licenseKey;
 
       const adminSlug = adminConfig.adminSlug || 'admin';
+      const adminUser = adminConfig.adminUser || 'admin';
+      const adminPassword = adminConfig.adminPassword || 'admin123';
 
       // Persist setup state in localStorage for static-mode CMS
       const setupState = {
         isInstalled: true,
         adminSlug,
-        adminUser: adminConfig.adminUser || 'admin',
+        adminUser,
+        adminPassword,
         selectedIndustry: starterConfig.selectedIndustry,
         selectedThemeId: starterConfig.selectedThemeId,
         bottomNavStyle: starterConfig.bottomNavStyle,
@@ -135,7 +140,18 @@ export const SetupWizard = ({ onComplete }) => {
         installedAt: new Date().toISOString()
       };
 
-      try { localStorage.setItem('cms_setup_state', JSON.stringify(setupState)); } catch {}
+      try { 
+        localStorage.setItem('cms_setup_state', JSON.stringify(setupState)); 
+      } catch {}
+
+      // Proactively sync credentials to backend if available
+      try {
+        fetch('/api/admin/set-credentials', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username: adminUser, password: adminPassword })
+        }).catch(() => {});
+      } catch {}
 
       if (onComplete) {
         onComplete({ success: true, data: setupState, message: 'Instalasi CMS berhasil!' });
@@ -324,13 +340,23 @@ export const SetupWizard = ({ onComplete }) => {
                   </div>
                   <div>
                     <label className="block text-xs font-medium text-slate-600 mb-1">R2 Access Key</label>
-                    <input
-                      type="password"
-                      placeholder="Access Key ID"
-                      value={dbConfig.r2AccessKey}
-                      onChange={(e) => setDbConfig({ ...dbConfig, r2AccessKey: e.target.value })}
-                      className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm"
-                    />
+                    <div className="relative">
+                      <input
+                        type={showR2Secret ? 'text' : 'password'}
+                        placeholder="Access Key ID"
+                        value={dbConfig.r2AccessKey}
+                        onChange={(e) => setDbConfig({ ...dbConfig, r2AccessKey: e.target.value })}
+                        className="w-full pl-3 pr-10 py-2 rounded-lg border border-slate-200 text-sm"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowR2Secret(!showR2Secret)}
+                        className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-1 rounded focus:outline-none"
+                        title={showR2Secret ? 'Sembunyikan' : 'Lihat'}
+                      >
+                        {showR2Secret ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -406,13 +432,23 @@ export const SetupWizard = ({ onComplete }) => {
                   <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-2">
                     Superadmin Password
                   </label>
-                  <input
-                    type="password"
-                    placeholder="Minimal 8 karakter"
-                    value={adminConfig.adminPassword}
-                    onChange={(e) => setAdminConfig({ ...adminConfig, adminPassword: e.target.value })}
-                    className="w-full px-4 py-3 rounded-xl border border-slate-300 text-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-blue-600"
-                  />
+                  <div className="relative">
+                    <input
+                      type={showAdminPassword ? 'text' : 'password'}
+                      placeholder="Minimal 8 karakter"
+                      value={adminConfig.adminPassword}
+                      onChange={(e) => setAdminConfig({ ...adminConfig, adminPassword: e.target.value })}
+                      className="w-full pl-4 pr-12 py-3 rounded-xl border border-slate-300 text-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-blue-600 font-mono"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowAdminPassword(!showAdminPassword)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 p-1.5 rounded-lg focus:outline-none transition-colors"
+                      title={showAdminPassword ? 'Sembunyikan password' : 'Lihat password'}
+                    >
+                      {showAdminPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
                 </div>
               </div>
 

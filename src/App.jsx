@@ -97,7 +97,7 @@ export const App = () => {
 
   // 3. Installation Route Guard Logic
   // A. Jika sistem SUDAH TERINSTAL tapi mencoba buka /install atau /setup:
-  // Cegah akses ulang installer dan arahkan langsung ke root (/)
+  // Arahkan kembali ke root (/)
   if (isInstalled && isInstallerRoute) {
     if (typeof window !== 'undefined') {
       window.history.replaceState(null, '', '/');
@@ -105,16 +105,11 @@ export const App = () => {
     setCurrentPath('/');
   }
 
-  // B. Jika sistem BELUM TERINSTAL:
-  // Pengguna yang mengakses root (/) atau /install wajib diarahkan ke installer
-  if (!isInstalled) {
-    if (typeof window !== 'undefined' && !isInstallerRoute) {
-      window.history.replaceState(null, '', '/install');
-    }
+  // B. Hanya render SetupPage jika pengguna SECARA EKSPLISIT mengakses rute /install atau /setup saat belum terinstal
+  if (isInstallerRoute && !isInstalled) {
     return (
       <SetupPage
         onComplete={(res) => {
-          // Tandai instalasi selesai dan arahkan langsung ke landing page utama (/)
           setLicenseStatus(prev => ({ ...prev, isInstalled: true, isLocked: false, status: 'active' }));
           const slug = res?.data?.adminSlug || res?.adminSlug || adminSlug || 'admin';
           if (setAdminSlug) setAdminSlug(slug);

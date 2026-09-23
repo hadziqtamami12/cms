@@ -8,6 +8,8 @@ import {
 } from 'lucide-react';
 import OrderManager from '../components/orders/OrderManager';
 import InteractiveSeoDashboard from '../components/seo/InteractiveSeoDashboard';
+import { InteractiveThemeCard } from '../components/themes/InteractiveThemeCard';
+import { LiveThemeStudioModal } from '../components/themes/LiveThemeStudioModal';
 import {
   switchTheme,
   updateSeoMarketing,
@@ -30,6 +32,11 @@ export const AdminDashboard = ({
   const [desktopSidebarMode, setDesktopSidebarMode] = useState('expanded');
   const [loading, setLoading] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
+
+  // Live Theme Studio Modal State
+  const [previewTheme, setPreviewTheme] = useState(null);
+  const [previewIndustry, setPreviewIndustry] = useState(null);
+  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
 
   // Local state for theme switching
   const [currentIndustry, setCurrentIndustry] = useState(config?.industry || 'automotive');
@@ -54,6 +61,7 @@ export const AdminDashboard = ({
   const [showNewPass, setShowNewPass] = useState(false);
   const [showConfirmPass, setShowConfirmPass] = useState(false);
   const [securityLoading, setSecurityLoading] = useState(false);
+  const [securitySaved, setSecuritySaved] = useState(false);
 
   const showToast = (msg) => {
     setToastMessage(msg);
@@ -67,9 +75,27 @@ export const AdminDashboard = ({
     }
   };
 
-  // 1-Click Theme Switch Handler
+  // Open Live Modal Preview Studio
+  const handleOpenPreview = (theme, industry) => {
+    setPreviewTheme(theme);
+    setPreviewIndustry(industry);
+    setIsPreviewOpen(true);
+  };
+
+  const handleClosePreview = () => {
+    setIsPreviewOpen(false);
+    setPreviewTheme(null);
+    setPreviewIndustry(null);
+  };
+
+  // Optimistic Instant Theme Switch Handler
   const handleSwitchTheme = async (ind, thId) => {
+    // 1. Instant optimistic update
+    setCurrentIndustry(ind);
+    setCurrentThemeId(thId);
+    showToast(`Tema aktif diubah ke [${thId}]`);
     setLoading(true);
+
     try {
       const res = await switchTheme({
         industry: ind,
@@ -77,14 +103,11 @@ export const AdminDashboard = ({
         bottomNavStyle,
         token: adminToken
       });
-      if (res.success) {
-        setCurrentIndustry(ind);
-        setCurrentThemeId(thId);
-        showToast(`Tema berhasil diubah menjadi [${ind} - ${thId}]`);
+      if (res && res.success) {
         if (onConfigUpdated) onConfigUpdated(res.themeConfig);
       }
-    } catch (err) {
-      showToast('Gagal mengubah tema');
+    } catch {
+      showToast('Gagal menyinkronkan tema ke server');
     } finally {
       setLoading(false);
     }
@@ -184,8 +207,10 @@ export const AdminDashboard = ({
       }, adminToken);
 
       if (res && res.success) {
+        setSecuritySaved(true);
         showToast('Kredensial profil & keamanan admin berhasil diperbarui!');
         setSecurityForm(prev => ({ ...prev, currentPassword: '', newPassword: '', confirmPassword: '' }));
+        setTimeout(() => setSecuritySaved(false), 2500);
       } else {
         showToast(res.error || 'Gagal memperbarui keamanan admin');
       }
@@ -855,36 +880,19 @@ export const AdminDashboard = ({
                       </span>
                     </div>
 
-                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3.5">
                       {ind.themes.map((th) => {
                         const isActive = currentIndustry === ind.id && currentThemeId === th.id;
                         return (
-                          <div
+                          <InteractiveThemeCard
                             key={th.id}
-                            onClick={() => handleSwitchTheme(ind.id, th.id)}
-                            className={`p-3.5 rounded-2xl border cursor-pointer transition-all flex flex-col justify-between space-y-3 ${
-                              isActive
-                                ? 'border-blue-600 bg-blue-50/80 shadow-md ring-2 ring-blue-600'
-                                : 'border-slate-200 bg-white hover:border-slate-300 hover:shadow-card'
-                            }`}
-                          >
-                            <div className="min-w-0">
-                              <div className="font-bold text-xs sm:text-sm text-slate-900 leading-snug line-clamp-2 truncate" title={th.name}>
-                                {th.name}
-                              </div>
-                              <div className="text-[11px] text-slate-400 font-mono mt-0.5 truncate" title={th.id}>{th.id}</div>
-                            </div>
-                            <div className="pt-2 flex items-center justify-between text-xs font-semibold border-t border-slate-100">
-                              {isActive ? (
-                                <span className="text-blue-600 font-bold flex items-center gap-1">
-                                  <Check className="w-3.5 h-3.5 stroke-[3]" />
-                                  <span>Aktif</span>
-                                </span>
-                              ) : (
-                                <span className="text-slate-500 hover:text-blue-600 font-medium">Gunakan →</span>
-                              )}
-                            </div>
-                          </div>
+                            theme={th}
+                            industry={ind}
+                            isActive={isActive}
+                            onPreview={handleOpenPreview}
+                            onActivate={handleSwitchTheme}
+                            isLoading={loading}
+                          />
                         );
                       })}
                     </div>
@@ -1098,8 +1106,16 @@ export const AdminDashboard = ({
                     disabled={securityLoading}
                     className="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs sm:text-sm shadow-sm flex items-center gap-2 transition-all"
                   >
-                    {securityLoading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-                    <span>Perbarui Kredensial Admin</span>
+                    {securityLoading ? (
+                      <RefreshCw className="w-4 h-4 animate-spin" />
+                    ) : securitySaved ? (
+                      <Check className="w-4 h-4 text-emerald-300 stroke-[3]" />
+                    ) : (
+                      <Save className="w-4 h-4" />
+                    )}
+                    <span>
+                      {securityLoading ? 'Menyimpan...' : securitySaved ? 'Tersimpan!' : 'Perbarui Kredensial Admin'}
+                    </span>
                   </button>
                 </div>
               </form>
@@ -1133,6 +1149,24 @@ export const AdminDashboard = ({
           )}
         </div>
       </main>
+
+      {/* Live Split/Modal Preview Studio */}
+      <LiveThemeStudioModal
+        isOpen={isPreviewOpen}
+        onClose={handleClosePreview}
+        theme={previewTheme}
+        industry={previewIndustry}
+        config={config}
+        onActivate={async (indId, thId) => {
+          await handleSwitchTheme(indId, thId);
+          handleClosePreview();
+        }}
+        isActiveTheme={
+          previewTheme &&
+          currentIndustry === previewIndustry?.id &&
+          currentThemeId === previewTheme?.id
+        }
+      />
     </div>
   );
 };

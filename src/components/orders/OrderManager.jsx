@@ -3,7 +3,7 @@ import {
   Search, Plus, Filter, MessageCircle, CheckCircle2, Clock,
   XCircle, AlertCircle, Trash2, Edit3, ChevronDown, RefreshCw,
   ExternalLink, Calendar, DollarSign, User, Phone, Mail, FileText,
-  X, Check, Copy, SlidersHorizontal
+  X, Check, Copy, SlidersHorizontal, Eye
 } from 'lucide-react';
 import {
   fetchOrders,
@@ -22,8 +22,10 @@ export const OrderManager = ({ adminToken, activeThemeName }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [toastMessage, setToastMessage] = useState('');
 
-  // Mobile Filter Drawer State
+  // Mobile Filter Drawer & Detail Drawer State
   const [isMobileFilterOpen, setIsMobileFilterOpen] = useState(false);
+  const [detailOrder, setDetailOrder] = useState(null);
+  const [copiedMap, setCopiedMap] = useState({});
 
   // Modal States
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -50,19 +52,24 @@ export const OrderManager = ({ adminToken, activeThemeName }) => {
     setTimeout(() => setToastMessage(''), 3500);
   };
 
-  const copyToClipboard = (text, label = 'Teks') => {
+  const copyToClipboard = (text, id, label = 'Teks') => {
     if (navigator?.clipboard?.writeText) {
       navigator.clipboard.writeText(text);
+      setCopiedMap(prev => ({ ...prev, [id]: true }));
       showToast(`${label} disalin ke clipboard`);
+      setTimeout(() => {
+        setCopiedMap(prev => ({ ...prev, [id]: false }));
+      }, 2000);
     }
   };
 
-  const loadOrders = async () => {
+  const loadOrders = async (overrideSearch) => {
     setLoading(true);
     try {
+      const q = overrideSearch !== undefined ? overrideSearch : searchQuery;
       const res = await fetchOrders({
         status: statusFilter,
-        search: searchQuery
+        search: q
       }, adminToken);
 
       if (res && res.success) {
@@ -70,34 +77,38 @@ export const OrderManager = ({ adminToken, activeThemeName }) => {
         if (res.counts) setCounts(res.counts);
         if (res.totalRevenue !== undefined) setTotalRevenue(res.totalRevenue);
       }
-    } catch (err) {
+    } catch {
       showToast('Gagal memuat daftar pesanan');
     } finally {
       setLoading(false);
     }
   };
 
+  // Instant Debounced Live Search (300ms)
   useEffect(() => {
-    loadOrders();
-  }, [statusFilter, adminToken]);
+    const handler = setTimeout(() => {
+      loadOrders(searchQuery);
+    }, 300);
+    return () => clearTimeout(handler);
+  }, [searchQuery, statusFilter, adminToken]);
 
-  // Search Handler
-  const handleSearchSubmit = (e) => {
-    e.preventDefault();
-    loadOrders();
-  };
-
-  // Inline Status Change Handler
+  // Inline Status Change Handler (Optimistic UI Update)
   const handleInlineStatusChange = async (orderId, newStatus) => {
+    // Optimistically update local state immediately
+    setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: newStatus } : o));
+    if (detailOrder && detailOrder.id === orderId) {
+      setDetailOrder(prev => ({ ...prev, status: newStatus }));
+    }
+    showToast(`Status [${orderId}] diubah ke ${newStatus.toUpperCase()}`);
+
     try {
       const res = await updateOrderStatus(orderId, newStatus, adminToken);
-      if (res && res.success) {
-        setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: newStatus } : o));
-        showToast(`Status [${orderId}] diubah ke ${newStatus.toUpperCase()}`);
+      if (!res || !res.success) {
         loadOrders();
       }
-    } catch (err) {
-      showToast('Gagal mengubah status');
+    } catch {
+      showToast('Gagal menyinkronkan status ke server');
+      loadOrders();
     }
   };
 
@@ -172,7 +183,7 @@ export const OrderManager = ({ adminToken, activeThemeName }) => {
           loadOrders();
         }
       }
-    } catch (err) {
+    } catch {
       showToast('Gagal menyimpan pesanan');
     } finally {
       setFormSubmitting(false);
@@ -186,14 +197,15 @@ export const OrderManager = ({ adminToken, activeThemeName }) => {
       if (res && res.success) {
         showToast(`Pesanan [${orderId}] berhasil dihapus`);
         setDeleteConfirmId(null);
+        if (detailOrder && detailOrder.id === orderId) setDetailOrder(null);
         loadOrders();
       }
-    } catch (err) {
+    } catch {
       showToast('Gagal menghapus pesanan');
     }
   };
 
-  // WhatsApp Helper
+  // WhatsApp Deep-link Helper
   const getWhatsAppUrl = (order) => {
     let cleanPhone = String(order.customerPhone || '').replace(/\D/g, '');
     if (cleanPhone.startsWith('0')) cleanPhone = '62' + cleanPhone.substring(1);
@@ -209,13 +221,13 @@ export const OrderManager = ({ adminToken, activeThemeName }) => {
     return `https://wa.me/${cleanPhone}?text=${encodeURIComponent(msg)}`;
   };
 
-  // Badge Status Renderer
+  // Badge Status Renderer with Inline Quick Dropdown
   const renderStatusBadge = (status, orderId) => {
     const statusMap = {
-      pending: { label: 'Pending', bg: 'bg-amber-50 text-amber-700 border-amber-200', icon: Clock },
-      confirmed: { label: 'Dikonfirmasi', bg: 'bg-blue-50 text-blue-700 border-blue-200', icon: CheckCircle2 },
-      completed: { label: 'Selesai', bg: 'bg-emerald-50 text-emerald-700 border-emerald-200', icon: Check },
-      cancelled: { label: 'Dibatalkan', bg: 'bg-rose-50 text-rose-700 border-rose-200', icon: XCircle }
+      pending: { label: 'Pending', bg: 'bg-amber-50 text-amber-700 border-amber-200' },
+      confirmed: { label: 'Dikonfirmasi', bg: 'bg-blue-50 text-blue-700 border-blue-200' },
+      completed: { label: 'Selesai', bg: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
+      cancelled: { label: 'Dibatalkan', bg: 'bg-rose-50 text-rose-700 border-rose-200' }
     };
 
     const cfg = statusMap[status] || statusMap.pending;
@@ -226,7 +238,7 @@ export const OrderManager = ({ adminToken, activeThemeName }) => {
           value={status}
           onChange={(e) => handleInlineStatusChange(orderId, e.target.value)}
           className={`appearance-none text-xs font-bold px-2.5 py-1 pr-6 rounded-full border cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all ${cfg.bg}`}
-          title="Klik untuk mengubah status pesanan"
+          title="Klik untuk mengubah status pesanan secara instan"
         >
           <option value="pending">Pending</option>
           <option value="confirmed">Dikonfirmasi</option>
@@ -242,9 +254,9 @@ export const OrderManager = ({ adminToken, activeThemeName }) => {
     <div className="w-full max-w-full space-y-6 min-w-0">
       {/* Toast Notification */}
       {toastMessage && (
-        <div className="fixed bottom-6 right-6 z-50 p-4 rounded-2xl bg-slate-900 text-white text-xs font-semibold shadow-2xl flex items-center gap-2.5 animate-bounce-in">
+        <div className="fixed bottom-6 right-6 z-50 p-4 rounded-2xl bg-slate-900 text-white text-xs font-semibold shadow-2xl flex items-center gap-2.5 animate-bounce-in max-w-sm">
           <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
-          <span>{toastMessage}</span>
+          <span className="truncate">{toastMessage}</span>
         </div>
       )}
 
@@ -258,57 +270,51 @@ export const OrderManager = ({ adminToken, activeThemeName }) => {
         <div className="bg-white rounded-2xl border border-slate-200 p-4 sm:p-5 shadow-xs space-y-1 min-w-0">
           <span className="text-[11px] font-bold uppercase tracking-wider text-amber-600 block truncate">Pending Review</span>
           <div className="text-xl sm:text-2xl font-black text-amber-600">{counts.pending}</div>
-          <span className="text-[11px] text-amber-700/80 font-medium truncate block">Perlu verifikasi</span>
+          <span className="text-[11px] text-amber-700 font-medium truncate block">Perlu konfirmasi</span>
         </div>
         <div className="bg-white rounded-2xl border border-slate-200 p-4 sm:p-5 shadow-xs space-y-1 min-w-0">
-          <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-600 block truncate">Pesanan Selesai</span>
-          <div className="text-xl sm:text-2xl font-black text-emerald-600">{counts.completed}</div>
-          <span className="text-[11px] text-emerald-700/80 font-medium truncate block">{counts.confirmed} aktif diproses</span>
+          <span className="text-[11px] font-bold uppercase tracking-wider text-blue-600 block truncate">Dikonfirmasi</span>
+          <div className="text-xl sm:text-2xl font-black text-blue-600">{counts.confirmed}</div>
+          <span className="text-[11px] text-blue-700 font-medium truncate block">Sedang diproses</span>
         </div>
         <div className="bg-white rounded-2xl border border-slate-200 p-4 sm:p-5 shadow-xs space-y-1 min-w-0">
-          <span className="text-[11px] font-bold uppercase tracking-wider text-blue-600 block truncate">Estimasi Omset</span>
-          <div className="text-lg sm:text-xl font-black text-blue-600 truncate">
+          <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-600 block truncate">Total Omset Selesai</span>
+          <div className="text-xl sm:text-2xl font-black text-emerald-600 truncate">
             {new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(totalRevenue)}
           </div>
-          <span className="text-[11px] text-slate-500 font-medium truncate block">Pesanan terkonfirmasi</span>
+          <span className="text-[11px] text-emerald-700 font-medium truncate block">
+            {counts.completed} pesanan tuntas
+          </span>
         </div>
       </div>
 
-      {/* Main Control Box */}
+      {/* Main Table & Filter Panel */}
       <div className="bg-white rounded-3xl border border-slate-200 shadow-xs overflow-hidden">
-        {/* Header & Actions */}
-        <div className="p-4 sm:p-6 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        {/* Header & Controls */}
+        <div className="p-4 sm:p-6 border-b border-slate-100 flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="min-w-0">
-            <h2 className="text-base sm:text-lg font-extrabold text-slate-900 tracking-tight truncate">
-              Manajemen Pesanan & Leads
-            </h2>
+            <h3 className="text-base sm:text-lg font-extrabold text-slate-900 tracking-tight truncate">
+              Manajemen Data Pesanan (Order Hub)
+            </h3>
             <p className="text-xs text-slate-500 mt-0.5 truncate">
-              Order CRUD, update status 1-klik, dan chat WhatsApp otomatis.
+              Pencarian instan debounced, inline status change, dan drawer detail pesanan.
             </p>
           </div>
-          <div className="flex items-center gap-2 shrink-0">
-            <button
-              onClick={loadOrders}
-              className="p-2.5 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-600 transition-colors"
-              title="Refresh Data"
-            >
-              <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin text-blue-600' : ''}`} />
-            </button>
-            <button
-              onClick={openCreateModal}
-              className="px-3.5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-md shadow-blue-600/20 transition-all flex items-center gap-1.5"
-            >
-              <Plus className="w-4 h-4" />
-              <span>Tambah Pesanan</span>
-            </button>
-          </div>
+          <button
+            type="button"
+            onClick={openCreateModal}
+            className="px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-md shadow-blue-600/20 transition-all self-start md:self-auto shrink-0"
+          >
+            <Plus className="w-4 h-4" />
+            <span>Tambah Pesanan Baru</span>
+          </button>
         </div>
 
-        {/* RESPONSIVE FILTER & TOOLBAR (Zero Horizontal Scroll!) */}
-        <div className="p-4 sm:p-6 bg-slate-50/50 border-b border-slate-100 space-y-3">
+        {/* Toolbar & Filter Bar */}
+        <div className="p-4 sm:p-6 border-b border-slate-100 bg-slate-50/50 flex flex-col gap-3 min-w-0">
           {/* DESKTOP TOOLBAR (Screens >= 768px): Wrapped Pills + Search */}
           <div className="hidden md:flex flex-wrap items-center justify-between gap-3">
-            {/* Wrapped Status Pills */}
+            {/* Filter Pills */}
             <div className="flex flex-wrap items-center gap-1.5">
               {[
                 { id: 'all', label: 'Semua', count: counts.all },
@@ -319,16 +325,17 @@ export const OrderManager = ({ adminToken, activeThemeName }) => {
               ].map(tab => (
                 <button
                   key={tab.id}
+                  type="button"
                   onClick={() => setStatusFilter(tab.id)}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 border ${
                     statusFilter === tab.id
-                      ? 'bg-blue-600 text-white shadow-xs'
-                      : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-100'
+                      ? 'bg-blue-600 text-white border-blue-600 shadow-xs'
+                      : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-100/80'
                   }`}
                 >
                   <span>{tab.label}</span>
-                  <span className={`text-[10px] px-1.5 py-0.2 rounded-full ${
-                    statusFilter === tab.id ? 'bg-white/25 text-white' : 'bg-slate-100 text-slate-500'
+                  <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-black ${
+                    statusFilter === tab.id ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-600'
                   }`}>
                     {tab.count}
                   </span>
@@ -336,31 +343,31 @@ export const OrderManager = ({ adminToken, activeThemeName }) => {
               ))}
             </div>
 
-            {/* Search Input */}
-            <form onSubmit={handleSearchSubmit} className="relative w-72">
+            {/* Instant Debounced Search Input */}
+            <div className="relative min-w-[240px]">
               <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
               <input
                 type="text"
-                placeholder="Cari nama, ID, WA..."
+                placeholder="Cari nama, ID, WA, email..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-9 pr-4 py-2 rounded-xl border border-slate-200 bg-white text-xs text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                className="w-full pl-9 pr-3 py-2 rounded-xl border border-slate-300 bg-white text-xs text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-600"
               />
-            </form>
+            </div>
           </div>
 
-          {/* MOBILE TOOLBAR (Screens < 768px): Full-Width Search + Compact Filter Button (No Scrollbar!) */}
+          {/* MOBILE TOOLBAR (Screens < 768px): Full-Width Search + Compact Filter Button */}
           <div className="flex md:hidden items-center gap-2 w-full">
-            <form onSubmit={handleSearchSubmit} className="relative flex-1 min-w-0">
+            <div className="relative flex-1 min-w-0">
               <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
               <input
                 type="text"
-                placeholder="Cari pesanan..."
+                placeholder="Ketik untuk mencari pesanan..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-slate-200 bg-white text-xs text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
               />
-            </form>
+            </div>
             <button
               type="button"
               onClick={() => setIsMobileFilterOpen(true)}
@@ -381,7 +388,7 @@ export const OrderManager = ({ adminToken, activeThemeName }) => {
           {/* Active Filter Indicator on Mobile */}
           {statusFilter !== 'all' && (
             <div className="md:hidden flex items-center justify-between bg-blue-50 px-3 py-1.5 rounded-xl text-xs text-blue-700 font-semibold">
-              <span>Filter Aktif: <b className="capitalize">{statusFilter}</b></span>
+              <span>Filter: <b className="capitalize">{statusFilter}</b></span>
               <button
                 onClick={() => setStatusFilter('all')}
                 className="text-[11px] underline font-bold"
@@ -423,17 +430,19 @@ export const OrderManager = ({ adminToken, activeThemeName }) => {
                     {orders.map((order) => {
                       const itemName = typeof order.itemDetails === 'object' ? (order.itemDetails.name || '-') : String(order.itemDetails);
                       const itemCat = typeof order.itemDetails === 'object' ? order.itemDetails.category : null;
+                      const isCopied = copiedMap[order.id];
+
                       return (
                         <tr key={order.id} className="hover:bg-slate-50/70 transition-colors">
                           <td className="py-3.5 px-4 font-mono font-semibold text-slate-900 whitespace-nowrap">
                             <div className="flex items-center gap-1.5">
                               <span className="text-blue-600 font-bold">{order.id}</span>
                               <button
-                                onClick={() => copyToClipboard(order.id, 'ID Pesanan')}
+                                onClick={() => copyToClipboard(order.id, order.id, 'ID Pesanan')}
                                 className="p-1 rounded text-slate-400 hover:text-blue-600 transition-colors"
                                 title="Salin ID Pesanan"
                               >
-                                <Copy className="w-3 h-3" />
+                                {isCopied ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3 h-3" />}
                               </button>
                             </div>
                             <span className="text-[10px] text-slate-400 font-sans block">
@@ -449,11 +458,11 @@ export const OrderManager = ({ adminToken, activeThemeName }) => {
                             <div className="text-[11px] text-slate-500 font-mono truncate flex items-center gap-1">
                               <span>{order.customerPhone}</span>
                               <button
-                                onClick={() => copyToClipboard(order.customerPhone, 'No WhatsApp')}
+                                onClick={() => copyToClipboard(order.customerPhone, `wa-${order.id}`, 'No WhatsApp')}
                                 className="p-0.5 text-slate-400 hover:text-slate-700"
                                 title="Salin Nomor WA"
                               >
-                                <Copy className="w-2.5 h-2.5" />
+                                {copiedMap[`wa-${order.id}`] ? <Check className="w-3 h-3 text-emerald-600" /> : <Copy className="w-2.5 h-2.5" />}
                               </button>
                             </div>
                             {order.customerEmail && (
@@ -484,6 +493,15 @@ export const OrderManager = ({ adminToken, activeThemeName }) => {
                             {renderStatusBadge(order.status, order.id)}
                           </td>
                           <td className="py-3.5 px-4 whitespace-nowrap text-right space-x-1">
+                            {/* Detail Button */}
+                            <button
+                              onClick={() => setDetailOrder(order)}
+                              className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-slate-200 hover:bg-slate-50 text-slate-700 font-bold text-xs"
+                              title="Lihat Detail Lengkap"
+                            >
+                              <Eye className="w-3.5 h-3.5" />
+                              <span>Detail</span>
+                            </button>
                             {/* WhatsApp Button */}
                             <a
                               href={getWhatsAppUrl(order)}
@@ -498,7 +516,7 @@ export const OrderManager = ({ adminToken, activeThemeName }) => {
                             {/* Edit Button */}
                             <button
                               onClick={() => openEditModal(order)}
-                              className="p-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-100"
+                              className="p-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50"
                               title="Edit Pesanan"
                             >
                               <Edit3 className="w-3.5 h-3.5" />
@@ -523,7 +541,8 @@ export const OrderManager = ({ adminToken, activeThemeName }) => {
               <div className="md:hidden space-y-3 w-full max-w-full min-w-0">
                 {orders.map((order) => {
                   const itemName = typeof order.itemDetails === 'object' ? (order.itemDetails.name || '-') : String(order.itemDetails);
-                  const itemCat = typeof order.itemDetails === 'object' ? order.itemDetails.category : null;
+                  const isCopied = copiedMap[order.id];
+
                   return (
                     <div
                       key={order.id}
@@ -535,11 +554,11 @@ export const OrderManager = ({ adminToken, activeThemeName }) => {
                           <div className="flex items-center gap-1.5">
                             <span className="font-mono font-black text-blue-600 text-xs truncate">{order.id}</span>
                             <button
-                              onClick={() => copyToClipboard(order.id, 'ID Pesanan')}
+                              onClick={() => copyToClipboard(order.id, order.id, 'ID')}
                               className="p-0.5 text-slate-400 hover:text-blue-600"
                               title="Salin ID"
                             >
-                              <Copy className="w-3 h-3" />
+                              {isCopied ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3 h-3" />}
                             </button>
                           </div>
                           <span className="text-[10px] text-slate-400 block truncate">
@@ -573,7 +592,7 @@ export const OrderManager = ({ adminToken, activeThemeName }) => {
                         )}
                       </div>
 
-                      {/* Card Actions */}
+                      {/* Card Actions: WhatsApp, Detail Drawer, Edit, Delete */}
                       <div className="pt-2 flex items-center justify-between gap-2 border-t border-slate-100">
                         <a
                           href={getWhatsAppUrl(order)}
@@ -582,8 +601,16 @@ export const OrderManager = ({ adminToken, activeThemeName }) => {
                           className="flex-1 py-2 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-xs truncate"
                         >
                           <MessageCircle className="w-3.5 h-3.5 shrink-0" />
-                          <span>Chat WhatsApp</span>
+                          <span>WhatsApp</span>
                         </a>
+                        <button
+                          onClick={() => setDetailOrder(order)}
+                          className="p-2 rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-50 shrink-0 font-bold text-xs flex items-center gap-1"
+                          title="Lihat Detail Lengkap"
+                        >
+                          <Eye className="w-3.5 h-3.5" />
+                          <span>Detail</span>
+                        </button>
                         <button
                           onClick={() => openEditModal(order)}
                           className="p-2 rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50 shrink-0"
@@ -607,6 +634,93 @@ export const OrderManager = ({ adminToken, activeThemeName }) => {
           )}
         </div>
       </div>
+
+      {/* DETAIL BOTTOM SHEET DRAWER (Mobile & Desktop) */}
+      {detailOrder && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
+          <div
+            onClick={() => setDetailOrder(null)}
+            className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs transition-opacity"
+          />
+          <div className="relative z-50 bg-white rounded-t-3xl sm:rounded-3xl border border-slate-200 p-6 space-y-4 w-full max-w-lg shadow-2xl max-h-[90vh] overflow-y-auto animate-slide-up">
+            <div className="w-12 h-1.5 rounded-full bg-slate-300 mx-auto sm:hidden" />
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <div className="min-w-0">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">Detail Pesanan</span>
+                <h4 className="font-extrabold text-slate-900 text-base font-mono truncate">{detailOrder.id}</h4>
+              </div>
+              <button
+                onClick={() => setDetailOrder(null)}
+                className="p-2 rounded-xl border border-slate-200 text-slate-500 hover:bg-slate-50"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="space-y-3 text-xs">
+              <div className="p-3 rounded-2xl bg-slate-50 border border-slate-200 space-y-1">
+                <span className="text-[11px] font-bold text-slate-400 uppercase">Pelanggan</span>
+                <div className="font-extrabold text-sm text-slate-900">{detailOrder.customerName}</div>
+                <div className="text-slate-600 font-mono">{detailOrder.customerPhone}</div>
+                {detailOrder.customerEmail && <div className="text-slate-500">{detailOrder.customerEmail}</div>}
+              </div>
+
+              <div className="p-3 rounded-2xl bg-slate-50 border border-slate-200 space-y-1">
+                <span className="text-[11px] font-bold text-slate-400 uppercase">Item / Layanan</span>
+                <div className="font-extrabold text-sm text-slate-900">
+                  {typeof detailOrder.itemDetails === 'object' ? detailOrder.itemDetails.name : String(detailOrder.itemDetails)}
+                </div>
+                {typeof detailOrder.itemDetails === 'object' && detailOrder.itemDetails.category && (
+                  <span className="inline-block px-2 py-0.5 rounded-md bg-white border border-slate-200 text-slate-600 text-[10px] font-semibold">
+                    {detailOrder.itemDetails.category}
+                  </span>
+                )}
+              </div>
+
+              <div className="flex items-center justify-between p-3 rounded-2xl bg-blue-50/60 border border-blue-200">
+                <div>
+                  <span className="text-[10px] font-bold uppercase text-blue-700 block">Total Transaksi</span>
+                  <span className="text-base font-black text-slate-900">
+                    {new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(detailOrder.totalAmount || 0)}
+                  </span>
+                </div>
+                <div>
+                  {renderStatusBadge(detailOrder.status, detailOrder.id)}
+                </div>
+              </div>
+
+              {detailOrder.notes && (
+                <div className="p-3 rounded-2xl bg-slate-50 border border-slate-200 space-y-1">
+                  <span className="text-[11px] font-bold text-slate-400 uppercase">Catatan Pesanan</span>
+                  <p className="text-slate-700 italic">"{detailOrder.notes}"</p>
+                </div>
+              )}
+            </div>
+
+            <div className="pt-2 flex items-center gap-2">
+              <a
+                href={getWhatsAppUrl(detailOrder)}
+                target="_blank"
+                rel="noreferrer"
+                className="flex-1 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-sm"
+              >
+                <MessageCircle className="w-4 h-4" />
+                <span>Chat via WhatsApp</span>
+              </a>
+              <button
+                onClick={() => {
+                  const o = detailOrder;
+                  setDetailOrder(null);
+                  openEditModal(o);
+                }}
+                className="px-4 py-2.5 rounded-xl border border-slate-200 text-slate-700 font-bold text-xs hover:bg-slate-50"
+              >
+                Edit
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* MOBILE BOTTOM SHEET FILTER DRAWER (Strict Vertical Thumb-Friendly) */}
       {isMobileFilterOpen && (
@@ -648,14 +762,12 @@ export const OrderManager = ({ adminToken, activeThemeName }) => {
                     }}
                     className={`w-full flex items-center justify-between p-3 rounded-xl text-xs font-bold transition-all border ${
                       statusFilter === tab.id
-                        ? 'bg-blue-50 border-blue-600 text-blue-700'
-                        : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
+                        ? 'border-blue-600 bg-blue-50 text-blue-700 shadow-xs'
+                        : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
                     }`}
                   >
                     <span>{tab.label}</span>
-                    <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${
-                      statusFilter === tab.id ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-600'
-                    }`}>
+                    <span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 text-[10px] font-black">
                       {tab.count}
                     </span>
                   </button>
@@ -663,118 +775,101 @@ export const OrderManager = ({ adminToken, activeThemeName }) => {
               </div>
             </div>
 
-            <div className="pt-2">
-              <button
-                onClick={() => {
-                  setStatusFilter('all');
-                  setIsMobileFilterOpen(false);
-                }}
-                className="w-full py-3 rounded-xl border border-slate-200 text-slate-600 font-bold text-xs hover:bg-slate-50"
-              >
-                Reset Semua Filter
-              </button>
-            </div>
+            <button
+              onClick={() => setIsMobileFilterOpen(false)}
+              className="w-full py-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-md shadow-blue-600/20"
+            >
+              Terapkan Filter
+            </button>
           </div>
         </div>
       )}
 
       {/* MODAL TAMBAH / EDIT PESANAN */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl border border-slate-200 shadow-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto min-w-0">
-            {/* Modal Header */}
-            <div className="p-5 border-b border-slate-100 flex items-center justify-between sticky top-0 bg-white z-10">
-              <h3 className="text-base font-extrabold text-slate-900 truncate">
-                {modalMode === 'create' ? 'Tambah Pesanan Manual' : `Edit Pesanan [${activeOrder?.id}]`}
+        <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4">
+          <div className="bg-white rounded-3xl border border-slate-200 shadow-2xl max-w-lg w-full p-5 sm:p-6 space-y-4 max-h-[90vh] overflow-y-auto min-w-0">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <h3 className="text-base font-extrabold text-slate-900">
+                {modalMode === 'create' ? 'Tambah Pesanan Baru' : `Edit Pesanan [${activeOrder?.id}]`}
               </h3>
               <button
+                type="button"
                 onClick={() => setIsModalOpen(false)}
-                className="p-1.5 rounded-xl border border-slate-200 text-slate-400 hover:text-slate-700"
+                className="p-1.5 rounded-xl border border-slate-200 text-slate-400 hover:bg-slate-50"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
 
-            {/* Modal Form */}
-            <form onSubmit={handleFormSubmit} className="p-5 space-y-4 text-xs">
-              <div>
-                <label className="block font-bold uppercase tracking-wider text-slate-600 mb-1">
-                  Nama Pelanggan *
-                </label>
+            <form onSubmit={handleFormSubmit} className="space-y-3.5 text-xs">
+              <div className="space-y-1">
+                <label className="font-bold text-slate-700">Nama Pelanggan *</label>
                 <input
                   type="text"
                   required
-                  placeholder="Contoh: Budi Pratama"
+                  placeholder="Budi Santoso"
                   value={formData.customerName}
                   onChange={(e) => setFormData({ ...formData, customerName: e.target.value })}
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs focus:ring-2 focus:ring-blue-600 focus:outline-none"
+                  className="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs focus:ring-2 focus:ring-blue-600 focus:outline-none"
                 />
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label className="block font-bold uppercase tracking-wider text-slate-600 mb-1">
-                    No. WhatsApp / HP *
-                  </label>
+                <div className="space-y-1">
+                  <label className="font-bold text-slate-700">No. WhatsApp / HP *</label>
                   <input
-                    type="text"
+                    type="tel"
                     required
-                    placeholder="08123456789"
+                    placeholder="081234567890"
                     value={formData.customerPhone}
                     onChange={(e) => setFormData({ ...formData, customerPhone: e.target.value })}
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs focus:ring-2 focus:ring-blue-600 focus:outline-none"
+                    className="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs focus:ring-2 focus:ring-blue-600 focus:outline-none"
                   />
                 </div>
-                <div>
-                  <label className="block font-bold uppercase tracking-wider text-slate-600 mb-1">
-                    Email Pelanggan
-                  </label>
+                <div className="space-y-1">
+                  <label className="font-bold text-slate-700">Email (Opsional)</label>
                   <input
                     type="email"
-                    placeholder="nama@email.com"
+                    placeholder="budi@gmail.com"
                     value={formData.customerEmail}
                     onChange={(e) => setFormData({ ...formData, customerEmail: e.target.value })}
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs focus:ring-2 focus:ring-blue-600 focus:outline-none"
+                    className="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs focus:ring-2 focus:ring-blue-600 focus:outline-none"
                   />
                 </div>
               </div>
 
-              <div>
-                <label className="block font-bold uppercase tracking-wider text-slate-600 mb-1">
-                  Item / Produk / Layanan *
-                </label>
+              <div className="space-y-1">
+                <label className="font-bold text-slate-700">Nama Layanan / Produk *</label>
                 <input
                   type="text"
                   required
-                  placeholder="Contoh: Sewa Innova Zenix 2 Hari"
+                  placeholder="Toyota Alphard 2026 / Paket Wedding / Villa Bali"
                   value={formData.itemName}
                   onChange={(e) => setFormData({ ...formData, itemName: e.target.value })}
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs focus:ring-2 focus:ring-blue-600 focus:outline-none"
+                  className="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs focus:ring-2 focus:ring-blue-600 focus:outline-none"
                 />
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label className="block font-bold uppercase tracking-wider text-slate-600 mb-1">
-                    Total Pembayaran (Rp) *
-                  </label>
+                <div className="space-y-1">
+                  <label className="font-bold text-slate-700">Total Nominal (Rp) *</label>
                   <input
                     type="number"
                     required
+                    min="0"
                     placeholder="2500000"
                     value={formData.totalAmount}
                     onChange={(e) => setFormData({ ...formData, totalAmount: e.target.value })}
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs focus:ring-2 focus:ring-blue-600 focus:outline-none"
+                    className="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs font-mono focus:ring-2 focus:ring-blue-600 focus:outline-none"
                   />
                 </div>
-                <div>
-                  <label className="block font-bold uppercase tracking-wider text-slate-600 mb-1">
-                    Status Pesanan
-                  </label>
+                <div className="space-y-1">
+                  <label className="font-bold text-slate-700">Status Awal</label>
                   <select
                     value={formData.status}
                     onChange={(e) => setFormData({ ...formData, status: e.target.value })}
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs focus:ring-2 focus:ring-blue-600 focus:outline-none bg-white"
+                    className="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs font-bold focus:ring-2 focus:ring-blue-600 focus:outline-none bg-white"
                   >
                     <option value="pending">Pending</option>
                     <option value="confirmed">Dikonfirmasi</option>
@@ -784,16 +879,14 @@ export const OrderManager = ({ adminToken, activeThemeName }) => {
                 </div>
               </div>
 
-              <div>
-                <label className="block font-bold uppercase tracking-wider text-slate-600 mb-1">
-                  Catatan Khusus / Detail
-                </label>
+              <div className="space-y-1">
+                <label className="font-bold text-slate-700">Catatan Khusus (Opsional)</label>
                 <textarea
-                  rows="3"
-                  placeholder="Alamat penjemputan, request khusus, dsb."
+                  rows="2.5"
+                  placeholder="Detail lokasi penjemputan, instruksi khusus, dll."
                   value={formData.notes}
                   onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs focus:ring-2 focus:ring-blue-600 focus:outline-none"
+                  className="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs focus:ring-2 focus:ring-blue-600 focus:outline-none"
                 />
               </div>
 

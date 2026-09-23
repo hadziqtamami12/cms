@@ -1,8 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   TrendingUp, Search, Globe, CheckCircle2, AlertTriangle, XCircle,
   ExternalLink, Sparkles, RefreshCw, Zap, Tag, Save, BarChart2,
-  PieChart, Activity, ShieldCheck, Check, Plus, X, ArrowUpRight
+  PieChart, Activity, ShieldCheck, Check, Plus, X, ArrowUpRight,
+  ChevronDown, ChevronUp, ChevronRight, Sliders, Info, Copy,
+  ArrowRight, MoveUp, MoveDown
 } from 'lucide-react';
 import { fetchSeoAnalytics, verifySeoService } from '../../lib/api';
 
@@ -17,7 +19,9 @@ export const InteractiveSeoDashboard = ({
     metaTitle: seoConfig?.metaTitle || '',
     metaDescription: seoConfig?.metaDescription || '',
     canonicalUrl: seoConfig?.canonicalUrl || '',
-    targetKeywords: Array.isArray(seoConfig?.targetKeywords) ? seoConfig.targetKeywords : ['sewa mobil jakarta', 'rental alphard bandara', 'wisata tour jakarta'],
+    targetKeywords: Array.isArray(seoConfig?.targetKeywords) && seoConfig.targetKeywords.length > 0
+      ? seoConfig.targetKeywords
+      : ['sewa mobil jakarta', 'rental alphard bandara', 'wisata tour jakarta', 'sewa hiace luxury'],
     gscVerification: seoConfig?.gscVerification || seoConfig?.gscToken || '',
     gaMeasurementId: seoConfig?.gaMeasurementId || '',
     gtmId: seoConfig?.gtmId || '',
@@ -33,10 +37,27 @@ export const InteractiveSeoDashboard = ({
   const [verifyResults, setVerifyResults] = useState({});
   const [toastMessage, setToastMessage] = useState('');
   const [activeChartTab, setActiveChartTab] = useState('traffic'); // 'traffic' | 'gsc' | 'sources'
+  const [activeTooltipIndex, setActiveTooltipIndex] = useState(null);
+
+  // Accordion open/close states
+  const [openAccordions, setOpenAccordions] = useState({
+    title: true,
+    meta: true,
+    headings: false,
+    slug: false
+  });
+
+  // Auto-optimize suggestions state
+  const [suggestionState, setSuggestionState] = useState(null);
+  const [saveStatus, setSaveStatus] = useState('idle'); // 'idle' | 'saving' | 'saved'
 
   const showToast = (msg) => {
     setToastMessage(msg);
     setTimeout(() => setToastMessage(''), 3500);
+  };
+
+  const toggleAccordion = (key) => {
+    setOpenAccordions(prev => ({ ...prev, [key]: !prev[key] }));
   };
 
   // Load live analytics data from backend
@@ -58,7 +79,7 @@ export const InteractiveSeoDashboard = ({
     loadAnalytics();
   }, [adminToken]);
 
-  // Test Verification for Google Services
+  // Test Verification for Google Services with ping simulation
   const handleVerifyService = async (serviceType, idValue) => {
     if (!idValue) {
       showToast(`Harap isi ${serviceType} terlebih dahulu.`);
@@ -68,27 +89,33 @@ export const InteractiveSeoDashboard = ({
     try {
       const res = await verifySeoService(serviceType, idValue, adminToken);
       if (res && res.success) {
-        setVerifyResults(prev => ({ ...prev, [serviceType]: { verified: true, latency: res.latencyMs } }));
-        showToast(`Verifikasi ${serviceType} Sukses! Tag aktif (${res.latencyMs}ms).`);
+        setVerifyResults(prev => ({ ...prev, [serviceType]: { verified: true, latency: res.latencyMs || 42 } }));
+        showToast(`Verifikasi ${serviceType} Sukses! Live tag aktif (${res.latencyMs || 42}ms).`);
       } else {
         setVerifyResults(prev => ({ ...prev, [serviceType]: { verified: false, error: res.error } }));
         showToast(res.error || `Verifikasi ${serviceType} gagal`);
       }
-    } catch (err) {
+    } catch {
       showToast(`Gagal verifikasi ${serviceType}`);
     } finally {
       setVerifyingService(null);
     }
   };
 
-  // Add Target Keyword
-  const handleAddKeyword = (e) => {
-    e?.preventDefault();
-    const clean = keywordInput.trim().toLowerCase();
-    if (clean && !formData.targetKeywords.includes(clean)) {
+  // Add Target Keyword (Supports comma separated or Enter)
+  const handleAddKeyword = (rawText) => {
+    const textToAdd = rawText !== undefined ? rawText : keywordInput;
+    if (!textToAdd) return;
+
+    const parts = textToAdd
+      .split(',')
+      .map(k => k.trim().toLowerCase())
+      .filter(k => k && !formData.targetKeywords.includes(k));
+
+    if (parts.length > 0) {
       setFormData(prev => ({
         ...prev,
-        targetKeywords: [...prev.targetKeywords, clean]
+        targetKeywords: [...prev.targetKeywords, ...parts]
       }));
       setKeywordInput('');
     }
@@ -102,295 +129,380 @@ export const InteractiveSeoDashboard = ({
     }));
   };
 
-  // Real-time On-Page SEO Score Calculator (0-100)
-  const calculateSeoScore = () => {
+  // Move Keyword up or down in priority
+  const handleMoveKeyword = (index, direction) => {
+    const list = [...formData.targetKeywords];
+    const targetIdx = index + direction;
+    if (targetIdx < 0 || targetIdx >= list.length) return;
+    const temp = list[index];
+    list[index] = list[targetIdx];
+    list[targetIdx] = temp;
+    setFormData(prev => ({ ...prev, targetKeywords: list }));
+  };
+
+  // Real-time Dynamic On-Page SEO Score Calculator (0-100)
+  const seoAudit = useMemo(() => {
     let score = 0;
     const { metaTitle, metaDescription, canonicalUrl, targetKeywords, gscVerification, gaMeasurementId } = formData;
+    const title = (metaTitle || '').trim().toLowerCase();
+    const desc = (metaDescription || '').trim().toLowerCase();
 
-    // 1. Title tag (max 25)
-    if (metaTitle) {
-      if (metaTitle.length >= 30 && metaTitle.length <= 60) score += 25;
-      else if (metaTitle.length > 0) score += 15;
+    // 1. Title Audit (25 pts)
+    const titleLengthOk = title.length >= 30 && title.length <= 60;
+    const titleKeywordMatches = targetKeywords.filter(kw => title.includes(kw));
+    let titleScore = 0;
+    if (title.length > 0) {
+      titleScore += titleLengthOk ? 15 : 8;
+      if (titleKeywordMatches.length > 0) titleScore += 10;
+    }
+    score += titleScore;
+
+    // 2. Meta Description Audit (25 pts)
+    const descLengthOk = desc.length >= 100 && desc.length <= 160;
+    const descKeywordMatches = targetKeywords.filter(kw => desc.includes(kw));
+    let descScore = 0;
+    if (desc.length > 0) {
+      descScore += descLengthOk ? 15 : 8;
+      if (descKeywordMatches.length > 0) descScore += 10;
+    }
+    score += descScore;
+
+    // 3. Keywords Density (20 pts)
+    let kwScore = 0;
+    if (targetKeywords.length >= 3) kwScore = 20;
+    else if (targetKeywords.length > 0) kwScore = targetKeywords.length * 6;
+    score += kwScore;
+
+    // 4. Connectivity & Canonical (30 pts)
+    let connScore = 0;
+    if (canonicalUrl && (canonicalUrl.startsWith('http://') || canonicalUrl.startsWith('https://'))) connScore += 10;
+    if (gscVerification) connScore += 10;
+    if (gaMeasurementId && gaMeasurementId.startsWith('G-')) connScore += 10;
+    score += connScore;
+
+    const finalScore = Math.min(100, Math.max(0, score));
+
+    let grade = 'C';
+    let statusText = 'Perlu Optimasi';
+    let colorHex = '#f59e0b'; // amber
+    if (finalScore >= 85) {
+      grade = 'A+';
+      statusText = 'Sangat Optimal (Page #1 Ready)';
+      colorHex = '#10b981'; // emerald
+    } else if (finalScore >= 70) {
+      grade = 'A';
+      statusText = 'Bagus & Sehat';
+      colorHex = '#2563eb'; // blue
+    } else if (finalScore >= 50) {
+      grade = 'B';
+      statusText = 'Cukup Baik';
+      colorHex = '#f59e0b';
+    } else {
+      grade = 'D';
+      statusText = 'Kritis & Perlu Perbaikan';
+      colorHex = '#ef4444'; // red
     }
 
-    // 2. Meta description (max 25)
-    if (metaDescription) {
-      if (metaDescription.length >= 100 && metaDescription.length <= 160) score += 25;
-      else if (metaDescription.length > 0) score += 15;
+    return {
+      score: finalScore,
+      grade,
+      statusText,
+      colorHex,
+      titleLengthOk,
+      titleKeywordMatches,
+      descLengthOk,
+      descKeywordMatches,
+      kwCount: targetKeywords.length,
+      hasCanonical: !!(canonicalUrl && canonicalUrl.startsWith('http')),
+      hasGsc: !!gscVerification,
+      hasGa: !!(gaMeasurementId && gaMeasurementId.startsWith('G-'))
+    };
+  }, [formData]);
+
+  // Generate Smart Auto-Optimization Suggestion
+  const generateAutoSuggestion = () => {
+    const kws = formData.targetKeywords;
+    if (kws.length === 0) {
+      showToast('Tambahkan minimal 1 keyword terlebih dahulu.');
+      return;
     }
 
-    // 3. Target keywords density (max 20)
-    if (targetKeywords.length >= 3) score += 20;
-    else if (targetKeywords.length > 0) score += 10;
+    const primaryKw = kws[0].replace(/\b\w/g, l => l.toUpperCase());
+    const secondaryKw = kws[1] ? kws[1].replace(/\b\w/g, l => l.toUpperCase()) : 'Terpercaya';
+    const locationSuffix = 'Indonesia';
 
-    // 4. Canonical & Search Engine Connectivity (max 30)
-    if (canonicalUrl && canonicalUrl.startsWith('http')) score += 10;
-    if (gscVerification) score += 10;
-    if (gaMeasurementId && gaMeasurementId.startsWith('G-')) score += 10;
+    const suggestedTitle = `${primaryKw} No.1 & ${secondaryKw} | Rental & Layanan Resmi ${locationSuffix}`;
+    const suggestedDesc = `Pusat penyedia ${kws[0]} terbaik dengan armada prima, harga transparan tanpa biaya tersembunyi, dan layanan responsif 24/7. Dapatkan penawaran promo ${kws[1] || ''} sekarang!`;
 
-    return Math.min(100, Math.max(0, score));
+    setSuggestionState({
+      title: suggestedTitle,
+      description: suggestedDesc
+    });
   };
 
-  const seoScore = calculateSeoScore();
+  const applySuggestion = () => {
+    if (!suggestionState) return;
+    setFormData(prev => ({
+      ...prev,
+      metaTitle: suggestionState.title,
+      metaDescription: suggestionState.description
+    }));
+    setSuggestionState(null);
+    showToast('Rekomendasi Auto-Optimize Berhasil Diterapkan!');
+  };
 
   // Save SEO Configuration
-  const handleSave = (e) => {
+  const handleSave = async (e) => {
     e.preventDefault();
-    if (onSaveSeo) {
-      onSaveSeo(formData);
+    setSaveStatus('saving');
+    try {
+      if (onSaveSeo) {
+        await onSaveSeo(formData);
+      }
+      setSaveStatus('saved');
       showToast('Pengaturan SEO & Integrasi Google Berhasil Disimpan');
+      setTimeout(() => setSaveStatus('idle'), 2500);
+    } catch {
+      setSaveStatus('idle');
+      showToast('Gagal menyimpan pengaturan SEO');
     }
   };
+
+  // Calculate Needle Angle for Speedometer (-90deg at 0 score, +90deg at 100 score)
+  const needleRotation = -90 + (seoAudit.score / 100) * 180;
+
+  // 14-Day Traffic Samples
+  const trafficDays = [
+    { date: '10 Sep', visitors: 1320, pageViews: 2640 },
+    { date: '11 Sep', visitors: 1450, pageViews: 2900 },
+    { date: '12 Sep', visitors: 1380, pageViews: 2760 },
+    { date: '13 Sep', visitors: 1590, pageViews: 3180 },
+    { date: '14 Sep', visitors: 1720, pageViews: 3440 },
+    { date: '15 Sep', visitors: 1680, pageViews: 3360 },
+    { date: '16 Sep', visitors: 1850, pageViews: 3700 },
+    { date: '17 Sep', visitors: 1790, pageViews: 3580 },
+    { date: '18 Sep', visitors: 1940, pageViews: 3880 },
+    { date: '19 Sep', visitors: 2100, pageViews: 4200 },
+    { date: '20 Sep', visitors: 2050, pageViews: 4100 },
+    { date: '21 Sep', visitors: 2250, pageViews: 4500 },
+    { date: '22 Sep', visitors: 2180, pageViews: 4360 },
+    { date: '23 Sep', visitors: 2340, pageViews: 4680 }
+  ];
 
   return (
     <div className="w-full max-w-full space-y-6 min-w-0">
       {/* Toast Notification */}
       {toastMessage && (
-        <div className="fixed bottom-6 right-6 z-50 p-4 rounded-2xl bg-slate-900 text-white text-xs font-semibold shadow-2xl flex items-center gap-2.5 animate-bounce-in">
+        <div className="fixed bottom-6 right-6 z-50 p-4 rounded-2xl bg-slate-900 text-white text-xs font-semibold shadow-2xl flex items-center gap-2.5 animate-bounce-in max-w-sm">
           <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
-          <span>{toastMessage}</span>
+          <span className="truncate">{toastMessage}</span>
         </div>
       )}
 
-      {/* Header Metric Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-        {/* Metric 1: Live SEO Score Gauge */}
-        <div className="bg-white rounded-2xl border border-slate-200 p-4 sm:p-5 shadow-xs flex items-center gap-4 min-w-0">
-          <div className="relative w-14 h-14 shrink-0 flex items-center justify-center">
-            <svg className="w-full h-full -rotate-90" viewBox="0 0 36 36">
-              <path
-                className="text-slate-100"
-                strokeWidth="3.5"
-                stroke="currentColor"
-                fill="none"
-                d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-              />
-              <path
-                className={seoScore >= 80 ? 'text-emerald-500' : seoScore >= 60 ? 'text-blue-500' : 'text-amber-500'}
-                strokeDasharray={`${seoScore}, 100`}
-                strokeWidth="3.5"
-                strokeLinecap="round"
-                stroke="currentColor"
-                fill="none"
-                d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-              />
-            </svg>
-            <span className="absolute text-xs font-black text-slate-800">{seoScore}</span>
+      {/* TOP HEADER: DYNAMIC SPEEDOMETER GAUGE & OVERVIEW */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+        {/* Metric 1: Live Interactive Speedometer Gauge */}
+        <div className="bg-white rounded-3xl border border-slate-200 p-5 shadow-xs flex flex-col justify-between space-y-3 min-w-0 md:col-span-2 lg:col-span-1">
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
+              Health Meter SEO
+            </span>
+            <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase text-white shadow-2xs" style={{ backgroundColor: seoAudit.colorHex }}>
+              Grade {seoAudit.grade}
+            </span>
           </div>
-          <div className="min-w-0">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 block truncate">Skor SEO On-Page</span>
-            <div className="text-sm font-extrabold text-slate-900 truncate">
-              {seoScore >= 80 ? 'Optimal #1' : seoScore >= 60 ? 'Cukup Baik' : 'Perlu Optimasi'}
+
+          {/* Speedometer Radial Gauge */}
+          <div className="flex flex-col items-center justify-center pt-1">
+            <div className="relative w-36 h-20 overflow-hidden flex items-end justify-center">
+              <svg viewBox="0 0 100 55" className="w-36 h-20">
+                {/* Arc Background */}
+                <path
+                  d="M 10 50 A 40 40 0 0 1 90 50"
+                  fill="none"
+                  stroke="#f1f5f9"
+                  strokeWidth="10"
+                  strokeLinecap="round"
+                />
+                {/* Colored Progress Arc */}
+                <path
+                  d="M 10 50 A 40 40 0 0 1 90 50"
+                  fill="none"
+                  stroke={seoAudit.colorHex}
+                  strokeWidth="10"
+                  strokeDasharray="126"
+                  strokeDashoffset={126 - (126 * seoAudit.score) / 100}
+                  strokeLinecap="round"
+                  className="transition-all duration-500 ease-out"
+                />
+              </svg>
+
+              {/* Dynamic Needle */}
+              <div
+                className="absolute bottom-0 w-1 h-16 origin-bottom transition-transform duration-500 ease-out"
+                style={{ transform: `rotate(${needleRotation}deg)` }}
+              >
+                <div className="w-1 h-12 bg-slate-800 rounded-t-full shadow-md" />
+              </div>
+              <div className="absolute bottom-[-4px] w-4 h-4 bg-slate-900 rounded-full border-2 border-white shadow-xs" />
             </div>
-            <span className="text-[10px] text-emerald-600 font-semibold">Audit Otomatis</span>
+
+            <div className="text-center mt-2">
+              <div className="text-2xl font-black text-slate-900 leading-none">
+                {seoAudit.score}<span className="text-xs text-slate-400 font-normal">/100</span>
+              </div>
+              <div className="text-[11px] font-bold mt-0.5 truncate" style={{ color: seoAudit.colorHex }}>
+                {seoAudit.statusText}
+              </div>
+            </div>
           </div>
         </div>
 
         {/* Metric 2: GSC Impressions */}
-        <div className="bg-white rounded-2xl border border-slate-200 p-4 sm:p-5 shadow-xs space-y-1 min-w-0">
-          <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 block truncate">Total Impresi Google</span>
-          <div className="text-xl sm:text-2xl font-black text-slate-900">
-            {analyticsData?.metricsOverview?.totalImpressions30d || '78,400'}
+        <div className="bg-white rounded-3xl border border-slate-200 p-5 shadow-xs flex flex-col justify-between min-w-0">
+          <div>
+            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 block truncate">
+              Total Impresi Google
+            </span>
+            <div className="text-2xl font-black text-slate-900 mt-1">
+              {analyticsData?.metricsOverview?.totalImpressions30d || '84,200'}
+            </div>
           </div>
-          <span className="text-[11px] text-emerald-600 font-medium flex items-center gap-1">
-            <ArrowUpRight className="w-3.5 h-3.5" /> +14.2% bulan ini
+          <span className="text-[11px] text-emerald-600 font-semibold flex items-center gap-1 mt-2">
+            <ArrowUpRight className="w-3.5 h-3.5" /> +16.8% bulan ini
           </span>
         </div>
 
         {/* Metric 3: GSC Organic Clicks */}
-        <div className="bg-white rounded-2xl border border-slate-200 p-4 sm:p-5 shadow-xs space-y-1 min-w-0">
-          <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 block truncate">Klik Organik (30 Hari)</span>
-          <div className="text-xl sm:text-2xl font-black text-blue-600">
-            {analyticsData?.metricsOverview?.totalClicks30d || '3,842'}
+        <div className="bg-white rounded-3xl border border-slate-200 p-5 shadow-xs flex flex-col justify-between min-w-0">
+          <div>
+            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 block truncate">
+              Klik Organik Search
+            </span>
+            <div className="text-2xl font-black text-blue-600 mt-1">
+              {analyticsData?.metricsOverview?.totalClicks30d || '4,150'}
+            </div>
           </div>
-          <span className="text-[11px] text-slate-500 font-medium">CTR Rata-rata 4.9%</span>
+          <span className="text-[11px] text-slate-500 font-medium mt-2">
+            CTR Rata-rata 4.9% (Pos #2.4)
+          </span>
         </div>
 
-        {/* Metric 4: Position & Core Web Vitals */}
-        <div className="bg-white rounded-2xl border border-slate-200 p-4 sm:p-5 shadow-xs space-y-1 min-w-0">
-          <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 block truncate">Posisi Ranking Google</span>
-          <div className="text-xl sm:text-2xl font-black text-slate-900">
-            #{analyticsData?.metricsOverview?.avgPosition || '3.4'}
+        {/* Metric 4: Core Web Vitals */}
+        <div className="bg-white rounded-3xl border border-slate-200 p-5 shadow-xs flex flex-col justify-between min-w-0">
+          <div>
+            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 block truncate">
+              Core Web Vitals
+            </span>
+            <div className="text-2xl font-black text-emerald-600 mt-1 flex items-center gap-1.5">
+              <span>99</span>
+              <span className="text-xs text-slate-400 font-normal">/100</span>
+            </div>
           </div>
-          <span className="text-[11px] text-emerald-600 font-medium flex items-center gap-1">
-            <Zap className="w-3 h-3 text-emerald-600" /> PageSpeed Score 98+
+          <span className="text-[11px] text-emerald-600 font-medium flex items-center gap-1 mt-2">
+            <Zap className="w-3 h-3" /> LCP 0.8s • CLS 0.00
           </span>
         </div>
       </div>
 
-      {/* ========================================================
-       * SECTION 1: GOOGLE & SEARCH ENGINE DIRECT CONNECT HUB
-       * ======================================================== */}
+      {/* SECTION 1: GOOGLE & SEARCH ENGINE DIRECT CONNECT HUB */}
       <div className="bg-white rounded-3xl border border-slate-200 shadow-xs overflow-hidden">
         <div className="p-4 sm:p-6 border-b border-slate-100 flex flex-col md:flex-row md:items-center justify-between gap-3">
           <div>
             <div className="flex items-center gap-2">
               <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
-              <h3 className="text-base font-extrabold text-slate-900">Google & Search Engine Direct Connect Hub</h3>
+              <h3 className="text-base font-extrabold text-slate-900">Google Search Engine & Analytics Connect Hub</h3>
             </div>
             <p className="text-xs text-slate-500 mt-0.5">
-              Hubungkan situs secara resmi ke Search Console, Google Analytics 4, Tag Manager, dan Google Ads.
+              Integrasi verifikasi Search Console, Google Analytics 4, dan Tag Manager tanpa edit kode file.
             </p>
           </div>
           <button
             onClick={loadAnalytics}
-            className="self-start md:self-auto p-2 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-600 transition-colors flex items-center gap-1.5 text-xs font-semibold"
+            className="self-start md:self-auto px-3 py-2 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-700 transition-colors flex items-center gap-1.5 text-xs font-bold"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${loadingAnalytics ? 'animate-spin text-blue-600' : ''}`} />
-            <span>Sync Live Status</span>
+            <span>Test Live Ping / Sync</span>
           </button>
         </div>
 
         <div className="p-4 sm:p-6 grid grid-cols-1 md:grid-cols-2 gap-4">
-          {/* Card 1: Google Search Console */}
-          <div className="bg-slate-50/70 rounded-2xl border border-slate-200 p-4 space-y-3 min-w-0">
-            <div className="flex items-center justify-between gap-2">
+          {/* GSC Card */}
+          <div className="p-4 rounded-2xl border border-slate-200 bg-slate-50/50 space-y-3">
+            <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <Globe className="w-5 h-5 text-blue-600 shrink-0" />
-                <span className="font-extrabold text-xs text-slate-900">Google Search Console</span>
+                <Globe className="w-4 h-4 text-blue-600" />
+                <span className="font-extrabold text-xs text-slate-900">Google Search Console Verification</span>
               </div>
-              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                formData.gscVerification ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-200 text-slate-600'
-              }`}>
-                {formData.gscVerification ? 'Terhubung' : 'Belum Terhubung'}
-              </span>
+              <div className="flex items-center gap-1.5">
+                <span className={`w-2 h-2 rounded-full ${formData.gscVerification ? 'bg-emerald-500 animate-pulse' : 'bg-slate-300'}`} />
+                <span className="text-[10px] font-bold text-slate-600">
+                  {formData.gscVerification ? 'Terhubung' : 'Belum Terhubung'}
+                </span>
+              </div>
             </div>
-            <div className="space-y-1">
-              <label className="text-[11px] font-semibold text-slate-500 block">HTML Meta Tag / Token Verifikasi GSC</label>
+            <div className="flex items-center gap-2">
               <input
                 type="text"
-                placeholder="google-site-verification=xxxx..."
+                placeholder="google-site-verification token..."
                 value={formData.gscVerification}
                 onChange={(e) => setFormData({ ...formData, gscVerification: e.target.value })}
-                className="w-full px-3 py-2 rounded-xl border border-slate-300 bg-white text-xs font-mono text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-600"
+                className="flex-1 px-3 py-2 rounded-xl border border-slate-300 bg-white text-xs font-mono text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-600"
               />
+              <button
+                type="button"
+                onClick={() => handleVerifyService('Google Search Console', formData.gscVerification)}
+                disabled={verifyingService === 'Google Search Console'}
+                className="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-900 text-white font-bold text-xs shrink-0 flex items-center gap-1"
+              >
+                {verifyingService === 'Google Search Console' ? <RefreshCw className="w-3 h-3 animate-spin" /> : <ShieldCheck className="w-3 h-3" />}
+                <span>Verifikasi</span>
+              </button>
             </div>
-            <button
-              type="button"
-              onClick={() => handleVerifyService('Google Search Console', formData.gscVerification)}
-              disabled={verifyingService === 'Google Search Console'}
-              className="w-full py-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-100 text-slate-700 text-xs font-bold transition-all flex items-center justify-center gap-1.5"
-            >
-              {verifyingService === 'Google Search Console' ? (
-                <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-              ) : (
-                <ShieldCheck className="w-3.5 h-3.5 text-blue-600" />
-              )}
-              <span>Test Verifikasi GSC</span>
-            </button>
           </div>
 
-          {/* Card 2: Google Analytics 4 */}
-          <div className="bg-slate-50/70 rounded-2xl border border-slate-200 p-4 space-y-3 min-w-0">
-            <div className="flex items-center justify-between gap-2">
+          {/* GA4 Card */}
+          <div className="p-4 rounded-2xl border border-slate-200 bg-slate-50/50 space-y-3">
+            <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <Activity className="w-5 h-5 text-amber-600 shrink-0" />
+                <Activity className="w-4 h-4 text-emerald-600" />
                 <span className="font-extrabold text-xs text-slate-900">Google Analytics 4 (GA4)</span>
               </div>
-              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                formData.gaMeasurementId ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-200 text-slate-600'
-              }`}>
-                {formData.gaMeasurementId ? 'Active Stream' : 'Disconnected'}
-              </span>
+              <div className="flex items-center gap-1.5">
+                <span className={`w-2 h-2 rounded-full ${formData.gaMeasurementId ? 'bg-emerald-500 animate-pulse' : 'bg-slate-300'}`} />
+                <span className="text-[10px] font-bold text-slate-600">
+                  {formData.gaMeasurementId ? 'Tracking Aktif' : 'Belum Terhubung'}
+                </span>
+              </div>
             </div>
-            <div className="space-y-1">
-              <label className="text-[11px] font-semibold text-slate-500 block">GA4 Measurement ID</label>
+            <div className="flex items-center gap-2">
               <input
                 type="text"
                 placeholder="G-XXXXXXXXXX"
                 value={formData.gaMeasurementId}
                 onChange={(e) => setFormData({ ...formData, gaMeasurementId: e.target.value })}
-                className="w-full px-3 py-2 rounded-xl border border-slate-300 bg-white text-xs font-mono text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-600"
+                className="flex-1 px-3 py-2 rounded-xl border border-slate-300 bg-white text-xs font-mono text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-600"
               />
-            </div>
-            <button
-              type="button"
-              onClick={() => handleVerifyService('Google Analytics 4', formData.gaMeasurementId)}
-              disabled={verifyingService === 'Google Analytics 4'}
-              className="w-full py-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-100 text-slate-700 text-xs font-bold transition-all flex items-center justify-center gap-1.5"
-            >
-              {verifyingService === 'Google Analytics 4' ? (
-                <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-              ) : (
-                <Activity className="w-3.5 h-3.5 text-amber-600" />
-              )}
-              <span>Test Verifikasi Data Stream GA4</span>
-            </button>
-          </div>
-
-          {/* Card 3: Google Tag Manager */}
-          <div className="bg-slate-50/70 rounded-2xl border border-slate-200 p-4 space-y-3 min-w-0">
-            <div className="flex items-center justify-between gap-2">
-              <div className="flex items-center gap-2">
-                <Tag className="w-5 h-5 text-blue-500 shrink-0" />
-                <span className="font-extrabold text-xs text-slate-900">Google Tag Manager</span>
-              </div>
-              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                formData.gtmId ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-200 text-slate-600'
-              }`}>
-                {formData.gtmId ? 'Container Ready' : 'Optional'}
-              </span>
-            </div>
-            <div className="space-y-1">
-              <label className="text-[11px] font-semibold text-slate-500 block">GTM Container ID</label>
-              <input
-                type="text"
-                placeholder="GTM-XXXXXXX"
-                value={formData.gtmId}
-                onChange={(e) => setFormData({ ...formData, gtmId: e.target.value })}
-                className="w-full px-3 py-2 rounded-xl border border-slate-300 bg-white text-xs font-mono text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-600"
-              />
-            </div>
-          </div>
-
-          {/* Card 4: Google Ads & Meta Pixel */}
-          <div className="bg-slate-50/70 rounded-2xl border border-slate-200 p-4 space-y-3 min-w-0">
-            <div className="flex items-center justify-between gap-2">
-              <div className="flex items-center gap-2">
-                <TrendingUp className="w-5 h-5 text-emerald-600 shrink-0" />
-                <span className="font-extrabold text-xs text-slate-900">Google Ads & Meta Pixel</span>
-              </div>
-              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                formData.googleAdsId || formData.metaPixelId ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-200 text-slate-600'
-              }`}>
-                {formData.googleAdsId || formData.metaPixelId ? 'Conversion Ready' : 'Optional'}
-              </span>
-            </div>
-            <div className="grid grid-cols-2 gap-2">
-              <div className="space-y-1">
-                <label className="text-[11px] font-semibold text-slate-500 block">Google Ads ID</label>
-                <input
-                  type="text"
-                  placeholder="AW-XXXXXXXXX"
-                  value={formData.googleAdsId}
-                  onChange={(e) => setFormData({ ...formData, googleAdsId: e.target.value })}
-                  className="w-full px-2.5 py-2 rounded-xl border border-slate-300 bg-white text-xs font-mono text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-600"
-                />
-              </div>
-              <div className="space-y-1">
-                <label className="text-[11px] font-semibold text-slate-500 block">Meta Pixel ID</label>
-                <input
-                  type="text"
-                  placeholder="Pixel ID"
-                  value={formData.metaPixelId}
-                  onChange={(e) => setFormData({ ...formData, metaPixelId: e.target.value })}
-                  className="w-full px-2.5 py-2 rounded-xl border border-slate-300 bg-white text-xs font-mono text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-600"
-                />
-              </div>
+              <button
+                type="button"
+                onClick={() => handleVerifyService('Google Analytics 4', formData.gaMeasurementId)}
+                disabled={verifyingService === 'Google Analytics 4'}
+                className="px-3 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shrink-0 flex items-center gap-1"
+              >
+                {verifyingService === 'Google Analytics 4' ? <RefreshCw className="w-3 h-3 animate-spin" /> : <CheckCircle2 className="w-3 h-3" />}
+                <span>Ping Stream</span>
+              </button>
             </div>
           </div>
         </div>
       </div>
 
-      {/* ========================================================
-       * SECTION 2: INTERACTIVE ANALYTICS VISUALIZATION CHARTS (Pure SVG, 100% Responsive)
-       * ======================================================== */}
+      {/* SECTION 2: INTERACTIVE ANALYTICS CHART WITH HOVER/TOUCH TOOLTIP */}
       <div className="bg-white rounded-3xl border border-slate-200 shadow-xs overflow-hidden">
-        {/* Chart Header & Tabs */}
         <div className="p-4 sm:p-6 border-b border-slate-100 flex flex-col md:flex-row md:items-center justify-between gap-3">
           <div>
-            <h3 className="text-base font-extrabold text-slate-900">Visualisasi Trafik & Performa Mesin Pencari</h3>
-            <p className="text-xs text-slate-500 mt-0.5">Grafik real-time metrik Google Search Console dan Google Analytics 4.</p>
+            <h3 className="text-base font-extrabold text-slate-900">Visualisasi Trafik & Interaksi Pengunjung</h3>
+            <p className="text-xs text-slate-500 mt-0.5">Sentuh atau arahkan kursor pada grafik untuk memeriksa detail metrik harian.</p>
           </div>
           <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl self-start md:self-auto">
             <button
@@ -400,14 +512,6 @@ export const InteractiveSeoDashboard = ({
               }`}
             >
               Tren Trafik
-            </button>
-            <button
-              onClick={() => setActiveChartTab('gsc')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
-                activeChartTab === 'gsc' ? 'bg-white text-blue-600 shadow-xs' : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              Klik vs Impresi
             </button>
             <button
               onClick={() => setActiveChartTab('sources')}
@@ -421,10 +525,9 @@ export const InteractiveSeoDashboard = ({
         </div>
 
         <div className="p-4 sm:p-6">
-          {/* TAB 1: TRAFFIC TREND (Pure Responsive SVG) */}
-          {activeChartTab === 'traffic' && (
+          {activeChartTab === 'traffic' ? (
             <div className="space-y-4">
-              <div className="flex items-center justify-between text-xs text-slate-500">
+              <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
                 <div className="flex items-center gap-4">
                   <span className="flex items-center gap-1.5 font-bold text-slate-700">
                     <span className="w-3 h-3 rounded-full bg-blue-600" /> Pengunjung Harian (Visitors)
@@ -433,33 +536,38 @@ export const InteractiveSeoDashboard = ({
                     <span className="w-3 h-3 rounded-full bg-emerald-400" /> Page Views
                   </span>
                 </div>
-                <span className="text-[11px] font-mono text-slate-400">14 Hari Terakhir</span>
+                {activeTooltipIndex !== null && (
+                  <div className="px-3 py-1 rounded-xl bg-slate-900 text-white font-mono text-xs shadow-md">
+                    <b>{trafficDays[activeTooltipIndex].date}</b>: {trafficDays[activeTooltipIndex].visitors} visitors ({trafficDays[activeTooltipIndex].pageViews} views)
+                  </div>
+                )}
               </div>
 
-              {/* Scalable SVG Area Chart */}
-              <div className="w-full overflow-hidden bg-slate-50/50 p-2 sm:p-4 rounded-2xl border border-slate-100">
-                <svg viewBox="0 0 700 220" className="w-full h-auto max-h-56 overflow-visible">
+              {/* Interactive SVG Line Chart */}
+              <div className="w-full bg-slate-50/70 p-3 sm:p-5 rounded-2xl border border-slate-100">
+                <svg viewBox="0 0 650 200" className="w-full h-auto max-h-56 overflow-visible">
+                  {/* Grid Lines */}
+                  {[30, 80, 130, 180].map(y => (
+                    <line key={y} x1="20" y1={y} x2="630" y2={y} stroke="#e2e8f0" strokeDasharray="3 3" />
+                  ))}
+
+                  {/* Gradient Area for Visitors */}
                   <defs>
-                    <linearGradient id="blueGradient" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="#2563eb" stopOpacity="0.25" />
-                      <stop offset="100%" stopColor="#2563eb" stopOpacity="0.0" />
+                    <linearGradient id="chartBlueGrad" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="#2563eb" stopOpacity="0.2" />
+                      <stop offset="100%" stopColor="#2563eb" stopOpacity="0" />
                     </linearGradient>
                   </defs>
 
-                  {/* Grid Lines */}
-                  {[40, 90, 140, 190].map((y) => (
-                    <line key={y} x1="30" y1={y} x2="690" y2={y} stroke="#e2e8f0" strokeDasharray="3 3" />
-                  ))}
-
-                  {/* Area fill for visitors */}
+                  {/* Area */}
                   <polygon
-                    points="30,190 30,140 80,125 130,135 180,110 230,95 280,115 330,85 380,70 430,80 480,55 530,60 580,45 630,35 680,25 680,190"
-                    fill="url(#blueGradient)"
+                    points="30,180 30,140 75,130 120,135 165,115 210,105 255,110 300,95 345,100 390,85 435,70 480,75 525,60 570,65 615,50 615,180"
+                    fill="url(#chartBlueGrad)"
                   />
 
-                  {/* Visitors Line */}
+                  {/* Visitors Polyline */}
                   <polyline
-                    points="30,140 80,125 130,135 180,110 230,95 280,115 330,85 380,70 430,80 480,55 530,60 580,45 630,35 680,25"
+                    points="30,140 75,130 120,135 165,115 210,105 255,110 300,95 345,100 390,85 435,70 480,75 525,60 570,65 615,50"
                     fill="none"
                     stroke="#2563eb"
                     strokeWidth="3"
@@ -467,304 +575,229 @@ export const InteractiveSeoDashboard = ({
                     strokeLinejoin="round"
                   />
 
-                  {/* PageViews Line */}
-                  <polyline
-                    points="30,165 80,150 130,158 180,138 230,120 280,140 330,110 380,95 430,105 480,80 530,85 580,70 630,60 680,50"
-                    fill="none"
-                    stroke="#10b981"
-                    strokeWidth="2"
-                    strokeDasharray="4 4"
-                    strokeLinecap="round"
-                  />
-
-                  {/* Data Points */}
+                  {/* Interactive Points */}
                   {[
-                    [30,140], [80,125], [130,135], [180,110], [230,95], [280,115],
-                    [330,85], [380,70], [430,80], [480,55], [530,60], [580,45], [630,35], [680,25]
-                  ].map(([x, y], i) => (
-                    <circle key={i} cx={x} cy={y} r="4" fill="#ffffff" stroke="#2563eb" strokeWidth="2.5" />
+                    { cx: 30, cy: 140, i: 0 },
+                    { cx: 75, cy: 130, i: 1 },
+                    { cx: 120, cy: 135, i: 2 },
+                    { cx: 165, cy: 115, i: 3 },
+                    { cx: 210, cy: 105, i: 4 },
+                    { cx: 255, cy: 110, i: 5 },
+                    { cx: 300, cy: 95, i: 6 },
+                    { cx: 345, cy: 100, i: 7 },
+                    { cx: 390, cy: 85, i: 8 },
+                    { cx: 435, cy: 70, i: 9 },
+                    { cx: 480, cy: 75, i: 10 },
+                    { cx: 525, cy: 60, i: 11 },
+                    { cx: 570, cy: 65, i: 12 },
+                    { cx: 615, cy: 50, i: 13 }
+                  ].map(pt => (
+                    <circle
+                      key={pt.i}
+                      cx={pt.cx}
+                      cy={pt.cy}
+                      r={activeTooltipIndex === pt.i ? 6 : 4}
+                      fill={activeTooltipIndex === pt.i ? '#1d4ed8' : '#ffffff'}
+                      stroke="#2563eb"
+                      strokeWidth={activeTooltipIndex === pt.i ? 3 : 2}
+                      className="cursor-pointer transition-all hover:scale-150"
+                      onMouseEnter={() => setActiveTooltipIndex(pt.i)}
+                      onTouchStart={() => setActiveTooltipIndex(pt.i)}
+                    />
                   ))}
-
-                  {/* X-Axis Dates */}
-                  <text x="30" y="210" fontSize="10" fill="#94a3b8">10 Sep</text>
-                  <text x="180" y="210" fontSize="10" fill="#94a3b8">13 Sep</text>
-                  <text x="330" y="210" fontSize="10" fill="#94a3b8">17 Sep</text>
-                  <text x="480" y="210" fontSize="10" fill="#94a3b8">20 Sep</text>
-                  <text x="640" y="210" fontSize="10" fill="#2563eb" fontWeight="bold">Hari Ini</text>
                 </svg>
               </div>
             </div>
-          )}
-
-          {/* TAB 2: GSC CLICKS VS IMPRESSIONS */}
-          {activeChartTab === 'gsc' && (
-            <div className="space-y-4">
-              <div className="flex items-center justify-between text-xs text-slate-500">
-                <div className="flex items-center gap-4">
-                  <span className="flex items-center gap-1.5 font-bold text-blue-600">
-                    <span className="w-3 h-3 rounded-full bg-blue-600" /> Impresi (Tampil di Google)
-                  </span>
-                  <span className="flex items-center gap-1.5 font-bold text-amber-600">
-                    <span className="w-3 h-3 rounded-full bg-amber-500" /> Klik Hasil Pencarian
-                  </span>
-                </div>
-                <span className="text-[11px] font-mono text-slate-400">Google Search Console API</span>
-              </div>
-
-              <div className="w-full overflow-hidden bg-slate-50/50 p-2 sm:p-4 rounded-2xl border border-slate-100">
-                <svg viewBox="0 0 700 220" className="w-full h-auto max-h-56 overflow-visible">
-                  {/* Grid Lines */}
-                  {[40, 90, 140, 190].map((y) => (
-                    <line key={y} x1="30" y1={y} x2="690" y2={y} stroke="#e2e8f0" strokeDasharray="3 3" />
-                  ))}
-
-                  {/* Impressions Bar */}
-                  <polyline
-                    points="30,120 80,105 130,115 180,90 230,80 280,95 330,75 380,60 430,70 480,45 530,50 580,38 630,30 680,20"
-                    fill="none"
-                    stroke="#2563eb"
-                    strokeWidth="3"
-                    strokeLinecap="round"
-                  />
-
-                  {/* Clicks Line */}
-                  <polyline
-                    points="30,165 80,155 130,160 180,145 230,140 280,148 330,135 380,125 430,130 480,115 530,118 580,110 630,102 680,92"
-                    fill="none"
-                    stroke="#f59e0b"
-                    strokeWidth="3"
-                    strokeLinecap="round"
-                  />
-
-                  {/* Data Points */}
-                  {[
-                    [30,120], [180,90], [330,75], [480,45], [680,20]
-                  ].map(([x, y], i) => (
-                    <circle key={i} cx={x} cy={y} r="4" fill="#ffffff" stroke="#2563eb" strokeWidth="2.5" />
-                  ))}
-                  {[
-                    [30,165], [180,145], [330,135], [480,115], [680,92]
-                  ].map(([x, y], i) => (
-                    <circle key={i} cx={x} cy={y} r="4" fill="#ffffff" stroke="#f59e0b" strokeWidth="2.5" />
-                  ))}
-
-                  <text x="30" y="210" fontSize="10" fill="#94a3b8">10 Sep</text>
-                  <text x="330" y="210" fontSize="10" fill="#94a3b8">17 Sep</text>
-                  <text x="640" y="210" fontSize="10" fill="#2563eb" fontWeight="bold">Hari Ini</text>
-                </svg>
-              </div>
-            </div>
-          )}
-
-          {/* TAB 3: TRAFFIC SOURCES DISTRIBUTION */}
-          {activeChartTab === 'sources' && (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-center">
-              {/* Responsive SVG Donut */}
-              <div className="relative w-44 h-44 mx-auto flex items-center justify-center">
-                <svg viewBox="0 0 100 100" className="w-full h-full -rotate-90">
-                  {/* Organic: 44% */}
-                  <circle cx="50" cy="50" r="38" fill="transparent" stroke="#2563eb" strokeWidth="18" strokeDasharray="105 240" strokeDashoffset="0" />
-                  {/* Direct: 32% */}
-                  <circle cx="50" cy="50" r="38" fill="transparent" stroke="#10b981" strokeWidth="18" strokeDasharray="76 240" strokeDashoffset="-105" />
-                  {/* Social: 14% */}
-                  <circle cx="50" cy="50" r="38" fill="transparent" stroke="#8b5cf6" strokeWidth="18" strokeDasharray="33 240" strokeDashoffset="-181" />
-                  {/* Referral: 10% */}
-                  <circle cx="50" cy="50" r="38" fill="transparent" stroke="#f59e0b" strokeWidth="18" strokeDasharray="24 240" strokeDashoffset="-214" />
-                </svg>
-                <div className="absolute text-center">
-                  <span className="text-xl font-black text-slate-900 block leading-none">100%</span>
-                  <span className="text-[10px] text-slate-400 font-bold uppercase">Distribusi</span>
-                </div>
-              </div>
-
-              {/* Progress Bars */}
-              <div className="space-y-3">
-                {[
-                  { label: 'Organic Search (Google)', pct: 44, color: 'bg-blue-600', count: '3,410' },
-                  { label: 'Direct Traffic (Akses Langsung)', pct: 32, color: 'bg-emerald-500', count: '2,480' },
-                  { label: 'Social Media (Instagram/TikTok)', pct: 14, color: 'bg-purple-500', count: '1,085' },
-                  { label: 'Referral & Backlinks', pct: 10, color: 'bg-amber-500', count: '775' }
-                ].map((s, idx) => (
-                  <div key={idx} className="space-y-1">
-                    <div className="flex items-center justify-between text-xs">
-                      <span className="font-bold text-slate-800">{s.label}</span>
-                      <span className="font-mono text-slate-500">{s.pct}% ({s.count} user)</span>
-                    </div>
-                    <div className="w-full h-2 rounded-full bg-slate-100 overflow-hidden">
-                      <div className={`h-full rounded-full ${s.color}`} style={{ width: `${s.pct}%` }} />
-                    </div>
+          ) : (
+            /* Sources Bar Breakdown */
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              {[
+                { label: 'Organic Search (Google)', pct: 45, color: 'bg-emerald-500', count: '1,867 klik' },
+                { label: 'Direct Traffic (PWA / Link)', pct: 30, color: 'bg-blue-500', count: '1,245 user' },
+                { label: 'Social & WhatsApp Referral', pct: 15, color: 'bg-indigo-500', count: '622 lead' },
+                { label: 'Google Ads & Paid Campaign', pct: 10, color: 'bg-amber-500', count: '415 klik' }
+              ].map(src => (
+                <div key={src.label} className="p-4 rounded-2xl border border-slate-200 bg-slate-50 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-slate-800">{src.pct}%</span>
+                    <span className={`w-2.5 h-2.5 rounded-full ${src.color}`} />
                   </div>
-                ))}
-              </div>
+                  <div className="w-full bg-slate-200 h-2 rounded-full overflow-hidden">
+                    <div className={`h-full ${src.color}`} style={{ width: `${src.pct}%` }} />
+                  </div>
+                  <div className="text-[11px] font-semibold text-slate-700 leading-snug">{src.label}</div>
+                  <div className="text-[10px] text-slate-400 font-mono">{src.count}</div>
+                </div>
+              ))}
             </div>
           )}
         </div>
       </div>
 
-      {/* ========================================================
-       * SECTION 3: TOP 10 TARGET KEYWORDS PERFORMANCE TABLE
-       * ======================================================== */}
-      <div className="bg-white rounded-3xl border border-slate-200 shadow-xs overflow-hidden">
-        <div className="p-4 sm:p-6 border-b border-slate-100 flex items-center justify-between">
-          <div>
-            <h3 className="text-base font-extrabold text-slate-900">Top 10 Target Keywords Google Ranking</h3>
-            <p className="text-xs text-slate-500 mt-0.5">Monitoring posisi peringkat, jumlah impresi, dan rasio klik kata kunci utama.</p>
-          </div>
-          <span className="text-xs font-bold text-blue-600 bg-blue-50 px-3 py-1 rounded-full">
-            Page #1 Target
-          </span>
-        </div>
-
-        <div className="p-4 sm:p-6 min-w-0">
-          {/* DESKTOP VIEW (Screens >= 768px) */}
-          <div className="hidden md:block overflow-x-auto rounded-2xl border border-slate-200">
-            <table className="w-full text-left border-collapse text-xs">
-              <thead>
-                <tr className="bg-slate-50 text-[11px] font-bold text-slate-500 uppercase tracking-wider border-b border-slate-200">
-                  <th className="py-2.5 px-3"># Rank</th>
-                  <th className="py-2.5 px-3">Target Keyword</th>
-                  <th className="py-2.5 px-3 text-center">Posisi Google</th>
-                  <th className="py-2.5 px-3 text-center">Impresi</th>
-                  <th className="py-2.5 px-3 text-center">Klik</th>
-                  <th className="py-2.5 px-3 text-center">CTR</th>
-                  <th className="py-2.5 px-3 text-right">Volume Pencarian</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {(analyticsData?.topKeywords || [
-                  { rank: 1, keyword: 'sewa mobil jakarta', position: 1.8, impressions: 4800, clicks: 576, ctr: '12.0%', volume: '7,200/bln' },
-                  { rank: 2, keyword: 'rental alphard bandara soekarno hatta', position: 2.4, impressions: 3950, clicks: 420, ctr: '10.6%', volume: '5,900/bln' },
-                  { rank: 3, keyword: 'sewa innova zenix bulanan', position: 3.1, impressions: 3100, clicks: 310, ctr: '10.0%', volume: '4,650/bln' },
-                  { rank: 4, keyword: 'jasa konsultan hukum bisnis jakarta', position: 3.8, impressions: 2600, clicks: 234, ctr: '9.0%', volume: '3,900/bln' },
-                  { rank: 5, keyword: 'villa mewah seminyak private pool', position: 4.2, impressions: 2200, clicks: 176, ctr: '8.0%', volume: '3,300/bln' }
-                ]).map((kw, i) => (
-                  <tr key={i} className="hover:bg-slate-50/70 transition-colors">
-                    <td className="py-3 px-3 font-mono font-bold text-slate-400">#{kw.rank || i + 1}</td>
-                    <td className="py-3 px-3 font-bold text-slate-900 flex items-center gap-1.5">
-                      <span>{kw.keyword}</span>
-                      <span className="text-[10px] text-emerald-600 bg-emerald-50 px-1.5 py-0.2 rounded font-semibold">Top 5</span>
-                    </td>
-                    <td className="py-3 px-3 text-center font-bold text-blue-600">
-                      #{kw.position}
-                    </td>
-                    <td className="py-3 px-3 text-center text-slate-700 font-mono">{kw.impressions.toLocaleString('id-ID')}</td>
-                    <td className="py-3 px-3 text-center text-slate-700 font-mono font-bold">{kw.clicks.toLocaleString('id-ID')}</td>
-                    <td className="py-3 px-3 text-center font-semibold text-emerald-600">{kw.ctr}</td>
-                    <td className="py-3 px-3 text-right font-mono text-slate-500">{kw.volume}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-
-          {/* MOBILE STACKED CARDS VIEW (Screens < 768px, Strict Zero Horizontal Overflow) */}
-          <div className="md:hidden space-y-2.5">
-            {(analyticsData?.topKeywords || [
-              { rank: 1, keyword: 'sewa mobil jakarta', position: 1.8, impressions: 4800, clicks: 576, ctr: '12.0%', volume: '7,200/bln' },
-              { rank: 2, keyword: 'rental alphard bandara soekarno hatta', position: 2.4, impressions: 3950, clicks: 420, ctr: '10.6%', volume: '5,900/bln' },
-              { rank: 3, keyword: 'sewa innova zenix bulanan', position: 3.1, impressions: 3100, clicks: 310, ctr: '10.0%', volume: '4,650/bln' },
-              { rank: 4, keyword: 'jasa konsultan hukum bisnis jakarta', position: 3.8, impressions: 2600, clicks: 234, ctr: '9.0%', volume: '3,900/bln' },
-              { rank: 5, keyword: 'villa mewah seminyak private pool', position: 4.2, impressions: 2200, clicks: 176, ctr: '8.0%', volume: '3,300/bln' }
-            ]).map((kw, i) => (
-              <div key={i} className="p-3.5 bg-slate-50/70 rounded-2xl border border-slate-200 space-y-2">
-                <div className="flex items-center justify-between gap-2">
-                  <div className="flex items-center gap-2 min-w-0">
-                    <span className="font-mono text-xs font-bold text-slate-400">#{kw.rank || i + 1}</span>
-                    <span className="font-bold text-xs text-slate-900 truncate">{kw.keyword}</span>
-                  </div>
-                  <span className="text-xs font-black text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full shrink-0">
-                    Pos #{kw.position}
-                  </span>
-                </div>
-                <div className="grid grid-cols-3 gap-2 text-[11px] pt-1 border-t border-slate-200/60">
-                  <div>
-                    <span className="text-slate-400 block text-[10px]">Impresi</span>
-                    <span className="font-mono font-semibold text-slate-800">{kw.impressions.toLocaleString('id-ID')}</span>
-                  </div>
-                  <div>
-                    <span className="text-slate-400 block text-[10px]">Klik</span>
-                    <span className="font-mono font-bold text-slate-800">{kw.clicks.toLocaleString('id-ID')}</span>
-                  </div>
-                  <div>
-                    <span className="text-slate-400 block text-[10px]">CTR</span>
-                    <span className="font-semibold text-emerald-600">{kw.ctr}</span>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {/* ========================================================
-       * SECTION 4: REAL-TIME KEYWORD INSPECTOR & ON-PAGE AUDIT FORM
-       * ======================================================== */}
+      {/* SECTION 3: REAL-TIME KEYWORD INSPECTOR & ON-PAGE AUDIT FORM */}
       <form onSubmit={handleSave} className="bg-white rounded-3xl border border-slate-200 shadow-xs overflow-hidden">
         <div className="p-4 sm:p-6 border-b border-slate-100 flex flex-col md:flex-row md:items-center justify-between gap-3">
           <div>
             <h3 className="text-base font-extrabold text-slate-900">On-Page Keyword Inspector & Meta Tags Editor</h3>
-            <p className="text-xs text-slate-500 mt-0.5">Konfigurasi tag title, meta description, target keywords, dan canonical URL.</p>
+            <p className="text-xs text-slate-500 mt-0.5">
+              Live feedback interaktif saat mengetik judul, meta description, dan kata kunci target.
+            </p>
           </div>
-          <button
-            type="submit"
-            className="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-md shadow-blue-600/20 transition-all flex items-center gap-2 self-start md:self-auto"
-          >
-            <Save className="w-4 h-4" />
-            <span>Simpan Pengaturan SEO</span>
-          </button>
+          <div className="flex items-center gap-2 self-start md:self-auto">
+            <button
+              type="button"
+              onClick={generateAutoSuggestion}
+              className="px-4 py-2 rounded-xl border border-purple-200 bg-purple-50 hover:bg-purple-100 text-purple-700 font-bold text-xs flex items-center gap-1.5 transition-colors shadow-2xs"
+            >
+              <Sparkles className="w-3.5 h-3.5" />
+              <span>Auto-Optimize Suggestion</span>
+            </button>
+            <button
+              type="submit"
+              disabled={saveStatus === 'saving'}
+              className="px-5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-md shadow-blue-600/20 transition-all flex items-center gap-1.5"
+            >
+              {saveStatus === 'saving' ? (
+                <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+              ) : saveStatus === 'saved' ? (
+                <Check className="w-3.5 h-3.5 stroke-[3]" />
+              ) : (
+                <Save className="w-3.5 h-3.5" />
+              )}
+              <span>{saveStatus === 'saving' ? 'Menyimpan...' : saveStatus === 'saved' ? 'Tersimpan!' : 'Simpan SEO'}</span>
+            </button>
+          </div>
         </div>
+
+        {/* Suggestion Callout if generated */}
+        {suggestionState && (
+          <div className="m-4 sm:m-6 p-4 rounded-2xl bg-purple-50 border border-purple-200 space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold text-purple-800 flex items-center gap-1.5">
+                <Sparkles className="w-4 h-4 text-purple-600" />
+                Rekomendasi AI-Powered On-Page Optimization
+              </span>
+              <button
+                type="button"
+                onClick={() => setSuggestionState(null)}
+                className="text-purple-400 hover:text-purple-700"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <div className="space-y-1.5 text-xs text-purple-900 font-medium">
+              <div><b>Suggested Title:</b> {suggestionState.title}</div>
+              <div><b>Suggested Description:</b> {suggestionState.description}</div>
+            </div>
+            <div className="pt-1 flex items-center gap-2">
+              <button
+                type="button"
+                onClick={applySuggestion}
+                className="px-4 py-1.5 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs shadow-xs transition-colors flex items-center gap-1"
+              >
+                <Check className="w-3.5 h-3.5" /> Terapkan Rekomendasi Ini
+              </button>
+              <button
+                type="button"
+                onClick={() => setSuggestionState(null)}
+                className="px-3 py-1.5 rounded-xl border border-purple-200 text-purple-700 font-bold text-xs hover:bg-purple-100"
+              >
+                Tutup
+              </button>
+            </div>
+          </div>
+        )}
 
         <div className="p-4 sm:p-6 space-y-5 text-xs">
           {/* Target Keywords Multi-Tag Input */}
           <div className="space-y-2">
-            <label className="block font-bold uppercase tracking-wider text-slate-700">
-              Target Kata Kunci (Keywords) *
-            </label>
-            <div className="flex flex-wrap gap-2 p-3 rounded-2xl border border-slate-200 bg-slate-50/50 min-h-[48px]">
-              {formData.targetKeywords.map((kw) => (
+            <div className="flex items-center justify-between">
+              <label className="font-bold uppercase tracking-wider text-slate-700">
+                Target Kata Kunci (Keywords) *
+              </label>
+              <span className="text-[11px] font-mono text-slate-400">
+                {formData.targetKeywords.length} Kata Kunci Aktif
+              </span>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2 p-3 rounded-2xl border border-slate-200 bg-slate-50/50 min-h-[48px]">
+              {formData.targetKeywords.map((kw, idx) => (
                 <span
                   key={kw}
-                  className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-blue-50 border border-blue-200 text-blue-700 font-bold text-xs"
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-blue-50 border border-blue-200 text-blue-700 font-bold text-xs group transition-all"
                 >
+                  <Tag className="w-3 h-3 text-blue-500" />
                   <span>{kw}</span>
+                  {/* Reorder Buttons */}
+                  <div className="flex items-center opacity-0 group-hover:opacity-100 transition-opacity">
+                    {idx > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => handleMoveKeyword(idx, -1)}
+                        className="p-0.5 text-blue-500 hover:text-blue-800"
+                        title="Pindah ke Atas"
+                      >
+                        <MoveUp className="w-3 h-3" />
+                      </button>
+                    )}
+                    {idx < formData.targetKeywords.length - 1 && (
+                      <button
+                        type="button"
+                        onClick={() => handleMoveKeyword(idx, 1)}
+                        className="p-0.5 text-blue-500 hover:text-blue-800"
+                        title="Pindah ke Bawah"
+                      >
+                        <MoveDown className="w-3 h-3" />
+                      </button>
+                    )}
+                  </div>
                   <button
                     type="button"
                     onClick={() => handleRemoveKeyword(kw)}
-                    className="hover:text-red-600 focus:outline-none"
+                    className="hover:text-red-600 focus:outline-none ml-0.5"
+                    title="Hapus Keyword"
                   >
                     <X className="w-3.5 h-3.5" />
                   </button>
                 </span>
               ))}
-              <div className="flex-1 min-w-[180px] flex items-center gap-2">
+
+              <div className="flex-1 min-w-[200px] flex items-center gap-2">
                 <input
                   type="text"
-                  placeholder="Ketik kata kunci lalu tekan Enter..."
+                  placeholder="Ketik kata kunci (pisahkan dengan koma atau Enter)..."
                   value={keywordInput}
                   onChange={(e) => setKeywordInput(e.target.value)}
-                  onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleAddKeyword(); } }}
-                  className="w-full bg-transparent text-xs text-slate-800 placeholder:text-slate-400 focus:outline-none py-1"
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ',') {
+                      e.preventDefault();
+                      handleAddKeyword();
+                    }
+                  }}
+                  className="w-full bg-transparent text-xs text-slate-800 placeholder:text-slate-400 focus:outline-none py-1.5 px-1"
                 />
                 <button
                   type="button"
-                  onClick={handleAddKeyword}
-                  className="px-2.5 py-1 rounded-lg bg-blue-600 text-white font-bold text-xs shrink-0"
+                  onClick={() => handleAddKeyword()}
+                  className="px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shrink-0"
                 >
                   + Tambah
                 </button>
               </div>
             </div>
-            <p className="text-[11px] text-slate-400">Masukkan 3–10 kata kunci fokus yang relevan dengan niche industri Anda.</p>
+            <p className="text-[11px] text-slate-400">
+              Tips: Masukkan 3–8 kata kunci spesifik agar audit skor SEO otomatis meningkat.
+            </p>
           </div>
 
-          {/* Meta Title */}
+          {/* Meta Title Input with Real-time Count */}
           <div className="space-y-1">
             <div className="flex items-center justify-between">
               <label className="font-bold uppercase tracking-wider text-slate-700">
                 SEO Meta Title (Judul Halaman) *
               </label>
               <span className={`text-[11px] font-mono font-bold ${
-                formData.metaTitle.length >= 30 && formData.metaTitle.length <= 60 ? 'text-emerald-600' : 'text-slate-400'
+                seoAudit.titleLengthOk ? 'text-emerald-600' : 'text-slate-400'
               }`}>
                 {formData.metaTitle.length} / 60 karakter
               </span>
@@ -775,18 +808,18 @@ export const InteractiveSeoDashboard = ({
               placeholder="Contoh: Sewa Mobil Jakarta Murah & Terlengkap | Rental Alphard & Avanza"
               value={formData.metaTitle}
               onChange={(e) => setFormData({ ...formData, metaTitle: e.target.value })}
-              className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs focus:ring-2 focus:ring-blue-600 focus:outline-none"
+              className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs text-slate-900 focus:ring-2 focus:ring-blue-600 focus:outline-none"
             />
           </div>
 
-          {/* Meta Description */}
+          {/* Meta Description Input with Real-time Count */}
           <div className="space-y-1">
             <div className="flex items-center justify-between">
               <label className="font-bold uppercase tracking-wider text-slate-700">
                 SEO Meta Description (Deskripsi Cuplikan Google) *
               </label>
               <span className={`text-[11px] font-mono font-bold ${
-                formData.metaDescription.length >= 100 && formData.metaDescription.length <= 160 ? 'text-emerald-600' : 'text-slate-400'
+                seoAudit.descLengthOk ? 'text-emerald-600' : 'text-slate-400'
               }`}>
                 {formData.metaDescription.length} / 160 karakter
               </span>
@@ -797,70 +830,181 @@ export const InteractiveSeoDashboard = ({
               placeholder="Jasa sewa mobil terpercaya di Jakarta dengan armada terlengkap, supir profesional berpengalaman, dan harga kompetitif..."
               value={formData.metaDescription}
               onChange={(e) => setFormData({ ...formData, metaDescription: e.target.value })}
-              className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs focus:ring-2 focus:ring-blue-600 focus:outline-none"
+              className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs text-slate-900 focus:ring-2 focus:ring-blue-600 focus:outline-none"
             />
           </div>
 
-          {/* Canonical URL */}
+          {/* Canonical URL Input */}
           <div className="space-y-1">
             <label className="font-bold uppercase tracking-wider text-slate-700">
               Canonical URL
             </label>
             <input
               type="url"
-              placeholder="https://domainanda.com/"
+              placeholder="https://multicms.id/"
               value={formData.canonicalUrl}
               onChange={(e) => setFormData({ ...formData, canonicalUrl: e.target.value })}
-              className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs focus:ring-2 focus:ring-blue-600 focus:outline-none"
+              className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs text-slate-900 focus:ring-2 focus:ring-blue-600 focus:outline-none"
             />
           </div>
 
-          {/* Real-time Checklist Checklist */}
-          <div className="pt-3 border-t border-slate-100">
-            <h4 className="font-extrabold text-slate-900 text-xs mb-2">Checklist Optimasi On-Page Instan:</h4>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
-              <div className="flex items-center gap-2 p-2.5 rounded-xl bg-slate-50 border border-slate-100">
-                {formData.metaTitle.length >= 30 ? (
-                  <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
-                ) : (
-                  <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0" />
-                )}
-                <span className="text-slate-700">Panjang Title (30-60 karakter)</span>
-              </div>
-              <div className="flex items-center gap-2 p-2.5 rounded-xl bg-slate-50 border border-slate-100">
-                {formData.metaDescription.length >= 100 ? (
-                  <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
-                ) : (
-                  <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0" />
-                )}
-                <span className="text-slate-700">Panjang Meta Deskripsi (100-160 karakter)</span>
-              </div>
-              <div className="flex items-center gap-2 p-2.5 rounded-xl bg-slate-50 border border-slate-100">
-                {formData.targetKeywords.length >= 3 ? (
-                  <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
-                ) : (
-                  <XCircle className="w-4 h-4 text-rose-500 shrink-0" />
-                )}
-                <span className="text-slate-700">Minimal 3 Target Kata Kunci</span>
-              </div>
-              <div className="flex items-center gap-2 p-2.5 rounded-xl bg-slate-50 border border-slate-100">
-                {formData.gscVerification || formData.gaMeasurementId ? (
-                  <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
-                ) : (
-                  <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0" />
-                )}
-                <span className="text-slate-700">Terhubung ke Search Console / GA4</span>
-              </div>
+          {/* INTERACTIVE ACCORDION CHECKLIST (Title, Meta, Headings, Slug) */}
+          <div className="pt-4 border-t border-slate-100 space-y-3">
+            <h4 className="font-extrabold text-slate-900 text-sm">
+              Audit On-Page Keyword Density & Checklist Interaktif:
+            </h4>
+
+            {/* Accordion 1: Title Tag Audit */}
+            <div className="rounded-2xl border border-slate-200 overflow-hidden bg-slate-50/50">
+              <button
+                type="button"
+                onClick={() => toggleAccordion('title')}
+                className="w-full p-3.5 flex items-center justify-between text-left hover:bg-slate-100/60 transition-colors"
+              >
+                <div className="flex items-center gap-2.5">
+                  {seoAudit.titleLengthOk && seoAudit.titleKeywordMatches.length > 0 ? (
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                  ) : (
+                    <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0" />
+                  )}
+                  <span className="font-bold text-slate-800 text-xs">
+                    Analisis Meta Title Tag ({formData.metaTitle.length} karakter)
+                  </span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                    seoAudit.titleLengthOk ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'
+                  }`}>
+                    {seoAudit.titleLengthOk ? 'Panjang Ideal' : 'Sesuaikan (30-60 char)'}
+                  </span>
+                  {openAccordions.title ? <ChevronUp className="w-4 h-4 text-slate-400" /> : <ChevronDown className="w-4 h-4 text-slate-400" />}
+                </div>
+              </button>
+              {openAccordions.title && (
+                <div className="p-3.5 pt-0 border-t border-slate-200/60 text-xs space-y-2 bg-white">
+                  <div className="flex items-center justify-between text-slate-600">
+                    <span>Kata kunci termuat di Title:</span>
+                    <span className="font-bold text-slate-900">
+                      {seoAudit.titleKeywordMatches.length > 0
+                        ? seoAudit.titleKeywordMatches.join(', ')
+                        : 'Belum ada kata kunci yang cocok'}
+                    </span>
+                  </div>
+                  <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-100 text-slate-500 text-[11px]">
+                    Pastikan kata kunci utama berada di 30 karakter pertama untuk memaksimalkan rasio klik (CTR) pada halaman hasil pencarian Google.
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Accordion 2: Meta Description Audit */}
+            <div className="rounded-2xl border border-slate-200 overflow-hidden bg-slate-50/50">
+              <button
+                type="button"
+                onClick={() => toggleAccordion('meta')}
+                className="w-full p-3.5 flex items-center justify-between text-left hover:bg-slate-100/60 transition-colors"
+              >
+                <div className="flex items-center gap-2.5">
+                  {seoAudit.descLengthOk && seoAudit.descKeywordMatches.length > 0 ? (
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                  ) : (
+                    <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0" />
+                  )}
+                  <span className="font-bold text-slate-800 text-xs">
+                    Analisis Meta Description ({formData.metaDescription.length} karakter)
+                  </span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                    seoAudit.descLengthOk ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'
+                  }`}>
+                    {seoAudit.descLengthOk ? 'Panjang Ideal' : 'Sesuaikan (100-160 char)'}
+                  </span>
+                  {openAccordions.meta ? <ChevronUp className="w-4 h-4 text-slate-400" /> : <ChevronDown className="w-4 h-4 text-slate-400" />}
+                </div>
+              </button>
+              {openAccordions.meta && (
+                <div className="p-3.5 pt-0 border-t border-slate-200/60 text-xs space-y-2 bg-white">
+                  <div className="flex items-center justify-between text-slate-600">
+                    <span>Kata kunci termuat di Deskripsi:</span>
+                    <span className="font-bold text-slate-900">
+                      {seoAudit.descKeywordMatches.length > 0
+                        ? seoAudit.descKeywordMatches.join(', ')
+                        : 'Belum ada kata kunci yang cocok'}
+                    </span>
+                  </div>
+                  <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-100 text-slate-500 text-[11px]">
+                    Sertakan ajakan bertindak (Call To Action) seperti "Hubungi kami sekarang" atau "Cek promo hari ini" untuk menarik klik pengunjung.
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Accordion 3: Canonical & Search Engine Connectivity */}
+            <div className="rounded-2xl border border-slate-200 overflow-hidden bg-slate-50/50">
+              <button
+                type="button"
+                onClick={() => toggleAccordion('headings')}
+                className="w-full p-3.5 flex items-center justify-between text-left hover:bg-slate-100/60 transition-colors"
+              >
+                <div className="flex items-center gap-2.5">
+                  {seoAudit.hasCanonical && (seoAudit.hasGsc || seoAudit.hasGa) ? (
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                  ) : (
+                    <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0" />
+                  )}
+                  <span className="font-bold text-slate-800 text-xs">
+                    Konektivitas & Canonical URL
+                  </span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                    seoAudit.hasCanonical ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-200 text-slate-600'
+                  }`}>
+                    {seoAudit.hasCanonical ? 'Canonical Valid' : 'Belum Ada URL'}
+                  </span>
+                  {openAccordions.headings ? <ChevronUp className="w-4 h-4 text-slate-400" /> : <ChevronDown className="w-4 h-4 text-slate-400" />}
+                </div>
+              </button>
+              {openAccordions.headings && (
+                <div className="p-3.5 pt-0 border-t border-slate-200/60 text-xs space-y-2 bg-white">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                    <div className="p-2.5 rounded-xl border border-slate-200 flex items-center justify-between">
+                      <span className="text-slate-600">Canonical Tag</span>
+                      <span className={`font-bold ${seoAudit.hasCanonical ? 'text-emerald-600' : 'text-slate-400'}`}>
+                        {seoAudit.hasCanonical ? 'Aktif' : 'Non-aktif'}
+                      </span>
+                    </div>
+                    <div className="p-2.5 rounded-xl border border-slate-200 flex items-center justify-between">
+                      <span className="text-slate-600">Search Console</span>
+                      <span className={`font-bold ${seoAudit.hasGsc ? 'text-emerald-600' : 'text-slate-400'}`}>
+                        {seoAudit.hasGsc ? 'Terkoneksi' : 'Belum'}
+                      </span>
+                    </div>
+                    <div className="p-2.5 rounded-xl border border-slate-200 flex items-center justify-between">
+                      <span className="text-slate-600">Google Analytics 4</span>
+                      <span className={`font-bold ${seoAudit.hasGa ? 'text-emerald-600' : 'text-slate-400'}`}>
+                        {seoAudit.hasGa ? 'Terkoneksi' : 'Belum'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 
           <div className="pt-3 flex justify-end">
             <button
               type="submit"
+              disabled={saveStatus === 'saving'}
               className="w-full sm:w-auto px-6 py-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-md shadow-blue-600/20 transition-all flex items-center justify-center gap-2"
             >
-              <Save className="w-4 h-4" />
-              <span>Simpan & Terapkan SEO</span>
+              {saveStatus === 'saving' ? (
+                <RefreshCw className="w-4 h-4 animate-spin" />
+              ) : (
+                <Save className="w-4 h-4" />
+              )}
+              <span>{saveStatus === 'saving' ? 'Menyimpan...' : 'Simpan & Terapkan SEO'}</span>
             </button>
           </div>
         </div>

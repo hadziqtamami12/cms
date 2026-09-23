@@ -1,344 +1,191 @@
 /**
- * Multi-Database Adapter for Ultra CMS
- * Supports: Supabase, PostgreSQL, MySQL, MongoDB, Firebase Firestore, and Local JSON.
+ * Dynamic Multi-Database Adapter
+ * Supports: PostgreSQL (Supabase / Neon / Self-hosted), MySQL, and MongoDB
+ * Graceful fallback to memory mock if no active connection configured yet (for Installer state)
  */
 
-import fs from 'node:fs/promises';
-import path from 'node:path';
-import { fileURLToPath } from 'node:url';
+import pg from 'pg';
+import mysql from 'mysql2/promise';
+import { MongoClient } from 'mongodb';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-const DATA_DIR = path.resolve(__dirname, '../../api/data');
+let pgPool = null;
+let mysqlPool = null;
+let mongoClient = null;
+let activeDbType = process.env.DB_TYPE || 'postgres'; // 'postgres' | 'mysql' | 'mongodb' | 'memory'
 
-// In-memory cache for fast response times
-let activeDriverInstance = null;
-let currentConfig = null;
+// In-Memory store fallback for fresh zero-config installation state
+const memoryStore = {
+  configs: new Map(),
+  licenses: new Map(),
+  themes: new Map(),
+  leads: new Map(),
+  audit_logs: []
+};
 
-/**
- * Local JSON Implementation (Zero-config resilient default)
- */
-class LocalJsonDriver {
-  constructor(dataDir = DATA_DIR) {
-    this.dataDir = dataDir;
-    this.pagesFile = path.join(dataDir, 'pages.json');
-    this.postsFile = path.join(dataDir, 'posts.json');
-    this.optionsFile = path.join(dataDir, 'options.json');
-  }
+export const getDbType = () => activeDbType;
 
-  async _read(filePath, fallback = []) {
-    try {
-      const content = await fs.readFile(filePath, 'utf-8');
-      return JSON.parse(content);
-    } catch {
-      return fallback;
-    }
-  }
-
-  async _write(filePath, data) {
-    await fs.mkdir(this.dataDir, { recursive: true });
-    await fs.writeFile(filePath, JSON.stringify(data, null, 2), 'utf-8');
-  }
-
-  async testConnection() {
-    await fs.mkdir(this.dataDir, { recursive: true });
-    return { success: true, message: 'Local filesystem storage verified' };
-  }
-
-  async initTables() {
-    await fs.mkdir(this.dataDir, { recursive: true });
-    const pages = await this._read(this.pagesFile, null);
-    if (!pages) await this._write(this.pagesFile, []);
-    const posts = await this._read(this.postsFile, null);
-    if (!posts) await this._write(this.postsFile, []);
-    const options = await this._read(this.optionsFile, null);
-    if (!options) await this._write(this.optionsFile, {});
-    return true;
-  }
-
-  async getOptions() {
-    return await this._read(this.optionsFile, {});
-  }
-
-  async getOption(key, defaultValue = null) {
-    const options = await this.getOptions();
-    return options[key] !== undefined ? options[key] : defaultValue;
-  }
-
-  async updateOption(key, value) {
-    const options = await this.getOptions();
-    options[key] = value;
-    await this._write(this.optionsFile, options);
-    return true;
-  }
-
-  async getPages() {
-    return await this._read(this.pagesFile, []);
-  }
-
-  async getPageBySlug(slug) {
-    const pages = await this.getPages();
-    return pages.find((p) => p.slug === slug) || null;
-  }
-
-  async savePage(pageData) {
-    const pages = await this.getPages();
-    const id = pageData.id || `page_${Date.now()}`;
-    const idx = pages.findIndex((p) => p.id === id || (p.slug && p.slug === pageData.slug));
-    const now = new Date().toISOString();
-    const newPage = {
-      ...pageData,
-      id: idx >= 0 ? pages[idx].id : id,
-      updatedAt: now,
-      createdAt: idx >= 0 ? pages[idx].createdAt : now,
-    };
-
-    if (idx >= 0) {
-      pages[idx] = newPage;
+export const initDbConnection = async (customConfig = null) => {
+  let dbType = customConfig?.type || process.env.DB_TYPE || 'postgres';
+  if (dbType === 'dynamic') {
+    if (process.env.DATABASE_URL && (process.env.DATABASE_URL.startsWith('postgres') || process.env.DATABASE_URL.startsWith('postgresql'))) {
+      dbType = 'postgres';
+    } else if (process.env.MYSQL_URL) {
+      dbType = 'mysql';
+    } else if (process.env.MONGODB_URI) {
+      dbType = 'mongodb';
     } else {
-      pages.unshift(newPage);
+      dbType = 'static';
+    }
+  }
+  activeDbType = dbType;
+
+  try {
+    if (dbType === 'static' || dbType === 'memory') {
+      activeDbType = 'memory';
+      return { success: true, type: 'static', message: 'Terkoneksi ke Static Zero-Config Database secara instan' };
     }
 
-    await this._write(this.pagesFile, pages);
-    return newPage;
-  }
-
-  async deletePage(id) {
-    const pages = await this.getPages();
-    const filtered = pages.filter((p) => p.id !== id && p.slug !== id);
-    await this._write(this.pagesFile, filtered);
-    return true;
-  }
-
-  async getPosts() {
-    return await this._read(this.postsFile, []);
-  }
-
-  async getPostBySlug(slug) {
-    const posts = await this.getPosts();
-    return posts.find((p) => p.slug === slug || String(p.id) === String(slug)) || null;
-  }
-
-  async savePost(postData) {
-    const posts = await this.getPosts();
-    const id = postData.id || `post_${Date.now()}`;
-    const idx = posts.findIndex((p) => p.id === id || (p.slug && p.slug === postData.slug));
-    const now = new Date().toISOString();
-    const newPost = {
-      ...postData,
-      id: idx >= 0 ? posts[idx].id : id,
-      updatedAt: now,
-      createdAt: idx >= 0 ? posts[idx].createdAt : now,
-    };
-
-    if (idx >= 0) {
-      posts[idx] = newPost;
-    } else {
-      posts.unshift(newPost);
-    }
-
-    await this._write(this.postsFile, posts);
-    return newPost;
-  }
-
-  async deletePost(id) {
-    const posts = await this.getPosts();
-    const filtered = posts.filter((p) => p.id !== id && p.slug !== id);
-    await this._write(this.postsFile, filtered);
-    return true;
-  }
-}
-
-/**
- * Supabase Driver (REST API via fetch)
- */
-class SupabaseDriver {
-  constructor(url, key) {
-    this.url = (url || '').replace(/\/+$/, '');
-    this.key = key;
-    this.headers = {
-      apikey: this.key,
-      Authorization: `Bearer ${this.key}`,
-      'Content-Type': 'application/json',
-      Prefer: 'return=representation',
-    };
-    this.fallback = new LocalJsonDriver();
-  }
-
-  async testConnection() {
-    if (!this.url || !this.key) {
-      throw new Error('Supabase URL and API Key are required');
-    }
-    try {
-      const res = await fetch(`${this.url}/rest/v1/`, {
-        headers: this.headers,
-      });
-      if (!res.ok && res.status !== 404) {
-        throw new Error(`Supabase returned status ${res.status}`);
+    if (dbType === 'postgres') {
+      const connectionString = customConfig?.connectionString || process.env.DATABASE_URL;
+      if (!connectionString) {
+        activeDbType = 'memory';
+        return { success: true, type: 'memory', message: 'No Postgres connection string provided, using memory fallback' };
       }
-      return { success: true, message: 'Connected to Supabase successfully' };
+      
+      const requiresSsl = process.env.DB_SSL === 'true' || 
+                          connectionString.includes('supabase.com') || 
+                          connectionString.includes('sslmode=require') || 
+                          process.env.DB_SSL !== 'false';
+
+      pgPool = new pg.Pool({
+        connectionString,
+        ssl: requiresSsl ? { rejectUnauthorized: false } : false,
+        max: 20,
+        idleTimeoutMillis: 30000,
+        connectionTimeoutMillis: 10000,
+      });
+      const client = await pgPool.connect();
+      client.release();
+      activeDbType = 'postgres';
+      return { success: true, type: 'postgres', message: 'Connected to PostgreSQL successfully' };
+    }
+
+    if (dbType === 'mysql') {
+      const uri = customConfig?.connectionString || process.env.MYSQL_URL;
+      if (!uri) {
+        activeDbType = 'memory';
+        return { success: true, type: 'memory', message: 'No MySQL connection string provided, using memory fallback' };
+      }
+      mysqlPool = mysql.createPool({
+        uri,
+        waitForConnections: true,
+        connectionLimit: 20,
+        queueLimit: 0
+      });
+      const conn = await mysqlPool.getConnection();
+      conn.release();
+      return { success: true, type: 'mysql', message: 'Connected to MySQL successfully' };
+    }
+
+    if (dbType === 'mongodb') {
+      const uri = customConfig?.connectionString || process.env.MONGODB_URI;
+      if (!uri) {
+        activeDbType = 'memory';
+        return { success: true, type: 'memory', message: 'No MongoDB URI provided, using memory fallback' };
+      }
+      mongoClient = new MongoClient(uri);
+      await mongoClient.connect();
+      return { success: true, type: 'mongodb', message: 'Connected to MongoDB successfully' };
+    }
+
+    activeDbType = 'memory';
+    return { success: true, type: 'memory', message: 'Initialized in-memory datastore' };
+  } catch (error) {
+    console.warn(`[DB] Database connection error (${dbType}): ${error.message}. Falling back to memory adapter.`);
+    activeDbType = 'memory';
+    return { success: false, error: error.message, type: 'memory' };
+  }
+};
+
+/**
+ * Universal Query Adapter with SQL injection prevention and memory fallback
+ */
+export const query = async (sqlOrCollection, params = [], operation = 'find') => {
+  if (activeDbType === 'postgres' && pgPool) {
+    try {
+      const res = await pgPool.query(sqlOrCollection, params);
+      return res.rows;
     } catch (err) {
-      return { success: false, message: err.message };
+      console.error('[Postgres Query Error]', err.message);
+      throw err;
     }
   }
 
-  async initTables() {
-    return await this.fallback.initTables();
+  if (activeDbType === 'mysql' && mysqlPool) {
+    try {
+      const [rows] = await mysqlPool.execute(sqlOrCollection, params);
+      return rows;
+    } catch (err) {
+      console.error('[MySQL Query Error]', err.message);
+      throw err;
+    }
   }
 
-  // Uses Supabase with automatic resilient fallback
-  async getOptions() {
+  if (activeDbType === 'mongodb' && mongoClient) {
     try {
-      const res = await fetch(`${this.url}/rest/v1/options?select=*`, { headers: this.headers });
-      if (res.ok) {
-        const rows = await res.json();
-        const obj = {};
-        for (const r of rows) obj[r.option_name] = r.option_value;
-        return obj;
+      const db = mongoClient.db(process.env.DB_NAME || 'cms_multitenant');
+      const coll = db.collection(sqlOrCollection);
+      if (operation === 'find') {
+        return await coll.find(params[0] || {}).toArray();
       }
-    } catch {}
-    return await this.fallback.getOptions();
-  }
-
-  async getOption(key, def = null) {
-    const opts = await this.getOptions();
-    return opts[key] !== undefined ? opts[key] : def;
-  }
-
-  async updateOption(key, val) {
-    try {
-      await fetch(`${this.url}/rest/v1/options`, {
-        method: 'POST',
-        headers: { ...this.headers, Prefer: 'resolution=merge-duplicates' },
-        body: JSON.stringify({ option_name: key, option_value: val }),
-      });
-    } catch {}
-    return await this.fallback.updateOption(key, val);
-  }
-
-  async getPages() {
-    try {
-      const res = await fetch(`${this.url}/rest/v1/pages?select=*`, { headers: this.headers });
-      if (res.ok) return await res.json();
-    } catch {}
-    return await this.fallback.getPages();
-  }
-
-  async getPageBySlug(slug) {
-    try {
-      const res = await fetch(`${this.url}/rest/v1/pages?slug=eq.${encodeURIComponent(slug)}&select=*`, { headers: this.headers });
-      if (res.ok) {
-        const data = await res.json();
-        if (data.length > 0) return data[0];
+      if (operation === 'insertOne') {
+        return await coll.insertOne(params[0]);
       }
-    } catch {}
-    return await this.fallback.getPageBySlug(slug);
-  }
-
-  async savePage(page) {
-    await this.fallback.savePage(page);
-    try {
-      await fetch(`${this.url}/rest/v1/pages`, {
-        method: 'POST',
-        headers: { ...this.headers, Prefer: 'resolution=merge-duplicates' },
-        body: JSON.stringify(page),
-      });
-    } catch {}
-    return page;
-  }
-
-  async deletePage(id) {
-    await this.fallback.deletePage(id);
-    try {
-      await fetch(`${this.url}/rest/v1/pages?id=eq.${encodeURIComponent(id)}`, {
-        method: 'DELETE',
-        headers: this.headers,
-      });
-    } catch {}
-    return true;
-  }
-
-  async getPosts() {
-    try {
-      const res = await fetch(`${this.url}/rest/v1/posts?select=*`, { headers: this.headers });
-      if (res.ok) return await res.json();
-    } catch {}
-    return await this.fallback.getPosts();
-  }
-
-  async getPostBySlug(slug) {
-    try {
-      const res = await fetch(`${this.url}/rest/v1/posts?slug=eq.${encodeURIComponent(slug)}&select=*`, { headers: this.headers });
-      if (res.ok) {
-        const data = await res.json();
-        if (data.length > 0) return data[0];
+      if (operation === 'updateOne') {
+        return await coll.updateOne(params[0], { $set: params[1] }, { upsert: true });
       }
-    } catch {}
-    return await this.fallback.getPostBySlug(slug);
+      if (operation === 'deleteOne') {
+        return await coll.deleteOne(params[0]);
+      }
+    } catch (err) {
+      console.error('[MongoDB Query Error]', err.message);
+      throw err;
+    }
   }
 
-  async savePost(post) {
-    await this.fallback.savePost(post);
-    try {
-      await fetch(`${this.url}/rest/v1/posts`, {
-        method: 'POST',
-        headers: { ...this.headers, Prefer: 'resolution=merge-duplicates' },
-        body: JSON.stringify(post),
-      });
-    } catch {}
-    return post;
+  // Memory Adapter Operations
+  const table = sqlOrCollection.toLowerCase();
+  if (table.includes('config') || table.includes('system') || table.includes('setting') || table.includes('app')) {
+    const k = Array.isArray(params) ? params[0] : params?.key;
+    const v = Array.isArray(params) ? params[1] : params?.value;
+
+    if (k && v !== undefined) {
+      try {
+        const parsed = typeof v === 'string' ? JSON.parse(v) : v;
+        memoryStore.configs.set(k, parsed);
+        return [{ key: k, value: parsed }];
+      } catch {
+        memoryStore.configs.set(k, v);
+        return [{ key: k, value: v }];
+      }
+    }
+    if (k) {
+      const val = memoryStore.configs.get(k);
+      return val ? [{ key: k, value: val }] : [];
+    }
+    return Array.from(memoryStore.configs.entries()).map(([key, value]) => ({ key, value }));
   }
 
-  async deletePost(id) {
-    await this.fallback.deletePost(id);
-    try {
-      await fetch(`${this.url}/rest/v1/posts?id=eq.${encodeURIComponent(id)}`, {
-        method: 'DELETE',
-        headers: this.headers,
-      });
-    } catch {}
-    return true;
-  }
-}
-
-/**
- * Universal Database Factory
- */
-export async function getDatabase(driverConfig = null) {
-  const config = driverConfig || {
-    type: process.env.DB_TYPE || 'local-json',
-    supabaseUrl: process.env.SUPABASE_URL,
-    supabaseKey: process.env.SUPABASE_KEY,
-    databaseUrl: process.env.DATABASE_URL,
-  };
-
-  if (activeDriverInstance && JSON.stringify(currentConfig) === JSON.stringify(config)) {
-    return activeDriverInstance;
+  if (table.includes('license')) {
+    if (params.code && params.payload) {
+      memoryStore.licenses.set(params.code, params.payload);
+      return [params.payload];
+    }
+    return Array.from(memoryStore.licenses.values());
   }
 
-  let driver;
-  switch (config.type?.toLowerCase()) {
-    case 'supabase':
-      driver = new SupabaseDriver(config.supabaseUrl, config.supabaseKey);
-      break;
-    case 'postgresql':
-    case 'postgres':
-    case 'mysql':
-    case 'mongodb':
-    case 'firebase':
-      // For enterprise drivers, initialize with resilient file-fallback layer
-      driver = new LocalJsonDriver();
-      break;
-    case 'local-json':
-    default:
-      driver = new LocalJsonDriver();
-      break;
-  }
+  return [];
+};
 
-  await driver.initTables();
-  activeDriverInstance = driver;
-  currentConfig = config;
-  return driver;
-}
-
-export default getDatabase;
+export const getMemoryStore = () => memoryStore;
+export default { initDbConnection, query, getDbType, getMemoryStore };

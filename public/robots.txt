@@ -1,0 +1,11 @@
+User-agent: *
+Allow: /
+Disallow: /admin
+Disallow: /sys-portal
+Disallow: /cms-panel
+Disallow: /install
+Disallow: /setup
+Disallow: /subscription-hold
+Disallow: /api/keygen/
+
+Sitemap: https://yourdomain.com/api/sitemap.xml

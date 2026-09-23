@@ -1,84 +1,67 @@
 /**
- * Dynamic Object Storage Handler for Ultra CMS
- * Supports: Cloudflare R2, AWS S3, and Local Storage.
+ * Cloudflare R2 Storage Adapter (S3-Compatible)
+ * Handles fast, lightweight WebP/AVIF asset uploads, presigned URLs, and edge CDN URLs
  */
 
-import fs from 'node:fs/promises';
-import path from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
+import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-const UPLOAD_DIR = path.resolve(__dirname, '../../client/public/uploads');
+const R2_ACCOUNT_ID = process.env.R2_ACCOUNT_ID || '';
+const R2_ACCESS_KEY_ID = process.env.R2_ACCESS_KEY_ID || '';
+const R2_SECRET_ACCESS_KEY = process.env.R2_SECRET_ACCESS_KEY || '';
+const R2_BUCKET_NAME = process.env.R2_BUCKET_NAME || 'cms-assets';
+const R2_PUBLIC_DOMAIN = process.env.R2_PUBLIC_DOMAIN || 'https://cdn.yourdomain.com';
 
-class LocalStorageHandler {
-  constructor(dir = UPLOAD_DIR) {
-    this.dir = dir;
-  }
+let s3Client = null;
 
-  async testConnection() {
-    await fs.mkdir(this.dir, { recursive: true });
-    return { success: true, message: 'Local upload directory active' };
-  }
+if (R2_ACCOUNT_ID && R2_ACCESS_KEY_ID && R2_SECRET_ACCESS_KEY) {
+  s3Client = new S3Client({
+    region: 'auto',
+    endpoint: `https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com`,
+    credentials: {
+      accessKeyId: R2_ACCESS_KEY_ID,
+      secretAccessKey: R2_SECRET_ACCESS_KEY,
+    },
+  });
+}
 
-  async uploadFile(buffer, filename, mimeType = 'image/jpeg') {
-    await fs.mkdir(this.dir, { recursive: true });
-    const safeName = `${Date.now()}-${filename.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
-    const target = path.join(this.dir, safeName);
-    await fs.writeFile(target, buffer);
+export const isR2Configured = () => {
+  return Boolean(s3Client && R2_BUCKET_NAME);
+};
+
+export const getUploadPresignedUrl = async (filename, contentType, expiresIn = 3600) => {
+  if (!s3Client) {
+    // Return mock upload endpoint if not configured
     return {
-      url: `/uploads/${safeName}`,
-      filename: safeName,
-      size: buffer.length,
-      mimeType,
+      uploadUrl: `/api/media/mock-upload?file=${encodeURIComponent(filename)}`,
+      publicUrl: `/assets/uploads/${filename}`,
+      key: filename,
+      isMock: true
     };
   }
 
-  async deleteFile(filename) {
-    try {
-      const target = path.join(this.dir, path.basename(filename));
-      await fs.unlink(target);
-      return true;
-    } catch {
-      return false;
-    }
-  }
-}
+  const key = `uploads/${Date.now()}-${filename.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
+  const command = new PutObjectCommand({
+    Bucket: R2_BUCKET_NAME,
+    Key: key,
+    ContentType: contentType,
+    CacheControl: 'public, max-age=31536000, immutable'
+  });
 
-class S3StorageHandler {
-  constructor(config = {}) {
-    this.bucket = config.bucket || process.env.S3_BUCKET;
-    this.region = config.region || process.env.S3_REGION || 'auto';
-    this.endpoint = config.endpoint || process.env.S3_ENDPOINT;
-    this.accessKey = config.accessKey || process.env.S3_ACCESS_KEY_ID;
-    this.secretKey = config.secretKey || process.env.S3_SECRET_ACCESS_KEY;
-    this.publicDomain = config.publicDomain || process.env.S3_PUBLIC_DOMAIN || this.endpoint;
-    this.fallback = new LocalStorageHandler();
-  }
+  const uploadUrl = await getSignedUrl(s3Client, command, { expiresIn });
+  const publicUrl = `${R2_PUBLIC_DOMAIN.replace(/\/$/, '')}/${key}`;
 
-  async testConnection() {
-    if (!this.bucket || !this.accessKey || !this.secretKey) {
-      throw new Error('S3/R2 Bucket, Access Key, and Secret Key are required');
-    }
-    return { success: true, message: `Connected to bucket: ${this.bucket}` };
-  }
+  return { uploadUrl, publicUrl, key, isMock: false };
+};
 
-  async uploadFile(buffer, filename, mimeType) {
-    // When credentials exist in production, push to R2/S3; otherwise persist locally
-    return await this.fallback.uploadFile(buffer, filename, mimeType);
-  }
+export const deleteFile = async (key) => {
+  if (!s3Client) return { success: true, isMock: true };
+  const command = new DeleteObjectCommand({
+    Bucket: R2_BUCKET_NAME,
+    Key: key
+  });
+  await s3Client.send(command);
+  return { success: true };
+};
 
-  async deleteFile(filename) {
-    return await this.fallback.deleteFile(filename);
-  }
-}
-
-export function getStorage(config = null) {
-  const type = config?.type || process.env.STORAGE_TYPE || 'local';
-  if (type === 'cloudflare-r2' || type === 'aws-s3' || type === 's3') {
-    return new S3StorageHandler(config);
-  }
-  return new LocalStorageHandler();
-}
-
-export default getStorage;
+export default { isR2Configured, getUploadPresignedUrl, deleteFile };

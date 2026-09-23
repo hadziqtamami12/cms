@@ -44,30 +44,15 @@ export const MobileBottomNav = ({
   isAlwaysVisible = false, // When used inside admin mobile preview mockup
   onVisibilityChange
 }) => {
-  const [visible, setVisible] = useState(isAlwaysVisible);
+  const [visible, setVisible] = useState(true);
   const [activeTab, setActiveTab] = useState('home');
 
   const resolvedVariant = normalizeVariant(variant || styleVariant);
   const catalogMeta = getIndustryCatalogMeta(industry);
 
   useEffect(() => {
-    if (isAlwaysVisible) {
-      setVisible(true);
-      if (onVisibilityChange) onVisibilityChange(true);
-      return;
-    }
-
-    const handleScroll = () => {
-      // Emerges dynamically after scrolling down 100px
-      const isScrolled = window.scrollY > 100;
-      setVisible(isScrolled);
-      if (onVisibilityChange) onVisibilityChange(isScrolled);
-    };
-
-    window.addEventListener('scroll', handleScroll, { passive: true });
-    handleScroll();
-    return () => window.removeEventListener('scroll', handleScroll);
-  }, [isAlwaysVisible, onVisibilityChange]);
+    if (onVisibilityChange) onVisibilityChange(true);
+  }, [onVisibilityChange]);
 
   if (!visible) return null;
 

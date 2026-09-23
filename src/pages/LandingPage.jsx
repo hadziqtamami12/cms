@@ -28,7 +28,15 @@ export const LandingPage = ({ config }) => {
     seo = {}
   } = config;
 
-  const resolvedNavVariant = bottom_nav_variant || bottomNavStyle || 'detached_floating_bubble';
+  const localSavedVariant = (() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem('cms_active_theme_config') || '{}');
+      return saved.bottom_nav_variant || saved.bottomNavStyle;
+    } catch {}
+    return null;
+  })();
+
+  const resolvedNavVariant = bottom_nav_variant || localSavedVariant || bottomNavStyle || 'floating_dock';
   const waSettings = whatsapp_settings || {};
   const resolvedWa = waSettings.phone || floating_whatsapp.phone || whatsapp;
   const resolvedBrandName = waSettings.brandName || brandName;

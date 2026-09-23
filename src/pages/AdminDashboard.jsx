@@ -1031,6 +1031,7 @@ export const AdminDashboard = ({
                 currentVariant={config?.bottom_nav_variant || bottomNavStyle}
                 currentIndustry={currentIndustry}
                 currentThemeId={currentThemeId}
+                config={config}
                 adminToken={adminToken}
                 onConfigUpdated={(newCfg) => {
                   if (newCfg.bottomNavStyle) setBottomNavStyle(newCfg.bottomNavStyle);

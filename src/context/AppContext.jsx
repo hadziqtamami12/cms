@@ -66,7 +66,18 @@ export const AppProvider = ({ children }) => {
 
       if (res && res.success && res.data && !res.isFallback) {
         // Live server response (not fallback)
-        setConfig(res.data);
+        let localSaved = {};
+        try {
+          localSaved = JSON.parse(localStorage.getItem('cms_active_theme_config') || '{}');
+        } catch {}
+
+        const serverVariant = res.data.bottom_nav_variant || res.data.bottomNavStyle;
+        const mergedConfig = {
+          ...res.data,
+          bottom_nav_variant: serverVariant || localSaved.bottom_nav_variant || localSaved.bottomNavStyle || 'floating_dock'
+        };
+
+        setConfig(mergedConfig);
         if (res.data.adminSlug) setAdminSlug(res.data.adminSlug);
 
         if (res.data.license) {
@@ -112,7 +123,12 @@ export const AppProvider = ({ children }) => {
         const raw = localStorage.getItem('cms_active_theme_config');
         if (raw) {
           const parsed = JSON.parse(raw);
-          setConfig(prev => ({ ...prev, ...parsed }));
+          const variant = parsed.bottom_nav_variant || parsed.bottomNavStyle;
+          setConfig(prev => ({
+            ...prev,
+            ...parsed,
+            ...(variant ? { bottom_nav_variant: variant, bottomNavStyle: variant } : {})
+          }));
         }
       } catch {}
     };
@@ -133,7 +149,12 @@ export const AppProvider = ({ children }) => {
 
   const updateConfigLocally = (newConfig) => {
     setConfig(prev => {
-      const merged = { ...prev, ...newConfig };
+      const variant = newConfig.bottom_nav_variant || newConfig.bottomNavStyle;
+      const merged = {
+        ...prev,
+        ...newConfig,
+        ...(variant ? { bottom_nav_variant: variant, bottomNavStyle: variant } : {})
+      };
       try {
         localStorage.setItem('cms_active_theme_config', JSON.stringify(merged));
         window.dispatchEvent(new Event('cms-config-updated'));

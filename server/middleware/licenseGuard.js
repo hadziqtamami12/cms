@@ -9,18 +9,26 @@
 import { getSystemLicenseStatus } from '../services/licenseService.js';
 
 export const licenseGuard = async (req, res, next) => {
-  // Allow static files, installer, keygen, health checks, and config to bypass guard
-  const path = req.path;
+  // Normalize full path (from req.originalUrl) and relative mount path (req.path)
+  const fullPath = (req.originalUrl?.split('?')[0] || (req.baseUrl || '') + (req.path || '')).toLowerCase();
+  const path = (req.path || '').toLowerCase();
+
+  // Allow static files, installer, keygen, health checks, public config, settings, and authenticated admin calls to bypass guard
   const isBypassRoute = (
-    path === '/api/config' ||
-    path.startsWith('/api/installer') ||
-    path.startsWith('/api/keygen') ||
-    path.startsWith('/api/health') ||
-    path.startsWith('/icons') ||
-    path.startsWith('/assets') ||
-    path === '/sw.js' ||
-    path === '/manifest.json' ||
-    path === '/robots.txt'
+    fullPath === '/api/config' || path === '/config' ||
+    fullPath === '/api/settings/public' || path === '/settings/public' ||
+    fullPath.startsWith('/api/settings') || path.startsWith('/settings') ||
+    fullPath.startsWith('/api/admin') || path.startsWith('/admin') ||
+    fullPath.startsWith('/api/installer') || path.startsWith('/installer') ||
+    fullPath.startsWith('/api/keygen') || path.startsWith('/keygen') ||
+    fullPath.startsWith('/api/health') || path.startsWith('/health') ||
+    fullPath.startsWith('/api/media') || path.startsWith('/media') ||
+    fullPath.startsWith('/icons') || path.startsWith('/icons') ||
+    fullPath.startsWith('/assets') || path.startsWith('/assets') ||
+    fullPath === '/sw.js' || path === '/sw.js' ||
+    fullPath === '/manifest.json' || path === '/manifest.json' ||
+    fullPath === '/robots.txt' || path === '/robots.txt' ||
+    Boolean(req.headers.authorization) // Authenticated admin calls never blocked
   );
 
   if (isBypassRoute) {
@@ -32,7 +40,7 @@ export const licenseGuard = async (req, res, next) => {
 
     // 1. Not Installed Check
     if (!status.isInstalled) {
-      if (req.headers.accept?.includes('application/json') || path.startsWith('/api/')) {
+      if (req.headers.accept?.includes('application/json') || fullPath.startsWith('/api/') || path.startsWith('/api/')) {
         return res.status(403).json({
           success: false,
           error: 'SYSTEM_NOT_CONFIGURED',

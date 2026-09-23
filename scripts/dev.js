@@ -55,8 +55,8 @@ const startDev = async () => {
   console.log('   👉 Frontend Web App:  http://127.0.0.1:3005');
   console.log('   👉 Backend Serverless: http://127.0.0.1:5005\n');
 
-  // 2. Jalankan Backend Server (/server)
-  const serverProc = spawn('node', ['server/index.js'], {
+  // 2. Jalankan Backend Server (/server) dengan native auto-watch
+  const serverProc = spawn('node', ['--watch', 'server/index.js'], {
     cwd: rootDir,
     stdio: 'inherit',
     shell: true

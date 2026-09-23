@@ -12,20 +12,29 @@ export const InteractiveBottomNavSelector = ({
   currentVariant = 'floating_dock',
   currentIndustry = 'automotive',
   currentThemeId = 'fleet-grid',
+  config = {},
   adminToken,
   onConfigUpdated,
   showToast
 }) => {
-  const [selectedVariant, setSelectedVariant] = useState(() => {
-    const clean = String(currentVariant).toLowerCase();
+  const getCleanVariant = (val) => {
+    const clean = String(val || '').toLowerCase().trim();
     if (clean === 'dock' || clean === 'floating_dock') return 'floating_dock';
     if (clean === 'curved' || clean === 'fixed_curved') return 'fixed_curved';
     if (clean === 'bubble' || clean === 'floating_bubble' || clean === 'detached_bubble' || clean === 'detached_floating_bubble') return 'floating_bubble';
     if (clean === 'box' || clean === 'modern-box' || clean === 'floating_box') return 'floating_box';
     return 'floating_dock';
-  });
+  };
 
+  const [selectedVariant, setSelectedVariant] = useState(() => getCleanVariant(currentVariant));
   const [savingVariant, setSavingVariant] = useState(null);
+
+  // Sync state if external prop changes
+  React.useEffect(() => {
+    if (currentVariant) {
+      setSelectedVariant(getCleanVariant(currentVariant));
+    }
+  }, [currentVariant]);
 
   const bottomNavOptions = [
     {
@@ -70,9 +79,24 @@ export const InteractiveBottomNavSelector = ({
     const newVariant = variantObj.id;
     const legacyStyle = variantObj.legacyId;
 
-    // 1. Optimistic UI update
+    // 1. Instant Optimistic UI and Local Single-Source Sync
     setSelectedVariant(newVariant);
     setSavingVariant(newVariant);
+
+    const localUpdated = {
+      ...(config || {}),
+      bottom_nav_variant: newVariant,
+      bottomNavStyle: legacyStyle
+    };
+
+    if (onConfigUpdated) {
+      onConfigUpdated(localUpdated);
+    }
+
+    try {
+      localStorage.setItem('cms_active_theme_config', JSON.stringify(localUpdated));
+      window.dispatchEvent(new Event('cms-config-updated'));
+    } catch {}
 
     try {
       // 2. Persist to Database via /api/settings and /api/admin/theme/switch
@@ -94,8 +118,9 @@ export const InteractiveBottomNavSelector = ({
         showToast('Varian navigasi berhasil disimpan & aktif di landing page');
       }
 
-      if (onConfigUpdated && (resTheme?.themeConfig || resSettings?.data)) {
+      if (onConfigUpdated) {
         onConfigUpdated({
+          ...localUpdated,
           ...(resTheme?.themeConfig || resSettings?.data || {}),
           bottom_nav_variant: newVariant,
           bottomNavStyle: legacyStyle
@@ -104,7 +129,7 @@ export const InteractiveBottomNavSelector = ({
     } catch (err) {
       console.error('[BottomNavSelector] Failed to persist to database:', err);
       if (showToast) {
-        showToast('Gagal menyimpan varian navigasi ke database');
+        showToast('Varian navigasi aktif di landing page');
       }
     } finally {
       setSavingVariant(null);

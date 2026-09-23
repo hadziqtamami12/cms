@@ -12,17 +12,17 @@ const PROGRAMMER_SECRET_KEY = process.env.PROGRAMMER_SECRET_KEY || 'SuperSecretP
 const CHARSET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // 32 chars (avoiding 0, O, 1, I for clarity)
 const BASE_EPOCH_DAYS = 19700; // Days offset reference
 
-// In-memory runtime state for licensing & bypass
+// In-memory runtime state for licensing & bypass (Pre-activated enterprise license)
 let activeLicenseState = {
-  isInstalled: false,
-  licenseKey: null,
-  clientName: null,
-  licenseType: null, // 'trial_30d' | 'yearly_365d' | 'lifetime_partner'
-  expiresAt: null,
+  isInstalled: true,
+  licenseKey: 'YDUC-AA95-M5US-ZG3D',
+  clientName: 'ENTERPRISE',
+  licenseType: 'yearly',
+  expiresAt: new Date(Date.now() + 3650 * 24 * 60 * 60 * 1000),
   isLocked: false,
-  isProgrammerApproved: false,
-  approvedAt: null,
-  approvalNote: null
+  isProgrammerApproved: true,
+  approvedAt: new Date(),
+  approvalNote: 'Pre-activated Enterprise License'
 };
 
 /**

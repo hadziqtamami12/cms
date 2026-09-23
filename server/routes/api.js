@@ -80,7 +80,7 @@ router.post('/settings', adminAuth, async (req, res) => {
  */
 router.get('/config', async (req, res) => {
   try {
-    const themeConfig = await getPublicSettings();
+    const themeConfig = await getPublicSettings(true);
     const licenseStatus = await getSystemLicenseStatus();
 
     res.json({

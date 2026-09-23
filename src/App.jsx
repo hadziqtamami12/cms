@@ -96,6 +96,11 @@ export const App = () => {
   const activeSlug = (adminSlug || 'admin').replace(/^\/+|\/+$/g, '');
 
   if (cleanPath === activeSlug || cleanPath.startsWith(`${activeSlug}/`)) {
+    // Keep URL in address bar strictly /${activeSlug} (e.g. /admin)
+    if (typeof window !== 'undefined' && (currentPath !== `/${activeSlug}` || window.location.search || window.location.hash)) {
+      window.history.replaceState(null, '', `/${activeSlug}`);
+    }
+
     // If not authenticated, render Clean Admin Login form
     if (!adminToken) {
       const handleLoginSubmit = async (e) => {

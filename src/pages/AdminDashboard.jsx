@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Palette, TrendingUp, Settings, Users, LogOut, CheckCircle2,
   RefreshCw, Globe, Shield, Smartphone, Layers, Save, AlertCircle,
@@ -30,7 +30,36 @@ export const AdminDashboard = ({
   onLogout,
   onConfigUpdated
 }) => {
-  const [activeTab, setActiveTab] = useState('dashboard'); // 'dashboard' | 'themes' | 'slideshow' | 'products' | 'whatsapp' | 'seo' | 'leads' | 'settings'
+  // Persist activeTab across browser refreshes and CRUD operations
+  const [activeTab, setActiveTabState] = useState(() => {
+    try {
+      const savedTab = localStorage.getItem('cms_admin_active_tab');
+      const validTabs = ['dashboard', 'branding', 'themes', 'slideshow', 'products', 'whatsapp', 'seo', 'leads', 'settings'];
+      if (savedTab && validTabs.includes(savedTab)) {
+        return savedTab;
+      }
+    } catch {}
+    return 'dashboard';
+  });
+
+  const setActiveTab = (tabId) => {
+    setActiveTabState(tabId);
+    try {
+      localStorage.setItem('cms_admin_active_tab', tabId);
+    } catch {}
+  };
+
+  // Enforce clean browser address bar: strictly /${adminSlug || 'admin'} without sub-paths or query params
+  useEffect(() => {
+    const cleanSlug = (adminSlug || 'admin').replace(/^\/+|\/+$/g, '');
+    const targetUrl = `/${cleanSlug}`;
+    if (typeof window !== 'undefined') {
+      if (window.location.pathname !== targetUrl || window.location.search || window.location.hash) {
+        window.history.replaceState(null, '', targetUrl);
+      }
+    }
+  }, [adminSlug, activeTab]);
+
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   
   // Desktop Sidebar Mode: 'expanded' (w-64) or 'rail' (w-20 mini icon rail)

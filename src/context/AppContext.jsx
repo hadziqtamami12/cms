@@ -172,6 +172,7 @@ export const AppProvider = ({ children }) => {
   const handleAdminLogout = () => {
     setAdminToken('');
     localStorage.removeItem('cms_admin_token');
+    localStorage.removeItem('cms_admin_active_tab');
   };
 
   return (

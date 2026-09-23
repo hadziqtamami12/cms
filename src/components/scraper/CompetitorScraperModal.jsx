@@ -228,13 +228,18 @@ export const CompetitorScraperModal = ({
                       </div>
 
                       {/* Thumbnail */}
-                      <div className="w-24 h-24 rounded-xl overflow-hidden bg-slate-100 shrink-0 border border-slate-100">
+                      <div className="w-24 h-24 rounded-xl overflow-hidden bg-slate-100 shrink-0 border border-slate-100 relative">
                         <img
                           src={item.image}
                           alt={item.title}
                           onError={(e) => { e.currentTarget.src = '/images/fleet/car-default.svg'; }}
                           className="w-full h-full object-cover"
                         />
+                        {Array.isArray(item.images) && item.images.length > 1 && (
+                          <span className="absolute bottom-1 right-1 px-1.5 py-0.5 rounded bg-black/70 text-white text-[9px] font-bold font-mono">
+                            +{item.images.length}
+                          </span>
+                        )}
                       </div>
 
                       {/* Item Details */}

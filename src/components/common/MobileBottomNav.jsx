@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Home, Layers, ShoppingBag, Car, Briefcase, Building2, Tag, HelpCircle, PhoneCall, MapPin } from 'lucide-react';
+import { Home, Layers, ShoppingBag, Car, Briefcase, Building2, Tag, HelpCircle, PhoneCall, MapPin, MessageSquare } from 'lucide-react';
 
 /**
  * Normalizes bottom nav variant values
@@ -78,9 +78,31 @@ export const MobileBottomNav = ({
     { id: 'home', label: 'Beranda', icon: Home, href: '#' },
     { id: 'catalog', label: catalogMeta.label, icon: catalogMeta.icon, href: catalogMeta.href },
     { id: 'pricing', label: 'Tarif', icon: Tag, href: '#pricing' },
-    { id: 'faq', label: 'Cara Pesan', icon: HelpCircle, href: '#contact' },
-    { id: 'contact', label: 'Kontak', icon: PhoneCall, href: phone ? `tel:${phone.replace(/[^0-9+]/g, '')}` : '#contact' }
+    { id: 'testimonials', label: 'Testimoni', icon: MessageSquare, href: '#testimonials' },
+    { id: 'contact', label: 'Kontak', icon: PhoneCall, href: '#footer', isContact: true }
   ];
+
+  const handleNavClick = (e, item) => {
+    setActiveTab(item.id);
+    if (item.id === 'contact' || item.isContact) {
+      e.preventDefault();
+      const footerEl = document.getElementById('footer');
+      if (footerEl) {
+        footerEl.scrollIntoView({ behavior: 'smooth' });
+      } else {
+        window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+      }
+    } else if (item.href && item.href.startsWith('#')) {
+      const targetId = item.href.replace('#', '');
+      if (targetId) {
+        const targetEl = document.getElementById(targetId);
+        if (targetEl) {
+          e.preventDefault();
+          targetEl.scrollIntoView({ behavior: 'smooth' });
+        }
+      }
+    }
+  };
 
   /* -------------------------------------------------------------
    * Varian A: Floating Dock Pill (Melayang Rounded-Full)
@@ -96,7 +118,7 @@ export const MobileBottomNav = ({
               <a
                 key={item.id}
                 href={item.href}
-                onClick={() => setActiveTab(item.id)}
+                onClick={(e) => handleNavClick(e, item)}
                 className={`flex flex-col items-center justify-center py-1 px-3 rounded-full transition-all duration-200 ${
                   isActive
                     ? 'text-blue-600 font-extrabold bg-blue-50'
@@ -116,7 +138,7 @@ export const MobileBottomNav = ({
   }
 
   /* -------------------------------------------------------------
-   * Varian B: Fixed Curved Scoop (Melengkung di Kanan, Kiri, dan Bawah Tanpa Menyentuh Lingkaran Menu Aktif)
+   * Varian B: Fixed Curved Scoop (Melengkung di Kanan, Kiri, dan Bawah Sempurna Simetris)
    * ------------------------------------------------------------- */
   if (resolvedVariant === 'fixed_curved') {
     const activeIndex = Math.max(0, navItems.findIndex((item) => item.id === activeTab));
@@ -125,9 +147,9 @@ export const MobileBottomNav = ({
     const cx = activeIndex * tabWidth + 37.5;
     const barTop = 14;
 
-    // Precision Bézier curve hugging 48px active circle with uniform 4.5px-5px clearance on left, right, and bottom:
-    const scoopPath = `M 0 ${barTop} L ${cx - 33} ${barTop} C ${cx - 28} ${barTop}, ${cx - 27} 22, ${cx - 24} 32 C ${cx - 20} 46, ${cx - 12} 48, ${cx} 48 C ${cx + 12} 48, ${cx + 20} 46, ${cx + 24} 32 C ${cx + 27} 22, ${cx + 28} ${barTop}, ${cx + 33} ${barTop} L 375 ${barTop} L 375 72 L 0 72 Z`;
-    const scoopBorder = `M 0 ${barTop} L ${cx - 33} ${barTop} C ${cx - 28} ${barTop}, ${cx - 27} 22, ${cx - 24} 32 C ${cx - 20} 46, ${cx - 12} 48, ${cx} 48 C ${cx + 12} 48, ${cx + 20} 46, ${cx + 24} 32 C ${cx + 27} 22, ${cx + 28} ${barTop}, ${cx + 33} ${barTop} L 375 ${barTop}`;
+    // Symmetrical, perfectly smooth Bézier scoop cradling the 48px active circle with uniform clearance
+    const scoopPath = `M 0 ${barTop} L ${cx - 38} ${barTop} C ${cx - 26} ${barTop}, ${cx - 24} 24, ${cx - 18} 34 C ${cx - 12} 47, ${cx - 6} 49, ${cx} 49 C ${cx + 6} 49, ${cx + 12} 47, ${cx + 18} 34 C ${cx + 24} 24, ${cx + 26} ${barTop}, ${cx + 38} ${barTop} L 375 ${barTop} L 375 72 L 0 72 Z`;
+    const scoopBorder = `M 0 ${barTop} L ${cx - 38} ${barTop} C ${cx - 26} ${barTop}, ${cx - 24} 24, ${cx - 18} 34 C ${cx - 12} 47, ${cx - 6} 49, ${cx} 49 C ${cx + 6} 49, ${cx + 12} 47, ${cx + 18} 34 C ${cx + 24} 24, ${cx + 26} ${barTop}, ${cx + 38} ${barTop} L 375 ${barTop}`;
 
     return (
       <aside aria-label="Navigasi Bawah Mobile" className="md:hidden fixed bottom-0 inset-x-0 z-40 min-w-0 select-none pointer-events-none animate-bounce-in">
@@ -171,7 +193,7 @@ export const MobileBottomNav = ({
                 <a
                   key={item.id}
                   href={item.href}
-                  onClick={() => setActiveTab(item.id)}
+                  onClick={(e) => handleNavClick(e, item)}
                   className="flex-1 flex flex-col items-center justify-end pb-2 h-full text-slate-500 transition-colors"
                 >
                   {/* For inactive items: show icon normally. For active item: leave space for floating circle */}
@@ -208,7 +230,7 @@ export const MobileBottomNav = ({
               <a
                 key={item.id}
                 href={item.href}
-                onClick={() => setActiveTab(item.id)}
+                onClick={(e) => handleNavClick(e, item)}
                 className="relative flex flex-col items-center justify-center flex-1 py-1"
               >
                 {isActive ? (
@@ -242,7 +264,7 @@ export const MobileBottomNav = ({
             <a
               key={item.id}
               href={item.href}
-              onClick={() => setActiveTab(item.id)}
+              onClick={(e) => handleNavClick(e, item)}
               className={`flex-1 flex flex-col items-center justify-center py-2 px-1 rounded-xl transition-all duration-200 ${
                 isActive
                   ? 'bg-blue-600 text-white font-bold shadow-md shadow-blue-600/25'

@@ -120,6 +120,7 @@ export const AppProvider = ({ children }) => {
           } else if (serverLicense.isInstalled !== null && serverLicense.isInstalled !== undefined) {
             setLicenseStatus(serverLicense);
           }
+        }
       } else {
         // Fallback: Ensure config and licenseStatus are kept active and installed
         setConfig(DEFAULT_CONFIG);

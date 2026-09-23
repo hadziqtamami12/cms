@@ -1,22 +1,30 @@
 /**
- * Multi-Industry & 10-Themes Dynamic Service
- * Supports 5 core industries x 10 themes per industry = 50 total variants
- * Preserves landing page data structure during 1-click theme switches
+ * Enterprise Config Service - Single Source of Truth Database Persistence Engine
+ * Enforces database storage for all admin configurations (Bottom Nav Variant,
+ * Active Theme, Floating WhatsApp Widget, Admin Slug, License, SEO Verifications).
  */
 
-import { getCache, setCache } from '../config/cache.js';
+import { query, getDbType, getMemoryStore } from '../config/db.js';
+import { getCache, setCache, delCache } from '../config/cache.js';
 
-// Default system active theme configuration
-let currentThemeConfig = {
-  industry: 'automotive', // 'automotive' | 'ecommerce' | 'fnb' | 'services' | 'realestate'
+// Base Default Configuration
+export const DEFAULT_APP_CONFIG = {
+  industry: 'automotive',
   themeId: 'fleet-grid',
-  bottomNavStyle: 'dock', // 'dock' | 'curved' | 'bubble' | 'box'
+  bottom_nav_variant: 'floating_dock', // 'floating_dock' | 'fixed_curved' | 'floating_bubble' | 'floating_box'
+  bottomNavStyle: 'dock', // Synchronized legacy alias: 'dock' | 'curved' | 'bubble' | 'modern-box'
   brandName: 'Royal Fleet Premiere',
   tagline: 'Sewa Mobil & Armada Premium Terpercaya No. 1',
   phone: '+62 812-8899-0011',
   whatsapp: '6281288990011',
   email: 'concierge@royalfleet.com',
   location: 'Jakarta Selatan & Bali',
+  floating_whatsapp: {
+    enabled: true,
+    phone: '6281288990011',
+    messageTemplate: 'Halo Royal Fleet, saya ingin bertanya seputar sewa armada.',
+    position: 'right'
+  },
   heroSlides: [
     {
       title: 'Solusi Sewa Mobil Mewah & Armada Bisnis Terlengkap',
@@ -210,32 +218,231 @@ let currentThemeConfig = {
   }
 };
 
-import {
-  getPublicSettings,
-  saveSettings,
-  normalizeBottomNavVariant,
-  mapVariantToLegacyStyle
-} from './configService.js';
+// In-Memory cache of active configuration
+let inMemoryConfig = { ...DEFAULT_APP_CONFIG };
+let isDbTableEnsured = false;
 
-export const getActiveThemeConfig = async () => {
-  return await getPublicSettings();
+/**
+ * Normalizes bottom nav variant values between legacy and new naming:
+ * - 'floating_dock' <-> 'dock'
+ * - 'fixed_curved' <-> 'curved'
+ * - 'floating_bubble' <-> 'bubble'
+ * - 'floating_box' <-> 'modern-box' / 'box'
+ */
+export const normalizeBottomNavVariant = (val) => {
+  if (!val) return 'floating_dock';
+  const clean = String(val).toLowerCase().trim();
+  if (clean === 'dock' || clean === 'floating_dock') return 'floating_dock';
+  if (clean === 'curved' || clean === 'fixed_curved') return 'fixed_curved';
+  if (clean === 'bubble' || clean === 'floating_bubble') return 'floating_bubble';
+  if (clean === 'box' || clean === 'modern-box' || clean === 'floating_box') return 'floating_box';
+  return 'floating_dock';
 };
 
-export const updateActiveThemeConfig = async (partialConfig) => {
-  return await saveSettings(partialConfig);
+export const mapVariantToLegacyStyle = (variant) => {
+  const normalized = normalizeBottomNavVariant(variant);
+  switch (normalized) {
+    case 'fixed_curved': return 'curved';
+    case 'floating_bubble': return 'bubble';
+    case 'floating_box': return 'modern-box';
+    case 'floating_dock':
+    default: return 'dock';
+  }
 };
 
-export const switchThemeVariant = async ({ industry, themeId, bottomNavStyle, bottom_nav_variant }) => {
-  const updates = {};
-  if (industry) updates.industry = industry;
-  if (themeId) updates.themeId = themeId;
-  if (bottom_nav_variant) updates.bottom_nav_variant = bottom_nav_variant;
-  if (bottomNavStyle) updates.bottomNavStyle = bottomNavStyle;
-  return await saveSettings(updates);
+/**
+ * Ensures the app_settings table exists in the database.
+ */
+export const ensureSettingsTable = async () => {
+  if (isDbTableEnsured) return;
+  const dbType = getDbType();
+
+  try {
+    if (dbType === 'postgres') {
+      await query(`
+        CREATE TABLE IF NOT EXISTS app_settings (
+          key VARCHAR(100) PRIMARY KEY,
+          value JSONB NOT NULL,
+          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+      `);
+      isDbTableEnsured = true;
+    } else if (dbType === 'mysql') {
+      await query(`
+        CREATE TABLE IF NOT EXISTS app_settings (
+          \`key\` VARCHAR(100) PRIMARY KEY,
+          \`value\` JSON NOT NULL,
+          \`updated_at\` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+      `);
+      isDbTableEnsured = true;
+    }
+  } catch (err) {
+    console.warn('[ConfigService] Table check skipped or non-fatal:', err.message);
+  }
+};
+
+/**
+ * Reads setting by key directly from database.
+ */
+export const getSettingFromDb = async (key) => {
+  const dbType = getDbType();
+  await ensureSettingsTable();
+
+  try {
+    if (dbType === 'postgres') {
+      const rows = await query('SELECT value FROM app_settings WHERE key = $1 LIMIT 1', [key]);
+      if (rows && rows.length > 0) {
+        return typeof rows[0].value === 'string' ? JSON.parse(rows[0].value) : rows[0].value;
+      }
+    } else if (dbType === 'mysql') {
+      const rows = await query('SELECT `value` FROM app_settings WHERE `key` = ? LIMIT 1', [key]);
+      if (rows && rows.length > 0) {
+        return typeof rows[0].value === 'string' ? JSON.parse(rows[0].value) : rows[0].value;
+      }
+    } else if (dbType === 'memory') {
+      const mem = getMemoryStore();
+      const val = mem.configs.get(key);
+      if (val) return val;
+    }
+  } catch (err) {
+    console.warn(`[ConfigService] Error reading setting [${key}] from DB:`, err.message);
+  }
+  return null;
+};
+
+/**
+ * Writes setting by key directly to database with atomic UPSERT.
+ */
+export const saveSettingToDb = async (key, value) => {
+  const dbType = getDbType();
+  await ensureSettingsTable();
+
+  const jsonVal = typeof value === 'object' ? JSON.stringify(value) : JSON.stringify({ data: value });
+
+  try {
+    if (dbType === 'postgres') {
+      await query(`
+        INSERT INTO app_settings (key, value, updated_at)
+        VALUES ($1, $2, NOW())
+        ON CONFLICT (key) DO UPDATE
+        SET value = EXCLUDED.value, updated_at = NOW();
+      `, [key, jsonVal]);
+    } else if (dbType === 'mysql') {
+      await query(`
+        INSERT INTO app_settings (\`key\`, \`value\`, updated_at)
+        VALUES (?, ?, NOW())
+        ON DUPLICATE KEY UPDATE \`value\` = VALUES(\`value\`), updated_at = NOW();
+      `, [key, jsonVal]);
+    } else if (dbType === 'memory') {
+      const mem = getMemoryStore();
+      mem.configs.set(key, value);
+    }
+  } catch (err) {
+    console.error(`[ConfigService] Error saving setting [${key}] to DB:`, err.message);
+  }
+};
+
+/**
+ * Returns active public settings directly from database (with Redis / in-memory cache).
+ * Single Source of Truth for Landing Page and Admin Studio.
+ */
+export const getPublicSettings = async () => {
+  // 1. Check multi-tier cache
+  const cached = await getCache('sys:public_settings');
+  if (cached) return cached;
+
+  // 2. Fetch master configuration from database
+  let dbConfig = await getSettingFromDb('app_config');
+
+  // If no consolidated app_config yet, check legacy sys_configs table or initialize
+  if (!dbConfig) {
+    try {
+      const legacyRow = await query('SELECT value FROM sys_configs WHERE key = $1 LIMIT 1', ['theme_config']).catch(() => null);
+      if (legacyRow && legacyRow.length > 0) {
+        dbConfig = typeof legacyRow[0].value === 'string' ? JSON.parse(legacyRow[0].value) : legacyRow[0].value;
+      }
+    } catch {}
+  }
+
+  // Merge with default config
+  const merged = {
+    ...DEFAULT_APP_CONFIG,
+    ...(dbConfig || {}),
+    floating_whatsapp: {
+      ...DEFAULT_APP_CONFIG.floating_whatsapp,
+      ...(dbConfig?.floating_whatsapp || {})
+    },
+    seo: {
+      ...DEFAULT_APP_CONFIG.seo,
+      ...(dbConfig?.seo || {})
+    }
+  };
+
+  // Harmonize bottom navigation variant and legacy bottomNavStyle
+  const variant = normalizeBottomNavVariant(merged.bottom_nav_variant || merged.bottomNavStyle);
+  merged.bottom_nav_variant = variant;
+  merged.bottomNavStyle = mapVariantToLegacyStyle(variant);
+
+  // Keep in-memory reference updated
+  inMemoryConfig = merged;
+
+  // Set Cache with 60s TTL
+  await setCache('sys:public_settings', merged, 60);
+
+  return merged;
+};
+
+/**
+ * Saves setting updates permanently to the database and invalidates all cache tiers.
+ */
+export const saveSettings = async (partialSettings = {}) => {
+  const current = await getPublicSettings();
+
+  // Normalize variant if bottomNavStyle or bottom_nav_variant is updated
+  let targetVariant = current.bottom_nav_variant;
+  if (partialSettings.bottom_nav_variant) {
+    targetVariant = normalizeBottomNavVariant(partialSettings.bottom_nav_variant);
+  } else if (partialSettings.bottomNavStyle) {
+    targetVariant = normalizeBottomNavVariant(partialSettings.bottomNavStyle);
+  }
+
+  const updated = {
+    ...current,
+    ...partialSettings,
+    bottom_nav_variant: targetVariant,
+    bottomNavStyle: mapVariantToLegacyStyle(targetVariant),
+    floating_whatsapp: {
+      ...current.floating_whatsapp,
+      ...(partialSettings.floating_whatsapp || {})
+    },
+    seo: {
+      ...current.seo,
+      ...(partialSettings.seo || {})
+    }
+  };
+
+  // Save to database permanently
+  await saveSettingToDb('app_config', updated);
+
+  // Update in-memory reference
+  inMemoryConfig = updated;
+
+  // Invalidate and refresh cache immediately
+  await delCache('sys:public_settings');
+  await delCache('sys:active_theme');
+  await setCache('sys:public_settings', updated, 60);
+  await setCache('sys:active_theme', updated, 60);
+
+  return updated;
 };
 
 export default {
-  getActiveThemeConfig,
-  updateActiveThemeConfig,
-  switchThemeVariant
+  DEFAULT_APP_CONFIG,
+  getPublicSettings,
+  saveSettings,
+  getSettingFromDb,
+  saveSettingToDb,
+  normalizeBottomNavVariant,
+  mapVariantToLegacyStyle
 };

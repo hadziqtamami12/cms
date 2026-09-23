@@ -1,8 +1,10 @@
 import { Router } from 'express';
 import { getActiveThemeConfig } from '../services/themeService.js';
+import { getPublicSettings, saveSettings } from '../services/configService.js';
 import { analyzeKeywordDensity, generateJsonLdSchema } from '../services/seoService.js';
 import { getSystemLicenseStatus } from '../services/licenseService.js';
 import { getAdminSlug } from '../middleware/dynamicSlugRouter.js';
+import { adminAuth } from '../middleware/adminAuth.js';
 import { createPublicOrder } from './orders.js';
 
 const router = Router();
@@ -11,12 +13,72 @@ const router = Router();
 const leads = [];
 
 /**
+ * GET /api/settings/public
+ * Returns active public landing page settings with high-performance edge cache headers
+ * (bottom_nav_variant, active theme, floating WA, SEO tags, branding)
+ */
+router.get('/settings/public', async (req, res) => {
+  try {
+    const settings = await getPublicSettings();
+    const licenseStatus = await getSystemLicenseStatus();
+
+    res.set('Cache-Control', 'public, s-maxage=10, stale-while-revalidate=59');
+    res.json({
+      success: true,
+      data: {
+        ...settings,
+        adminSlug: getAdminSlug(),
+        license: {
+          isInstalled: licenseStatus.isInstalled,
+          status: licenseStatus.status,
+          type: licenseStatus.type,
+          daysRemaining: licenseStatus.daysRemaining,
+          isLocked: licenseStatus.isLocked
+        }
+      }
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+/**
+ * PUT /api/settings & POST /api/settings
+ * Admin-protected route for saving settings directly to database and invalidating serverless cache
+ */
+router.put('/settings', adminAuth, async (req, res) => {
+  try {
+    const updated = await saveSettings(req.body);
+    res.json({
+      success: true,
+      message: 'Pengaturan berhasil disimpan ke database',
+      data: updated
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+router.post('/settings', adminAuth, async (req, res) => {
+  try {
+    const updated = await saveSettings(req.body);
+    res.json({
+      success: true,
+      message: 'Pengaturan berhasil disimpan ke database',
+      data: updated
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+/**
  * GET /api/config
  * Returns active theme configuration, SEO metadata, and system status
  */
 router.get('/config', async (req, res) => {
   try {
-    const themeConfig = await getActiveThemeConfig();
+    const themeConfig = await getPublicSettings();
     const licenseStatus = await getSystemLicenseStatus();
 
     res.json({

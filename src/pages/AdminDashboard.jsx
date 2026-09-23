@@ -9,6 +9,7 @@ import {
 import OrderManager from '../components/orders/OrderManager';
 import InteractiveSeoDashboard from '../components/seo/InteractiveSeoDashboard';
 import { ThemeShowcase } from '../components/themes/ThemeShowcase';
+import { InteractiveBottomNavSelector } from '../components/themes/InteractiveBottomNavSelector';
 import {
   switchTheme,
   updateSeoMarketing,
@@ -80,6 +81,7 @@ export const AdminDashboard = ({
         industry: ind,
         themeId: thId,
         bottomNavStyle,
+        bottom_nav_variant: config?.bottom_nav_variant || bottomNavStyle,
         token: adminToken
       });
       if (res && res.success) {
@@ -759,54 +761,18 @@ export const AdminDashboard = ({
            * ======================================================== */}
           {activeTab === 'themes' && (
             <div className="space-y-6 min-w-0">
-              {/* Bottom Nav Style Selector */}
-              <div className="bg-white rounded-3xl border border-slate-200 p-5 sm:p-6 shadow-xs space-y-4">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-3">
-                  <div>
-                    <h3 className="font-extrabold text-slate-900 text-base sm:text-lg flex items-center gap-2">
-                      <Smartphone className="w-5 h-5 text-blue-600" />
-                      <span>Gaya Mobile Bottom Navigation</span>
-                    </h3>
-                    <p className="text-xs text-slate-500 mt-0.5">
-                      Pilih dari 4 variasi navigasi bawah untuk perangkat mobile dan aplikasi PWA.
-                    </p>
-                  </div>
-                  <span className="text-xs font-bold text-slate-400 font-mono">Aktif: {bottomNavStyle}</span>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-                  {[
-                    { id: 'dock', label: 'Floating Dock Pill', desc: 'Dock melayang modern rounded-full' },
-                    { id: 'curved', label: 'Curved Scoop Solid', desc: 'Dock solid melengkung dinamis' },
-                    { id: 'bubble', label: 'Floating Bubble', desc: 'Lingkaran bubble aktif mengambang' },
-                    { id: 'modern-box', label: 'Modern Box Badge', desc: 'Badge kotak rounded melayang' },
-                  ].map((style) => (
-                    <div
-                      key={style.id}
-                      onClick={() => handleSwitchBottomNav(style.id)}
-                      className={`p-3.5 rounded-2xl border cursor-pointer transition-all flex flex-col justify-between space-y-2 ${
-                        bottomNavStyle === style.id
-                          ? 'border-blue-600 bg-blue-50/60 shadow-sm ring-2 ring-blue-600'
-                          : 'border-slate-200 bg-white hover:border-slate-300'
-                      }`}
-                    >
-                      <div>
-                        <div className="font-bold text-xs sm:text-sm text-slate-900">{style.label}</div>
-                        <div className="text-[11px] text-slate-500 mt-0.5">{style.desc}</div>
-                      </div>
-                      <div className="pt-2 flex items-center text-xs font-semibold">
-                        {bottomNavStyle === style.id ? (
-                          <span className="text-blue-600 font-bold flex items-center gap-1">
-                            <Check className="w-3.5 h-3.5 stroke-[3]" /> Terpilih
-                          </span>
-                        ) : (
-                          <span className="text-slate-400 hover:text-slate-600">Pilih Gaya →</span>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
+              {/* Interactive Bottom Nav Selector Studio (4 Variants + Phone Preview + Direct DB Persistence) */}
+              <InteractiveBottomNavSelector
+                currentVariant={config?.bottom_nav_variant || bottomNavStyle}
+                currentIndustry={currentIndustry}
+                currentThemeId={currentThemeId}
+                adminToken={adminToken}
+                onConfigUpdated={(newCfg) => {
+                  if (newCfg.bottomNavStyle) setBottomNavStyle(newCfg.bottomNavStyle);
+                  if (onConfigUpdated) onConfigUpdated(newCfg);
+                }}
+                showToast={showToast}
+              />
 
               {/* Interactive Theme Showcase Studio (Ala WordPress Theme Directory) */}
               <ThemeShowcase

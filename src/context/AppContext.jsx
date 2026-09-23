@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { fetchConfig } from '../lib/api';
+import { fetchConfig, fetchPublicSettings } from '../lib/api';
 import { DEFAULT_CONFIG } from '../lib/defaultConfig';
 
 const AppContext = createContext();
@@ -56,7 +56,7 @@ export const AppProvider = ({ children }) => {
         if (raw) localSetup = JSON.parse(raw);
       } catch {}
 
-      const res = await fetchConfig();
+      const res = await fetchPublicSettings();
 
       if (res && res.success && res.data && !res.isFallback) {
         // Live server response (not fallback)

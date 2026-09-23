@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { adminAuth, generateAdminToken, revokeAllAdminSessions } from '../middleware/adminAuth.js';
 import { getActiveThemeConfig, updateActiveThemeConfig, switchThemeVariant } from '../services/themeService.js';
+import { getPublicSettings, saveSettings } from '../services/configService.js';
 import { getAdminSlug, setAdminSlug } from '../middleware/dynamicSlugRouter.js';
 import { getUploadPresignedUrl } from '../config/storage.js';
 import { getSystemLicenseStatus } from '../services/licenseService.js';
@@ -165,13 +166,61 @@ router.post('/security/revoke-sessions', adminAuth, (req, res) => {
 });
 
 /**
+ * GET /api/admin/settings
+ * Retrieves all active settings directly from database
+ */
+router.get('/settings', adminAuth, async (req, res) => {
+  try {
+    const data = await getPublicSettings();
+    res.json({ success: true, data });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+/**
+ * PUT /api/admin/settings & POST /api/admin/settings
+ * Saves all admin settings directly to database and invalidates cache
+ */
+router.put('/settings', adminAuth, async (req, res) => {
+  try {
+    const updated = await saveSettings(req.body);
+    res.json({
+      success: true,
+      message: 'Pengaturan berhasil disimpan ke database',
+      data: updated
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+router.post('/settings', adminAuth, async (req, res) => {
+  try {
+    const updated = await saveSettings(req.body);
+    res.json({
+      success: true,
+      message: 'Pengaturan berhasil disimpan ke database',
+      data: updated
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+/**
  * POST /api/admin/theme/switch
- * 1-Click theme & industry switch without data corruption
+ * 1-Click theme & industry switch with full database persistence
  */
 router.post('/theme/switch', adminAuth, async (req, res) => {
   try {
-    const { industry, themeId, bottomNavStyle } = req.body;
-    const updated = await switchThemeVariant({ industry, themeId, bottomNavStyle });
+    const { industry, themeId, bottomNavStyle, bottom_nav_variant } = req.body;
+    const updated = await switchThemeVariant({
+      industry,
+      themeId,
+      bottomNavStyle,
+      bottom_nav_variant: bottom_nav_variant || bottomNavStyle
+    });
     res.json({
       success: true,
       message: `Tema berhasil diganti menjadi [${industry} - ${themeId}]`,

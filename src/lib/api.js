@@ -43,6 +43,21 @@ export const fetchConfig = async () => {
   }
 };
 
+export const fetchPublicSettings = async () => {
+  try {
+    const res = await fetch(`${API_BASE}/settings/public`);
+    const contentType = res.headers.get('content-type') || '';
+    const text = await res.text();
+    if (!res.ok || !text || !contentType.includes('application/json')) {
+      return await fetchConfig();
+    }
+    const data = JSON.parse(text);
+    return data;
+  } catch (err) {
+    return await fetchConfig();
+  }
+};
+
 export const submitLead = async (leadData) => {
   return await safeFetchJson(`${API_BASE}/leads`, {
     method: 'POST',
@@ -105,14 +120,30 @@ export const adminLogin = async (username, password) => {
   return res && res.error ? res : { success: false, error: 'Username atau password admin salah' };
 };
 
-export const switchTheme = async ({ industry, themeId, bottomNavStyle, token }) => {
+export const switchTheme = async ({ industry, themeId, bottomNavStyle, bottom_nav_variant, token }) => {
   return await safeFetchJson(`${API_BASE}/admin/theme/switch`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
       'Authorization': `Bearer ${token}`
     },
-    body: JSON.stringify({ industry, themeId, bottomNavStyle })
+    body: JSON.stringify({
+      industry,
+      themeId,
+      bottomNavStyle,
+      bottom_nav_variant: bottom_nav_variant || bottomNavStyle
+    })
+  });
+};
+
+export const updateAppSettings = async (settings, token) => {
+  return await safeFetchJson(`${API_BASE}/settings`, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`
+    },
+    body: JSON.stringify(settings)
   });
 };
 

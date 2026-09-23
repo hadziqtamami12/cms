@@ -1,18 +1,22 @@
-import React from 'react';
+import React, { useState } from 'react';
 import Navbar from '../components/common/Navbar';
 import HeroSlideshow from '../components/common/HeroSlideshow';
 import MobileBottomNav from '../components/common/MobileBottomNav';
+import FloatingWhatsApp from '../components/common/FloatingWhatsApp';
 import SeoHead from '../components/common/SeoHead';
 import ThemeRegistry from '../components/themes/ThemeRegistry.jsx';
 import { ShieldCheck, Phone, Mail, MapPin, ExternalLink } from 'lucide-react';
 
 export const LandingPage = ({ config }) => {
+  const [isBottomNavVisible, setIsBottomNavVisible] = useState(false);
   if (!config) return null;
 
   const {
     industry = 'automotive',
     themeId = 'fleet-grid',
     bottomNavStyle = 'dock',
+    bottom_nav_variant,
+    floating_whatsapp = {},
     brandName = 'Royal Fleet',
     tagline = 'Solusi Sewa Mobil Mewah Terpercaya',
     phone = '+62 812-8899-0011',
@@ -22,6 +26,8 @@ export const LandingPage = ({ config }) => {
     heroSlides = [],
     seo = {}
   } = config;
+
+  const resolvedNavVariant = bottom_nav_variant || bottomNavStyle || 'floating_dock';
 
   return (
     <div className="min-h-screen flex flex-col bg-surface-warm text-slate-800">
@@ -147,11 +153,21 @@ export const LandingPage = ({ config }) => {
         </div>
       </footer>
 
+      {/* High-Conversion Floating WhatsApp Quick Contact Widget */}
+      <FloatingWhatsApp
+        whatsapp={floating_whatsapp.phone || whatsapp}
+        brandName={brandName}
+        messageTemplate={floating_whatsapp.messageTemplate || `Halo ${brandName}, saya ingin bertanya informasi lebih lanjut.`}
+        bottomNavVisible={isBottomNavVisible}
+        enabled={floating_whatsapp.enabled !== false}
+      />
+
       {/* Dynamic Scroll Mobile Bottom Navigation (4 Variations) */}
       <MobileBottomNav
-        styleVariant={bottomNavStyle}
+        styleVariant={resolvedNavVariant}
         whatsapp={whatsapp}
         phone={phone}
+        onVisibilityChange={setIsBottomNavVisible}
       />
     </div>
   );

@@ -110,3 +110,20 @@
 .step-slide-in {
   animation: slideInRight 0.35s ease-out forwards;
 }
+
+/* Generous Container & Breathing Room Utilities */
+.spacious-container {
+  padding-left: 1.5rem;
+  padding-right: 1.5rem;
+  padding-top: 4rem;
+  padding-bottom: 4rem;
+}
+
+@media (min-width: 640px) {
+  .spacious-container {
+    padding-left: 2rem;
+    padding-right: 2rem;
+    padding-top: 6rem;
+    padding-bottom: 6rem;
+  }
+}

@@ -22,21 +22,19 @@ export const Navbar = ({ brandName, phone, whatsapp, tagline }) => {
     <header
       className={`fixed top-0 left-0 right-0 z-40 transition-all duration-300 ease-in-out ${
         isScrolled
-          ? 'bg-white/95 backdrop-blur-md shadow-sm border-b border-slate-100 py-3'
-          : 'bg-transparent py-5'
+          ? 'bg-white/95 backdrop-blur-md shadow-sm border-b border-slate-200 py-3.5'
+          : 'bg-white/90 backdrop-blur-md shadow-xs border-b border-slate-200/70 py-4'
       }`}
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between">
           {/* Brand Logo & Name */}
-          <a href="#" className="flex items-center gap-3 group focus:outline-none">
-            <div className="w-10 h-10 rounded-xl bg-blue-600 flex items-center justify-center text-white font-bold shadow-md shadow-blue-600/20 group-hover:scale-105 transition-transform">
+          <a href="#" className="flex items-center gap-3.5 group focus:outline-none">
+            <div className="w-11 h-11 rounded-2xl bg-blue-600 flex items-center justify-center text-white font-bold shadow-md shadow-blue-600/20 group-hover:scale-105 transition-transform">
               <ShieldCheck className="w-6 h-6 text-white" />
             </div>
             <div>
-              <span className={`font-bold text-lg sm:text-xl tracking-tight transition-colors ${
-                isScrolled ? 'text-slate-900' : 'text-slate-900 drop-shadow-sm'
-              }`}>
+              <span className="font-extrabold text-lg sm:text-xl tracking-tight text-slate-900">
                 {brandName || 'Royal Fleet'}
               </span>
               <span className="hidden sm:block text-xs text-slate-500 font-medium">
@@ -128,12 +126,12 @@ export const Navbar = ({ brandName, phone, whatsapp, tagline }) => {
 
         {/* Mobile Dropdown Menu Drawer */}
         {mobileMenuOpen && (
-          <div className="md:hidden mt-3 bg-white rounded-2xl border border-slate-200 shadow-xl p-5 space-y-4">
-            <nav className="flex flex-col gap-3">
+          <div className="md:hidden mt-4 bg-white rounded-3xl border border-slate-200 shadow-xl p-6 space-y-5">
+            <nav className="flex flex-col gap-2">
               <a
                 href="#fleet"
                 onClick={() => setMobileMenuOpen(false)}
-                className="flex items-center justify-between text-base font-semibold text-slate-800 p-2 rounded-lg hover:bg-slate-50"
+                className="flex items-center justify-between text-base font-semibold text-slate-800 p-3.5 rounded-xl hover:bg-slate-50 transition-colors"
               >
                 <span>Katalog Pilihan</span>
                 <ChevronRight className="w-4 h-4 text-slate-400" />
@@ -141,7 +139,7 @@ export const Navbar = ({ brandName, phone, whatsapp, tagline }) => {
               <a
                 href="#features"
                 onClick={() => setMobileMenuOpen(false)}
-                className="flex items-center justify-between text-base font-semibold text-slate-800 p-2 rounded-lg hover:bg-slate-50"
+                className="flex items-center justify-between text-base font-semibold text-slate-800 p-3.5 rounded-xl hover:bg-slate-50 transition-colors"
               >
                 <span>Keunggulan Layanan</span>
                 <ChevronRight className="w-4 h-4 text-slate-400" />
@@ -149,7 +147,7 @@ export const Navbar = ({ brandName, phone, whatsapp, tagline }) => {
               <a
                 href="#pricing"
                 onClick={() => setMobileMenuOpen(false)}
-                className="flex items-center justify-between text-base font-semibold text-slate-800 p-2 rounded-lg hover:bg-slate-50"
+                className="flex items-center justify-between text-base font-semibold text-slate-800 p-3.5 rounded-xl hover:bg-slate-50 transition-colors"
               >
                 <span>Paket & Tarif</span>
                 <ChevronRight className="w-4 h-4 text-slate-400" />
@@ -157,17 +155,17 @@ export const Navbar = ({ brandName, phone, whatsapp, tagline }) => {
               <a
                 href="#faq"
                 onClick={() => setMobileMenuOpen(false)}
-                className="flex items-center justify-between text-base font-semibold text-slate-800 p-2 rounded-lg hover:bg-slate-50"
+                className="flex items-center justify-between text-base font-semibold text-slate-800 p-3.5 rounded-xl hover:bg-slate-50 transition-colors"
               >
                 <span>FAQ & Bantuan</span>
                 <ChevronRight className="w-4 h-4 text-slate-400" />
               </a>
             </nav>
-            <div className="pt-3 border-t border-slate-100 flex flex-col gap-2">
+            <div className="pt-4 border-t border-slate-100 flex flex-col gap-3">
               {phone && (
                 <a
                   href={`tel:${phone.replace(/[^0-9+]/g, '')}`}
-                  className="w-full flex items-center justify-center gap-2 py-3 rounded-xl border border-slate-200 font-semibold text-slate-800"
+                  className="w-full flex items-center justify-center gap-2.5 py-3.5 rounded-xl border border-slate-200 font-semibold text-slate-800 hover:bg-slate-50 transition-all"
                 >
                   <Phone className="w-4 h-4 text-slate-600" />
                   <span>Telepon: {phone}</span>

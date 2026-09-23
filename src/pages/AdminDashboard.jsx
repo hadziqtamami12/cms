@@ -298,21 +298,21 @@ export const AdminDashboard = ({
         {activeTab === 'themes' && (
           <div className="space-y-8">
             {/* Header Description */}
-            <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-subtle flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-              <div>
-                <h2 className="text-lg font-bold text-slate-900">Engine 50 Tema Multi-Industri</h2>
-                <p className="text-xs text-slate-500 mt-1">
-                  Tema aktif saat ini: <strong className="text-blue-600 capitalize">{currentIndustry} - {currentThemeId}</strong>.
+            <div className="bg-white rounded-3xl border border-slate-200 p-7 sm:p-8 shadow-subtle flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+              <div className="space-y-1.5 max-w-xl">
+                <h2 className="text-xl font-bold text-slate-900">Engine 50 Tema Multi-Industri</h2>
+                <p className="text-sm text-slate-500 leading-relaxed">
+                  Tema aktif saat ini: <strong className="text-blue-600 capitalize font-bold">{currentIndustry} - {currentThemeId}</strong>.
                   Klik varian tema mana pun untuk beralih secara instan tanpa merusak data landing page.
                 </p>
               </div>
 
               {/* Mobile Bottom Nav Variation Picker */}
-              <div className="w-full md:w-auto">
-                <span className="block text-[11px] font-bold uppercase tracking-wider text-slate-600 mb-1.5">
+              <div className="w-full md:w-auto shrink-0">
+                <span className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-2">
                   Varian Navigasi Bawah Mobile
                 </span>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 bg-slate-50 p-1 rounded-xl border border-slate-200">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 bg-slate-50 p-2 rounded-2xl border border-slate-200">
                   {[
                     { id: 'dock', label: 'Floating Dock' },
                     { id: 'curved', label: 'Curved Scoop' },
@@ -322,10 +322,10 @@ export const AdminDashboard = ({
                     <button
                       key={style.id}
                       onClick={() => handleSwitchBottomNav(style.id)}
-                      className={`py-1.5 px-2.5 rounded-lg text-xs font-bold transition-all ${
+                      className={`py-2 px-3 rounded-xl text-xs font-bold transition-all ${
                         bottomNavStyle === style.id
                           ? 'bg-blue-600 text-white shadow-sm'
-                          : 'text-slate-600 hover:text-slate-900'
+                          : 'text-slate-600 hover:text-slate-900 hover:bg-white'
                       }`}
                     >
                       {style.label}
@@ -336,40 +336,42 @@ export const AdminDashboard = ({
             </div>
 
             {/* 5 Industry Categories x 10 Themes Accordion */}
-            <div className="space-y-6">
+            <div className="space-y-8">
               {industryCatalog.map((ind) => (
-                <div key={ind.id} className="bg-white rounded-2xl border border-slate-200 p-6 shadow-subtle space-y-4">
-                  <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-                    <div className="flex items-center gap-2">
-                      <Layers className="w-5 h-5 text-blue-600" />
-                      <h3 className="font-extrabold text-slate-900 text-base">{ind.name}</h3>
-                      <span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 text-xs font-semibold">
+                <div key={ind.id} className="bg-white rounded-3xl border border-slate-200 p-7 sm:p-8 shadow-subtle space-y-6">
+                  <div className="flex items-center justify-between border-b border-slate-100 pb-4">
+                    <div className="flex items-center gap-3">
+                      <div className="w-9 h-9 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center font-bold">
+                        <Layers className="w-5 h-5" />
+                      </div>
+                      <h3 className="font-extrabold text-slate-900 text-lg">{ind.name}</h3>
+                      <span className="px-3 py-1 rounded-full bg-slate-100 text-slate-600 text-xs font-semibold">
                         10 Tema Siap Pakai
                       </span>
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
                     {ind.themes.map((th) => {
                       const isActive = currentIndustry === ind.id && currentThemeId === th.id;
                       return (
                         <div
                           key={th.id}
                           onClick={() => handleSwitchTheme(ind.id, th.id)}
-                          className={`p-3.5 rounded-xl border cursor-pointer transition-all flex flex-col justify-between ${
+                          className={`p-4 sm:p-5 rounded-2xl border cursor-pointer transition-all flex flex-col justify-between space-y-3 ${
                             isActive
                               ? 'border-blue-600 bg-blue-50/80 shadow-sm ring-2 ring-blue-600'
                               : 'border-slate-200 bg-surface-warm/40 hover:border-slate-300 hover:bg-white'
                           }`}
                         >
                           <div>
-                            <div className="font-bold text-xs text-slate-900 leading-snug">{th.name}</div>
-                            <div className="text-[10px] text-slate-400 font-mono mt-0.5">{th.id}</div>
+                            <div className="font-bold text-sm text-slate-900 leading-snug">{th.name}</div>
+                            <div className="text-[11px] text-slate-400 font-mono mt-1">{th.id}</div>
                           </div>
-                          <div className="mt-3 flex items-center justify-between text-[11px] font-semibold">
+                          <div className="pt-2 flex items-center justify-between text-xs font-semibold border-t border-slate-100/60">
                             {isActive ? (
-                              <span className="text-blue-600 font-bold flex items-center gap-1">
-                                <CheckCircle2 className="w-3.5 h-3.5" />
+                              <span className="text-blue-600 font-bold flex items-center gap-1.5">
+                                <CheckCircle2 className="w-4 h-4" />
                                 <span>Aktif</span>
                               </span>
                             ) : (

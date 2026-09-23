@@ -60,7 +60,7 @@ export const LandingPage = ({ config }) => {
       />
 
       {/* Main Dynamic Multi-Industry & Multi-Theme Content */}
-      <main className="flex-1">
+      <main className="flex-1 pb-20 md:pb-12">
         <ThemeRegistry
           industry={industry}
           themeId={themeId}
@@ -69,13 +69,13 @@ export const LandingPage = ({ config }) => {
 
         {/* Google Maps / Local Business Embed Section */}
         {seo.gmbEmbedMapUrl && (
-          <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16">
-            <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-subtle p-6 space-y-4">
-              <div className="flex items-center gap-2 text-slate-900 font-bold">
-                <MapPin className="w-5 h-5 text-blue-600" />
+          <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 sm:py-16">
+            <div className="bg-white rounded-3xl border border-slate-200 overflow-hidden shadow-subtle p-7 sm:p-9 space-y-6">
+              <div className="flex items-center gap-3 text-slate-900 font-bold text-lg">
+                <MapPin className="w-5 h-5 text-blue-600 shrink-0" />
                 <h3>Lokasi Kantor & Titik Penjemputan Resmi</h3>
               </div>
-              <div className="w-full h-72 rounded-xl overflow-hidden bg-slate-100">
+              <div className="w-full h-80 sm:h-96 rounded-2xl overflow-hidden bg-slate-100">
                 <iframe
                   title="Google Maps"
                   src={seo.gmbEmbedMapUrl}
@@ -92,49 +92,49 @@ export const LandingPage = ({ config }) => {
       </main>
 
       {/* Clean Enterprise Footer */}
-      <footer className="bg-slate-900 text-slate-400 py-16 border-t border-slate-800">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 grid grid-cols-1 md:grid-cols-4 gap-8">
+      <footer className="bg-slate-900 text-slate-400 py-16 sm:py-20 pb-32 md:pb-20 border-t border-slate-800">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 grid grid-cols-1 md:grid-cols-4 gap-10 sm:gap-12 lg:gap-16">
           <div className="space-y-4 md:col-span-2">
             <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-xl bg-blue-600 flex items-center justify-center text-white font-bold">
-                <ShieldCheck className="w-5 h-5" />
+              <div className="w-10 h-10 rounded-2xl bg-blue-600 flex items-center justify-center text-white font-bold shadow-md">
+                <ShieldCheck className="w-6 h-6" />
               </div>
-              <span className="font-bold text-lg text-white">{brandName}</span>
+              <span className="font-bold text-xl text-white tracking-tight">{brandName}</span>
             </div>
             <p className="text-sm text-slate-300 leading-relaxed max-w-md">
               {tagline}. Didukung oleh arsitektur Cloud Edge berkecepatan tinggi dengan skor Core Web Vitals 98+ dan enkripsi enterprise.
             </p>
           </div>
 
-          <div className="space-y-3">
+          <div className="space-y-4">
             <h4 className="text-white font-bold text-xs uppercase tracking-wider">Kontak Resmi</h4>
-            <div className="space-y-2 text-sm text-slate-300">
+            <div className="space-y-3 text-sm text-slate-300">
               {phone && (
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2.5">
                   <Phone className="w-4 h-4 text-blue-400 shrink-0" />
                   <span>{phone}</span>
                 </div>
               )}
               {email && (
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2.5">
                   <Mail className="w-4 h-4 text-blue-400 shrink-0" />
                   <span>{email}</span>
                 </div>
               )}
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2.5">
                 <MapPin className="w-4 h-4 text-blue-400 shrink-0" />
                 <span>{location}</span>
               </div>
             </div>
           </div>
 
-          <div className="space-y-3">
+          <div className="space-y-4">
             <h4 className="text-white font-bold text-xs uppercase tracking-wider">Legalitas & Proteksi</h4>
             <p className="text-xs text-slate-400 leading-relaxed">
               Hak Cipta dilindungi Undang-Undang. Terdaftar dan terverifikasi di Google Business & Cloudflare Enterprise.
             </p>
             <div className="pt-2">
-              <span className="text-xs text-emerald-400 font-semibold flex items-center gap-1.5">
+              <span className="text-xs text-emerald-400 font-semibold flex items-center gap-2">
                 <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
                 <span>Status Sistem: Operasional Aktif</span>
               </span>
@@ -142,7 +142,7 @@ export const LandingPage = ({ config }) => {
           </div>
         </div>
 
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-12 pt-6 border-t border-slate-800 text-center text-xs text-slate-500">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-14 pt-8 border-t border-slate-800 text-center text-xs text-slate-500">
           © {new Date().getFullYear()} {brandName}. All rights reserved. Powered by Enterprise MultiCMS Engine.
         </div>
       </footer>

@@ -56,27 +56,27 @@ export const HeroSlideshow = ({ slides = [], whatsapp, phone }) => {
       ))}
 
       {/* Hero Content Container */}
-      <div className="relative z-10 max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-24 sm:py-32 text-center sm:text-left flex flex-col items-center sm:items-start">
+      <div className="relative z-10 max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-28 sm:py-36 lg:py-40 text-center sm:text-left flex flex-col items-center sm:items-start">
         {/* Trust Badge */}
         {slide.badge && (
-          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-blue-600/90 text-white text-xs sm:text-sm font-semibold mb-6 shadow-sm shadow-blue-500/30 backdrop-blur-sm">
+          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-blue-600/90 text-white text-xs sm:text-sm font-semibold mb-8 shadow-sm shadow-blue-500/30 backdrop-blur-sm">
             <CheckCircle2 className="w-4 h-4 text-blue-200" />
             <span>{slide.badge}</span>
           </div>
         )}
 
         {/* Main H1 Title (SEO #1 Critical) */}
-        <h1 className="text-3xl sm:text-5xl lg:text-6xl font-extrabold text-white tracking-tight leading-[1.15] mb-6 drop-shadow-sm max-w-3xl">
+        <h1 className="text-3xl sm:text-5xl lg:text-6xl font-extrabold text-white tracking-tight leading-[1.2] mb-8 drop-shadow-sm max-w-3xl">
           {slide.title}
         </h1>
 
         {/* Subtitle / Value Proposition */}
-        <p className="text-base sm:text-lg lg:text-xl text-slate-200 font-normal leading-relaxed mb-8 max-w-2xl">
+        <p className="text-base sm:text-lg lg:text-xl text-slate-200 font-normal leading-relaxed mb-10 max-w-2xl">
           {slide.subtitle}
         </p>
 
         {/* Action CTA Buttons */}
-        <div className="flex flex-col sm:flex-row items-center gap-4 w-full sm:w-auto">
+        <div className="flex flex-col sm:flex-row items-center gap-4 sm:gap-5 w-full sm:w-auto">
           <a
             href={slide.ctaLink || '#fleet'}
             className="w-full sm:w-auto inline-flex items-center justify-center gap-3 px-8 py-4 rounded-xl text-base font-bold text-white bg-blue-600 hover:bg-blue-700 shadow-lg shadow-blue-600/30 transition-all hover:scale-[1.02] active:scale-[0.98]"
@@ -90,7 +90,7 @@ export const HeroSlideshow = ({ slides = [], whatsapp, phone }) => {
               href={`https://wa.me/${whatsapp.replace(/[^0-9]/g, '')}?text=Halo%20saya%20ingin%20konsultasi%20layanan`}
               target="_blank"
               rel="noopener noreferrer"
-              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-7 py-4 rounded-xl text-base font-semibold text-white bg-emerald-600/90 hover:bg-emerald-600 border border-emerald-500/50 backdrop-blur-sm transition-all"
+              className="w-full sm:w-auto inline-flex items-center justify-center gap-2.5 px-8 py-4 rounded-xl text-base font-semibold text-white bg-emerald-600/90 hover:bg-emerald-600 border border-emerald-500/50 backdrop-blur-sm transition-all shadow-md"
             >
               <span>Konsultasi WhatsApp</span>
             </a>
@@ -98,17 +98,17 @@ export const HeroSlideshow = ({ slides = [], whatsapp, phone }) => {
         </div>
 
         {/* Enterprise Metrics & Trust Proof */}
-        <div className="mt-12 pt-8 border-t border-slate-700/60 grid grid-cols-3 gap-6 sm:gap-12 text-white">
-          <div>
-            <div className="text-2xl sm:text-3xl font-bold text-white">500+</div>
+        <div className="mt-16 pt-10 border-t border-slate-700/60 grid grid-cols-3 gap-8 sm:gap-14 text-white">
+          <div className="space-y-1">
+            <div className="text-2xl sm:text-4xl font-bold text-white">500+</div>
             <div className="text-xs sm:text-sm text-slate-300">Unit Siap Jalan</div>
           </div>
-          <div>
-            <div className="text-2xl sm:text-3xl font-bold text-white">99.8%</div>
+          <div className="space-y-1">
+            <div className="text-2xl sm:text-4xl font-bold text-white">99.8%</div>
             <div className="text-xs sm:text-sm text-slate-300">Kepuasan Klien</div>
           </div>
-          <div>
-            <div className="text-2xl sm:text-3xl font-bold text-white">24/7</div>
+          <div className="space-y-1">
+            <div className="text-2xl sm:text-4xl font-bold text-white">24/7</div>
             <div className="text-xs sm:text-sm text-slate-300">Dukungan Siaga</div>
           </div>
         </div>

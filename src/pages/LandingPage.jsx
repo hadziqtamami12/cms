@@ -92,31 +92,36 @@ export const LandingPage = ({ config }) => {
           config={config}
         />
 
-        {/* Special Moments & Private Trips Section */}
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-10">
-          <SpecialMomentsSection
-            specialMoments={config.special_moments}
-            whatsapp={whatsapp}
-            brandName={brandName}
-          />
-        </div>
+        {/* Modul Eksklusif Tema / Kategori Rental Mobil & Travel */}
+        {industry === 'automotive' && (
+          <>
+            {/* Special Moments & Private Trips Section */}
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-10">
+              <SpecialMomentsSection
+                specialMoments={config.special_moments}
+                whatsapp={whatsapp}
+                brandName={brandName}
+              />
+            </div>
 
-        {/* Travel Trips & Tour Packages Catalog */}
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-10">
-          <TravelTripsSection
-            whatsapp={whatsapp}
-            brandName={brandName}
-          />
-        </div>
+            {/* Travel Trips & Tour Packages Catalog */}
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-10">
+              <TravelTripsSection
+                whatsapp={whatsapp}
+                brandName={brandName}
+              />
+            </div>
 
-        {/* Interactive FAQ Accordion */}
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-10">
-          <FaqAccordion
-            faqs={config.faqs}
-            whatsapp={whatsapp}
-            brandName={brandName}
-          />
-        </div>
+            {/* Interactive FAQ Accordion */}
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-10">
+              <FaqAccordion
+                faqs={config.faqs}
+                whatsapp={whatsapp}
+                brandName={brandName}
+              />
+            </div>
+          </>
+        )}
 
         {/* Google Maps / Local Business Embed Section */}
         {(config.google_maps?.embed_url || seo.gmbEmbedMapUrl) && (
@@ -150,7 +155,7 @@ export const LandingPage = ({ config }) => {
       </main>
 
       {/* Clean Enterprise Footer */}
-      <footer className="bg-slate-900 text-slate-400 py-16 sm:py-20 pb-32 md:pb-20 border-t border-slate-800">
+      <footer id="footer" className="bg-slate-900 text-slate-400 py-16 sm:py-20 pb-32 md:pb-20 border-t border-slate-800">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 grid grid-cols-1 md:grid-cols-4 gap-10 sm:gap-12 lg:gap-16">
           <div className="space-y-4 md:col-span-2">
             <div className="flex items-center gap-3">

@@ -3,6 +3,8 @@ import { ArrowRight, ChevronLeft, ChevronRight, CheckCircle2 } from 'lucide-reac
 
 export const HeroSlideshow = ({ slides = [], whatsapp, phone }) => {
   const [current, setCurrent] = useState(0);
+  const [touchStartX, setTouchStartX] = useState(null);
+  const [touchStartY, setTouchStartY] = useState(null);
 
   const fallbackSlides = [
     {
@@ -25,6 +27,7 @@ export const HeroSlideshow = ({ slides = [], whatsapp, phone }) => {
 
   const activeSlides = slides.length > 0 ? slides : fallbackSlides;
 
+  // Auto-play timer
   useEffect(() => {
     const timer = setInterval(() => {
       setCurrent((prev) => (prev + 1) % activeSlides.length);
@@ -32,10 +35,70 @@ export const HeroSlideshow = ({ slides = [], whatsapp, phone }) => {
     return () => clearInterval(timer);
   }, [activeSlides.length]);
 
+  // Touch & Pointer Swipe Gesture Handlers (Smooth swipe left/right with threshold)
+  const minSwipeDistance = 45;
+
+  const handleTouchStart = (e) => {
+    if (!e.touches || e.touches.length === 0) return;
+    setTouchStartX(e.touches[0].clientX);
+    setTouchStartY(e.touches[0].clientY);
+  };
+
+  const handleTouchEnd = (e) => {
+    if (touchStartX === null || touchStartY === null) return;
+    const touchEndX = e.changedTouches[0].clientX;
+    const touchEndY = e.changedTouches[0].clientY;
+
+    const diffX = touchStartX - touchEndX;
+    const diffY = touchStartY - touchEndY;
+
+    // Only trigger if horizontal swipe is clearly dominant over vertical scroll
+    if (Math.abs(diffX) > Math.abs(diffY) && Math.abs(diffX) > minSwipeDistance) {
+      if (diffX > 0) {
+        // Swipe Left -> Next Slide
+        setCurrent((prev) => (prev + 1) % activeSlides.length);
+      } else {
+        // Swipe Right -> Prev Slide
+        setCurrent((prev) => (prev === 0 ? activeSlides.length - 1 : prev - 1));
+      }
+    }
+
+    setTouchStartX(null);
+    setTouchStartY(null);
+  };
+
+  const handlePointerDown = (e) => {
+    setTouchStartX(e.clientX);
+    setTouchStartY(e.clientY);
+  };
+
+  const handlePointerUp = (e) => {
+    if (touchStartX === null || touchStartY === null) return;
+    const diffX = touchStartX - e.clientX;
+    const diffY = touchStartY - e.clientY;
+
+    if (Math.abs(diffX) > Math.abs(diffY) && Math.abs(diffX) > minSwipeDistance) {
+      if (diffX > 0) {
+        setCurrent((prev) => (prev + 1) % activeSlides.length);
+      } else {
+        setCurrent((prev) => (prev === 0 ? activeSlides.length - 1 : prev - 1));
+      }
+    }
+
+    setTouchStartX(null);
+    setTouchStartY(null);
+  };
+
   const slide = activeSlides[current];
 
   return (
-    <section className="relative w-full min-h-[100dvh] flex items-center justify-center overflow-hidden bg-slate-950 pt-24 sm:pt-32 pb-16 sm:pb-20">
+    <section
+      onTouchStart={handleTouchStart}
+      onTouchEnd={handleTouchEnd}
+      onPointerDown={handlePointerDown}
+      onPointerUp={handlePointerUp}
+      className="relative w-full min-h-[100dvh] flex items-center justify-center overflow-hidden bg-slate-950 pt-24 sm:pt-32 pb-16 sm:pb-20 select-none touch-pan-y cursor-grab active:cursor-grabbing"
+    >
       {/* Background Slideshow with Smooth Crossfade */}
       {activeSlides.map((item, index) => (
         <div

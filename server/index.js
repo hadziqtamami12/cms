@@ -14,6 +14,8 @@ import keygenRoutes from './routes/keygen.js';
 import scraperRoutes from './routes/scraper.js';
 import articleRoutes from './routes/articles.js';
 import travelRoutes from './routes/travel.js';
+import mediaRoutes from './routes/media.js';
+import path from 'path';
 import { licenseGuard } from './middleware/licenseGuard.js';
 import { dynamicSlugRouter } from './middleware/dynamicSlugRouter.js';
 import { initDbConnection } from './config/db.js';
@@ -37,6 +39,9 @@ app.use(cors({
 app.use(express.json({ limit: '15mb' }));
 app.use(express.urlencoded({ extended: true, limit: '15mb' }));
 
+// Static uploads serving
+app.use('/uploads', express.static(path.join(process.cwd(), 'public', 'uploads')));
+
 // Dynamic Slug Router (e.g. /admin, /sys-portal, /cms-panel)
 app.use(dynamicSlugRouter);
 
@@ -51,6 +56,7 @@ app.use(['/api/travel-trips', '/travel-trips'], travelRoutes);
 app.use(['/api', '/'], licenseGuard);
 
 // Core API & Admin Routes
+app.use(['/api/admin/media', '/admin/media'], mediaRoutes);
 app.use(['/api/admin/scraper', '/admin/scraper'], scraperRoutes);
 app.use(['/api/admin/articles', '/admin/articles'], articleRoutes);
 app.use(['/api/admin/travel-trips', '/admin/travel-trips'], travelRoutes);

@@ -1,15 +1,17 @@
 import React, { useState } from 'react';
 import {
   Package, Plus, Search, Edit2, Trash2, Check, X,
-  Image as ImageIcon, Sparkles, RefreshCw, AlertCircle, Eye, Tag
+  Image as ImageIcon, Sparkles, RefreshCw, AlertCircle, Eye, Tag,
+  Layers, CheckCircle2, ChevronRight, SlidersHorizontal
 } from 'lucide-react';
 import { updateAppSettings } from '../../lib/api';
 import { getPresetForIndustry } from '../../lib/industryCatalogs';
+import ProductMediaGalleryManager from './ProductMediaGalleryManager';
 
 /**
  * Product Catalog Manager (Product Card CRUD Studio)
  * Full Create, Read, Update, Delete for landing page product/unit cards
- * with instant single-source-of-truth database persistence.
+ * with flexible Multi-Tarif (Pricing Tiers) & Media Gallery Image SEO.
  */
 export const ProductCatalogManager = ({
   items = [],
@@ -23,7 +25,45 @@ export const ProductCatalogManager = ({
   const [selectedCategory, setSelectedCategory] = useState('Semua');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState(null);
+  const [activeModalTab, setActiveModalTab] = useState('details'); // 'details' | 'tiers' | 'gallery'
   const [saving, setSaving] = useState(false);
+
+  // Helper to generate default tiers based on category/industry
+  const createDefaultTiers = (category, selfDrive, withDriver, basePrice, period) => {
+    const isRental = category?.toLowerCase().includes('mobil') ||
+                     category?.toLowerCase().includes('sewa') ||
+                     category?.toLowerCase().includes('rental') ||
+                     currentIndustry === 'automotive';
+
+    if (isRental) {
+      return [
+        {
+          id: `tier-1-${Date.now()}`,
+          label: 'Lepas Kunci',
+          price: selfDrive || basePrice || 'Rp 450.000',
+          unit: '/24 jam',
+          is_default: true
+        },
+        {
+          id: `tier-2-${Date.now()}`,
+          label: 'Dengan Sopir',
+          price: withDriver || 'Rp 650.000',
+          unit: '/12 jam',
+          is_default: false
+        }
+      ];
+    }
+
+    return [
+      {
+        id: `tier-1-${Date.now()}`,
+        label: 'Harga Standar',
+        price: basePrice || 'Rp 150.000',
+        unit: period || '/unit',
+        is_default: true
+      }
+    ];
+  };
 
   // Form State for Add / Edit
   const [formData, setFormData] = useState({
@@ -35,7 +75,9 @@ export const ProductCatalogManager = ({
     period: '/hari',
     badge: '',
     image: '',
-    specs: ''
+    images: [],
+    specs: '',
+    pricing_tiers: []
   });
 
   // Extract categories
@@ -55,16 +97,22 @@ export const ProductCatalogManager = ({
   // Open Modal for Add
   const handleOpenAdd = () => {
     setEditingItem(null);
+    setActiveModalTab('details');
+    const defaultCat = currentIndustry === 'automotive' ? 'Sewa Mobil' : (categories[1] || 'Umum');
+    const defaultTiers = createDefaultTiers(defaultCat, 'Rp 450.000', 'Rp 650.000', 'Rp 450.000', '/hari');
+
     setFormData({
       title: '',
-      category: categories[1] || 'Umum',
-      price: 'Rp 500.000',
+      category: defaultCat,
+      price: 'Rp 450.000',
       price_self_drive: 'Rp 450.000',
       price_with_driver: 'Rp 650.000',
       period: currentIndustry === 'automotive' ? '/hari' : currentIndustry === 'fnb' ? '/porsi' : '/unit',
       badge: '',
       image: 'https://images.unsplash.com/photo-1549399542-7e3f8b79c341?auto=format&fit=crop&w=800&q=80',
-      specs: 'Spesifikasi 1, Fitur 2, Kondisi Prima'
+      images: ['https://images.unsplash.com/photo-1549399542-7e3f8b79c341?auto=format&fit=crop&w=800&q=80'],
+      specs: 'Spesifikasi 1, Fitur 2, Kondisi Prima',
+      pricing_tiers: defaultTiers
     });
     setIsModalOpen(true);
   };
@@ -72,6 +120,16 @@ export const ProductCatalogManager = ({
   // Open Modal for Edit
   const handleOpenEdit = (item) => {
     setEditingItem(item);
+    setActiveModalTab('details');
+
+    const existingTiers = Array.isArray(item.pricing_tiers) && item.pricing_tiers.length > 0
+      ? item.pricing_tiers
+      : createDefaultTiers(item.category, item.price_self_drive, item.price_with_driver, item.price, item.period);
+
+    const galleryImgs = Array.isArray(item.images) && item.images.length > 0
+      ? item.images
+      : [item.image].filter(Boolean);
+
     setFormData({
       title: item.title || '',
       category: item.category || '',
@@ -81,9 +139,101 @@ export const ProductCatalogManager = ({
       period: item.period || '',
       badge: item.badge || '',
       image: item.image || '',
-      specs: Array.isArray(item.specs) ? item.specs.join(', ') : (item.specs || '')
+      images: galleryImgs,
+      specs: Array.isArray(item.specs) ? item.specs.join(', ') : (item.specs || ''),
+      pricing_tiers: existingTiers
     });
     setIsModalOpen(true);
+  };
+
+  // When category changes, auto-populate Sewa Mobil pricing slots if relevant
+  const handleCategoryChange = (newCat) => {
+    const isRental = newCat?.toLowerCase().includes('mobil') || newCat?.toLowerCase().includes('rental');
+    let updatedTiers = [...formData.pricing_tiers];
+
+    if (isRental) {
+      const hasLepasKunci = updatedTiers.some(t => t.label?.toLowerCase().includes('lepas'));
+      const hasSopir = updatedTiers.some(t => t.label?.toLowerCase().includes('sopir') || t.label?.toLowerCase().includes('driver'));
+
+      if (!hasLepasKunci || !hasSopir) {
+        updatedTiers = [
+          {
+            id: `tier-lk-${Date.now()}`,
+            label: 'Lepas Kunci',
+            price: formData.price_self_drive || formData.price || 'Rp 450.000',
+            unit: '/24 jam',
+            is_default: true
+          },
+          {
+            id: `tier-ds-${Date.now()}`,
+            label: 'Dengan Sopir',
+            price: formData.price_with_driver || 'Rp 650.000',
+            unit: '/12 jam',
+            is_default: false
+          }
+        ];
+      }
+    }
+
+    setFormData({
+      ...formData,
+      category: newCat,
+      pricing_tiers: updatedTiers
+    });
+  };
+
+  // Add Tier
+  const handleAddPricingTier = () => {
+    const newTier = {
+      id: `tier-${Date.now()}-${Math.random().toString(36).slice(2, 5)}`,
+      label: 'Tarif Tambahan',
+      price: 'Rp 500.000',
+      unit: '/unit',
+      is_default: formData.pricing_tiers.length === 0
+    };
+    setFormData({
+      ...formData,
+      pricing_tiers: [...formData.pricing_tiers, newTier]
+    });
+  };
+
+  // Update Tier Field
+  const handleUpdateTier = (index, field, value) => {
+    const updated = formData.pricing_tiers.map((t, idx) => {
+      if (idx === index) {
+        return { ...t, [field]: value };
+      }
+      return t;
+    });
+    setFormData({ ...formData, pricing_tiers: updated });
+  };
+
+  // Set Default Tier
+  const handleSetDefaultTier = (index) => {
+    const updated = formData.pricing_tiers.map((t, idx) => ({
+      ...t,
+      is_default: idx === index
+    }));
+    const defaultTier = updated[index];
+    setFormData({
+      ...formData,
+      pricing_tiers: updated,
+      price: defaultTier?.price || formData.price,
+      period: defaultTier?.unit || formData.period
+    });
+  };
+
+  // Delete Tier
+  const handleDeleteTier = (index) => {
+    if (formData.pricing_tiers.length <= 1) {
+      alert('Produk harus memiliki minimal satu tarif');
+      return;
+    }
+    const updated = formData.pricing_tiers.filter((_, idx) => idx !== index);
+    if (!updated.some(t => t.is_default) && updated.length > 0) {
+      updated[0].is_default = true;
+    }
+    setFormData({ ...formData, pricing_tiers: updated });
   };
 
   // Save changes to state, localStorage, and database
@@ -125,38 +275,42 @@ export const ProductCatalogManager = ({
       ? formData.specs.split(',').map(s => s.trim()).filter(Boolean)
       : [];
 
+    // Derive top-level price and dual-pricing from tiers
+    const defaultTier = formData.pricing_tiers.find(t => t.is_default) || formData.pricing_tiers[0];
+    const selfDriveTier = formData.pricing_tiers.find(t => t.label?.toLowerCase().includes('lepas'));
+    const withDriverTier = formData.pricing_tiers.find(t => t.label?.toLowerCase().includes('sopir') || t.label?.toLowerCase().includes('driver'));
+
+    const finalPrice = defaultTier?.price || formData.price;
+    const finalPeriod = defaultTier?.unit || formData.period;
+    const finalSelfDrive = selfDriveTier?.price || formData.price_self_drive || finalPrice;
+    const finalWithDriver = withDriverTier?.price || formData.price_with_driver || 'Rp 650.000';
+    const finalMainImage = formData.images?.[0] || formData.image || 'https://images.unsplash.com/photo-1549399542-7e3f8b79c341?auto=format&fit=crop&w=800&q=80';
+
+    const itemPayload = {
+      title: formData.title,
+      category: formData.category,
+      price: finalPrice,
+      price_self_drive: finalSelfDrive,
+      price_with_driver: finalWithDriver,
+      period: finalPeriod,
+      badge: formData.badge,
+      image: finalMainImage,
+      images: formData.images.length > 0 ? formData.images : [finalMainImage],
+      specs: formattedSpecs,
+      pricing_tiers: formData.pricing_tiers
+    };
+
     let updatedList;
     if (editingItem) {
       // Update existing
       updatedList = productList.map((item) =>
-        item.id === editingItem.id
-          ? {
-              ...item,
-              title: formData.title,
-              category: formData.category,
-              price: formData.price,
-              price_self_drive: formData.price_self_drive || formData.price,
-              price_with_driver: formData.price_with_driver || formData.price,
-              period: formData.period,
-              badge: formData.badge,
-              image: formData.image,
-              specs: formattedSpecs
-            }
-          : item
+        item.id === editingItem.id ? { ...item, ...itemPayload } : item
       );
     } else {
       // Create new
       const newItem = {
         id: `prod-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
-        title: formData.title,
-        category: formData.category,
-        price: formData.price,
-        price_self_drive: formData.price_self_drive || formData.price,
-        price_with_driver: formData.price_with_driver || formData.price,
-        period: formData.period,
-        badge: formData.badge,
-        image: formData.image,
-        specs: formattedSpecs
+        ...itemPayload
       };
       updatedList = [newItem, ...productList];
     }
@@ -205,7 +359,7 @@ export const ProductCatalogManager = ({
               </span>
             </div>
             <p className="text-xs sm:text-sm text-slate-500">
-              Kelola daftar unit/produk kartu di landing page (tambah baru, edit tarif lepas kunci & sopir, spesifikasi, dan foto).
+              Kelola katalog unit/produk dengan skema Multi-Tarif fleksibel (Lepas Kunci, Driver, Grosir, Per Pax) dan Galeri Foto SEO.
             </p>
           </div>
 
@@ -213,7 +367,7 @@ export const ProductCatalogManager = ({
             <button
               type="button"
               onClick={handleResetPresets}
-              className="px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-600 text-xs font-bold transition-all flex items-center gap-1.5"
+              className="px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-600 text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer"
               title="Reset ke preset bawaan industri saat ini"
             >
               <RefreshCw className="w-3.5 h-3.5 text-slate-400" />
@@ -223,7 +377,7 @@ export const ProductCatalogManager = ({
             <button
               type="button"
               onClick={handleOpenAdd}
-              className="px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 active:scale-95 text-white text-xs font-bold transition-all shadow-md shadow-blue-600/25 flex items-center gap-1.5"
+              className="px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 active:scale-95 text-white text-xs font-bold transition-all shadow-md shadow-blue-600/25 flex items-center gap-1.5 cursor-pointer"
             >
               <Plus className="w-4 h-4" />
               <span>Tambah Produk Baru</span>
@@ -240,7 +394,7 @@ export const ProductCatalogManager = ({
                 key={cat}
                 type="button"
                 onClick={() => setSelectedCategory(cat)}
-                className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                   selectedCategory === cat
                     ? 'bg-blue-600 text-white shadow-xs'
                     : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
@@ -290,18 +444,52 @@ export const ProductCatalogManager = ({
                   {item.category}
                 </span>
               )}
+              {Array.isArray(item.images) && item.images.length > 1 && (
+                <span className="absolute top-3 right-3 px-2 py-0.5 rounded-md bg-black/60 backdrop-blur-xs text-white text-[10px] font-mono font-bold flex items-center gap-1">
+                  <ImageIcon className="w-3 h-3" />
+                  <span>{item.images.length} Foto</span>
+                </span>
+              )}
             </div>
 
             {/* Card Content */}
             <div className="p-5 flex-1 flex flex-col justify-between space-y-4">
-              <div className="space-y-2">
+              <div className="space-y-3">
                 <h3 className="font-extrabold text-base text-slate-900 leading-snug line-clamp-2" title={item.title}>
                   {item.title}
                 </h3>
-                <div className="flex items-baseline gap-1">
-                  <span className="text-lg font-black text-blue-600">{item.price}</span>
-                  <span className="text-xs text-slate-400 font-medium">{item.period}</span>
-                </div>
+
+                {/* Multi-Tarif Pricing Tiers Display */}
+                {Array.isArray(item.pricing_tiers) && item.pricing_tiers.length > 0 ? (
+                  <div className="space-y-1.5 p-2.5 bg-slate-50/80 rounded-2xl border border-slate-100">
+                    <div className="flex items-baseline justify-between">
+                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Pilihan Tarif:</span>
+                      <span className="text-xs font-bold text-blue-600">
+                        Mulai {item.pricing_tiers.find(t => t.is_default)?.price || item.price}
+                      </span>
+                    </div>
+                    <div className="flex flex-wrap gap-1.5">
+                      {item.pricing_tiers.map((tier, tIdx) => (
+                        <span
+                          key={tIdx}
+                          className={`px-2 py-0.5 rounded-md text-[10px] font-medium border ${
+                            tier.is_default
+                              ? 'bg-blue-50 text-blue-700 border-blue-200 font-bold'
+                              : 'bg-white text-slate-600 border-slate-200'
+                          }`}
+                        >
+                          {tier.label}: <strong className="font-bold text-slate-800">{tier.price}</strong>
+                          {tier.unit && <span className="opacity-70 text-[9px]"> {tier.unit}</span>}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex items-baseline gap-1">
+                    <span className="text-lg font-black text-blue-600">{item.price}</span>
+                    <span className="text-xs text-slate-400 font-medium">{item.period}</span>
+                  </div>
+                )}
 
                 {/* Specs tags */}
                 {Array.isArray(item.specs) && item.specs.length > 0 && (
@@ -328,7 +516,7 @@ export const ProductCatalogManager = ({
                 <button
                   type="button"
                   onClick={() => handleOpenEdit(item)}
-                  className="flex-1 py-2 px-3 rounded-xl border border-slate-200 hover:border-blue-300 bg-white hover:bg-blue-50 text-slate-700 hover:text-blue-700 font-bold text-xs transition-colors flex items-center justify-center gap-1.5 shadow-2xs"
+                  className="flex-1 py-2 px-3 rounded-xl border border-slate-200 hover:border-blue-300 bg-white hover:bg-blue-50 text-slate-700 hover:text-blue-700 font-bold text-xs transition-colors flex items-center justify-center gap-1.5 shadow-2xs cursor-pointer"
                 >
                   <Edit2 className="w-3.5 h-3.5" />
                   <span>Edit Produk</span>
@@ -337,7 +525,7 @@ export const ProductCatalogManager = ({
                 <button
                   type="button"
                   onClick={() => handleDeleteProduct(item.id, item.title)}
-                  className="p-2 rounded-xl border border-slate-200 hover:border-red-300 bg-white hover:bg-red-50 text-slate-400 hover:text-red-600 transition-colors shadow-2xs"
+                  className="p-2 rounded-xl border border-slate-200 hover:border-red-300 bg-white hover:bg-red-50 text-slate-400 hover:text-red-600 transition-colors shadow-2xs cursor-pointer"
                   title="Hapus produk"
                 >
                   <Trash2 className="w-4 h-4" />
@@ -364,7 +552,7 @@ export const ProductCatalogManager = ({
       {/* Modal Add / Edit Product Drawer */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/70 backdrop-blur-xs animate-fade-in">
-          <div className="bg-white rounded-3xl border border-slate-200 shadow-2xl w-full max-w-xl overflow-hidden max-h-[90vh] flex flex-col min-w-0">
+          <div className="bg-white rounded-3xl border border-slate-200 shadow-2xl w-full max-w-2xl overflow-hidden max-h-[92vh] flex flex-col min-w-0">
             {/* Modal Header */}
             <header className="px-6 py-4 border-b border-slate-100 flex items-center justify-between shrink-0 bg-slate-50">
               <div className="flex items-center gap-2">
@@ -378,154 +566,277 @@ export const ProductCatalogManager = ({
               <button
                 type="button"
                 onClick={() => setIsModalOpen(false)}
-                className="p-1.5 rounded-xl border border-slate-200 bg-white text-slate-400 hover:text-slate-700"
+                className="p-1.5 rounded-xl border border-slate-200 bg-white text-slate-400 hover:text-slate-700 cursor-pointer"
               >
                 <X className="w-4 h-4" />
               </button>
             </header>
 
+            {/* Modal Tab Selector */}
+            <div className="flex border-b border-slate-200 bg-slate-50/50 px-6 shrink-0">
+              <button
+                type="button"
+                onClick={() => setActiveModalTab('details')}
+                className={`py-3 px-4 text-xs font-bold border-b-2 transition-all flex items-center gap-1.5 cursor-pointer ${
+                  activeModalTab === 'details'
+                    ? 'border-blue-600 text-blue-600 bg-white'
+                    : 'border-transparent text-slate-500 hover:text-slate-800'
+                }`}
+              >
+                <Package className="w-3.5 h-3.5" />
+                <span>Informasi Produk</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveModalTab('tiers')}
+                className={`py-3 px-4 text-xs font-bold border-b-2 transition-all flex items-center gap-1.5 cursor-pointer ${
+                  activeModalTab === 'tiers'
+                    ? 'border-blue-600 text-blue-600 bg-white'
+                    : 'border-transparent text-slate-500 hover:text-slate-800'
+                }`}
+              >
+                <Tag className="w-3.5 h-3.5" />
+                <span>Skema Multi-Tarif ({formData.pricing_tiers.length})</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveModalTab('gallery')}
+                className={`py-3 px-4 text-xs font-bold border-b-2 transition-all flex items-center gap-1.5 cursor-pointer ${
+                  activeModalTab === 'gallery'
+                    ? 'border-blue-600 text-blue-600 bg-white'
+                    : 'border-transparent text-slate-500 hover:text-slate-800'
+                }`}
+              >
+                <ImageIcon className="w-3.5 h-3.5" />
+                <span>Galeri Foto & SEO</span>
+              </button>
+            </div>
+
             {/* Modal Form Body */}
             <form onSubmit={handleSubmitForm} className="p-6 overflow-y-auto space-y-4 flex-1">
-              {/* Product Name */}
-              <div className="space-y-1">
-                <label className="block text-xs font-bold text-slate-700">Nama / Judul Produk *</label>
-                <input
-                  type="text"
-                  required
-                  value={formData.title}
-                  onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                  placeholder="Contoh: Toyota Alphard Transformer Facelift"
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 font-medium"
-                />
-              </div>
-
-              {/* Category & Badge Row */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="space-y-1">
-                  <label className="block text-xs font-bold text-slate-700">Kategori</label>
-                  <input
-                    type="text"
-                    value={formData.category}
-                    onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                    placeholder="Contoh: Luxury MPV, Family, Gadget"
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 font-medium"
-                  />
-                </div>
-                <div className="space-y-1">
-                  <label className="block text-xs font-bold text-slate-700">Badge Promosi (Opsional)</label>
-                  <input
-                    type="text"
-                    value={formData.badge}
-                    onChange={(e) => setFormData({ ...formData, badge: e.target.value })}
-                    placeholder="Contoh: Favorit VIP, Terlaris, Promo"
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 font-medium"
-                  />
-                </div>
-              </div>
-
-              {/* Dual Pricing Row (Rental Mobil / Armada) */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 p-3.5 bg-blue-50/60 rounded-2xl border border-blue-100">
-                <div className="space-y-1">
-                  <label className="block text-xs font-bold text-slate-800">Tarif Lepas Kunci (Self-Drive)</label>
-                  <input
-                    type="text"
-                    value={formData.price_self_drive}
-                    onChange={(e) => setFormData({ ...formData, price_self_drive: e.target.value })}
-                    placeholder="Contoh: Rp 450.000"
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 font-medium"
-                  />
-                  <span className="text-[10px] text-slate-500">Opsi sewa tanpa driver</span>
-                </div>
-                <div className="space-y-1">
-                  <label className="block text-xs font-bold text-slate-800">Tarif Dengan Sopir (Chauffeur)</label>
-                  <input
-                    type="text"
-                    value={formData.price_with_driver}
-                    onChange={(e) => setFormData({ ...formData, price_with_driver: e.target.value })}
-                    placeholder="Contoh: Rp 650.000"
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 font-medium"
-                  />
-                  <span className="text-[10px] text-slate-500">Include sopir berpengalaman</span>
-                </div>
-              </div>
-
-              {/* Price & Period Row */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="space-y-1">
-                  <label className="block text-xs font-bold text-slate-700">Tarif Standar / Mulai Dari *</label>
-                  <input
-                    type="text"
-                    required
-                    value={formData.price}
-                    onChange={(e) => setFormData({ ...formData, price: e.target.value })}
-                    placeholder="Contoh: Rp 450.000"
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 font-medium"
-                  />
-                </div>
-                <div className="space-y-1">
-                  <label className="block text-xs font-bold text-slate-700">Periode / Satuan</label>
-                  <input
-                    type="text"
-                    value={formData.period}
-                    onChange={(e) => setFormData({ ...formData, period: e.target.value })}
-                    placeholder="Contoh: /hari, /unit, /porsi, /bulan"
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 font-medium"
-                  />
-                </div>
-              </div>
-
-              {/* Image URL */}
-              <div className="space-y-1">
-                <label className="block text-xs font-bold text-slate-700">URL Gambar / Foto</label>
-                <div className="flex gap-2">
-                  <input
-                    type="url"
-                    value={formData.image}
-                    onChange={(e) => setFormData({ ...formData, image: e.target.value })}
-                    placeholder="https://images.unsplash.com/..."
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono text-[11px]"
-                  />
-                </div>
-                {formData.image && (
-                  <div className="mt-2 h-24 w-full rounded-xl overflow-hidden bg-slate-100 border border-slate-200">
-                    <img src={formData.image} alt="Preview" className="w-full h-full object-cover" />
+              {/* ----------------- TAB 1: DETAILS ----------------- */}
+              {activeModalTab === 'details' && (
+                <div className="space-y-4">
+                  {/* Product Name */}
+                  <div className="space-y-1">
+                    <label className="block text-xs font-bold text-slate-700">Nama / Judul Produk *</label>
+                    <input
+                      type="text"
+                      required
+                      value={formData.title}
+                      onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                      placeholder="Contoh: Toyota Alphard Transformer Facelift"
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 font-medium"
+                    />
                   </div>
-                )}
-              </div>
 
-              {/* Specs (Comma separated) */}
-              <div className="space-y-1">
-                <label className="block text-xs font-bold text-slate-700">Spesifikasi / Fitur (Pisahkan dengan koma)</label>
-                <textarea
-                  rows={2}
-                  value={formData.specs}
-                  onChange={(e) => setFormData({ ...formData, specs: e.target.value })}
-                  placeholder="Contoh: 7 Kursi Captain Seat, Matic, Bensin, Driver Included"
-                  className="w-full px-3.5 py-2 rounded-xl border border-slate-200 text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 leading-relaxed font-medium"
+                  {/* Category & Badge Row */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="space-y-1">
+                      <label className="block text-xs font-bold text-slate-700">Kategori</label>
+                      <input
+                        type="text"
+                        value={formData.category}
+                        onChange={(e) => handleCategoryChange(e.target.value)}
+                        placeholder="Contoh: Sewa Mobil, Luxury MPV, Gadget"
+                        className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 font-medium"
+                      />
+                      <span className="text-[10px] text-slate-400">
+                        Ketik "Sewa Mobil" untuk memicu preset otomatis Lepas Kunci & Sopir.
+                      </span>
+                    </div>
+                    <div className="space-y-1">
+                      <label className="block text-xs font-bold text-slate-700">Badge Promosi (Opsional)</label>
+                      <input
+                        type="text"
+                        value={formData.badge}
+                        onChange={(e) => setFormData({ ...formData, badge: e.target.value })}
+                        placeholder="Contoh: Favorit VIP, Terlaris, Promo"
+                        className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 font-medium"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Main Image URL */}
+                  <div className="space-y-1">
+                    <label className="block text-xs font-bold text-slate-700">URL Gambar Utama</label>
+                    <input
+                      type="url"
+                      value={formData.image}
+                      onChange={(e) => setFormData({ ...formData, image: e.target.value })}
+                      placeholder="https://images.unsplash.com/..."
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono text-[11px]"
+                    />
+                    {formData.image && (
+                      <div className="mt-2 h-24 w-full rounded-xl overflow-hidden bg-slate-100 border border-slate-200">
+                        <img src={formData.image} alt="Preview" className="w-full h-full object-cover" />
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Specs (Comma separated) */}
+                  <div className="space-y-1">
+                    <label className="block text-xs font-bold text-slate-700">Spesifikasi / Fitur (Pisahkan dengan koma)</label>
+                    <textarea
+                      rows={2}
+                      value={formData.specs}
+                      onChange={(e) => setFormData({ ...formData, specs: e.target.value })}
+                      placeholder="Contoh: 7 Kursi Captain Seat, Matic, Bensin, Driver Included"
+                      className="w-full px-3.5 py-2 rounded-xl border border-slate-200 text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 leading-relaxed font-medium"
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* ----------------- TAB 2: PRICING TIERS ----------------- */}
+              {activeModalTab === 'tiers' && (
+                <div className="space-y-4">
+                  <div className="p-3.5 bg-blue-50/60 rounded-2xl border border-blue-100 flex items-center justify-between">
+                    <div>
+                      <h5 className="font-extrabold text-xs text-blue-900">Skema Fleksibel Multi-Tarif</h5>
+                      <p className="text-[11px] text-blue-700">
+                        Tambahkan variasi harga (Lepas Kunci, Driver, Grosir, Per Pax). Centang tombol bulat untuk menentukan harga utama di katalog.
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleAddPricingTier}
+                      className="px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs flex items-center gap-1 shrink-0 cursor-pointer shadow-xs"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                      <span>Tambah Opsi Tarif</span>
+                    </button>
+                  </div>
+
+                  {/* Tiers List */}
+                  <div className="space-y-3">
+                    {formData.pricing_tiers.map((tier, idx) => (
+                      <div
+                        key={tier.id || idx}
+                        className={`p-3.5 rounded-2xl border transition-all flex flex-col sm:flex-row sm:items-center gap-3 ${
+                          tier.is_default
+                            ? 'bg-blue-50/40 border-blue-400 ring-1 ring-blue-400'
+                            : 'bg-white border-slate-200'
+                        }`}
+                      >
+                        {/* Default Radio */}
+                        <div className="flex items-center gap-2 shrink-0">
+                          <input
+                            type="radio"
+                            name="default_tier_radio"
+                            checked={Boolean(tier.is_default)}
+                            onChange={() => handleSetDefaultTier(idx)}
+                            className="w-4 h-4 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                            id={`radio-tier-${idx}`}
+                          />
+                          <label htmlFor={`radio-tier-${idx}`} className="text-xs font-bold text-slate-700 cursor-pointer select-none">
+                            {tier.is_default ? 'Tarif Utama' : 'Pilihan'}
+                          </label>
+                        </div>
+
+                        {/* Label */}
+                        <div className="flex-1 min-w-[120px]">
+                          <label className="block text-[10px] font-bold text-slate-500 mb-0.5">Label / Nama Tarif</label>
+                          <input
+                            type="text"
+                            required
+                            value={tier.label}
+                            onChange={(e) => handleUpdateTier(idx, 'label', e.target.value)}
+                            placeholder="Lepas Kunci / Dengan Sopir / Grosir"
+                            className="w-full px-3 py-1.5 rounded-xl border border-slate-200 text-xs font-semibold text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          />
+                        </div>
+
+                        {/* Price */}
+                        <div className="w-full sm:w-36">
+                          <label className="block text-[10px] font-bold text-slate-500 mb-0.5">Nominal Tarif</label>
+                          <input
+                            type="text"
+                            required
+                            value={tier.price}
+                            onChange={(e) => handleUpdateTier(idx, 'price', e.target.value)}
+                            placeholder="Rp 450.000"
+                            className="w-full px-3 py-1.5 rounded-xl border border-slate-200 text-xs font-bold text-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          />
+                        </div>
+
+                        {/* Unit / Notes */}
+                        <div className="w-full sm:w-32">
+                          <label className="block text-[10px] font-bold text-slate-500 mb-0.5">Satuan / Catatan</label>
+                          <input
+                            type="text"
+                            value={tier.unit || ''}
+                            onChange={(e) => handleUpdateTier(idx, 'unit', e.target.value)}
+                            placeholder="/24 jam, /kg, min. 2"
+                            className="w-full px-3 py-1.5 rounded-xl border border-slate-200 text-xs font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          />
+                        </div>
+
+                        {/* Delete Tier */}
+                        <div className="pt-3 sm:pt-4 shrink-0 flex justify-end">
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteTier(idx)}
+                            disabled={formData.pricing_tiers.length <= 1}
+                            className="p-2 rounded-xl text-slate-400 hover:text-red-600 hover:bg-red-50 disabled:opacity-30 cursor-pointer"
+                            title="Hapus opsi tarif ini"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* ----------------- TAB 3: MEDIA GALLERY & SEO ----------------- */}
+              {activeModalTab === 'gallery' && (
+                <ProductMediaGalleryManager
+                  productId={editingItem?.id || 'new'}
+                  productTitle={formData.title}
+                  initialImages={formData.images?.length > 0 ? formData.images : [formData.image].filter(Boolean)}
+                  adminToken={adminToken}
+                  onGalleryUpdated={(newImgs) => {
+                    setFormData(prev => ({
+                      ...prev,
+                      images: newImgs,
+                      image: newImgs[0] || prev.image
+                    }));
+                  }}
+                  showToast={showToast}
                 />
-              </div>
+              )}
 
               {/* Action Buttons */}
-              <div className="pt-4 border-t border-slate-100 flex items-center justify-end gap-2.5">
-                <button
-                  type="button"
-                  onClick={() => setIsModalOpen(false)}
-                  className="px-4 py-2.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 font-bold text-xs"
-                >
-                  Batal
-                </button>
-                <button
-                  type="submit"
-                  disabled={saving}
-                  className="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-md shadow-blue-600/25 flex items-center gap-1.5"
-                >
-                  {saving ? (
-                    <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                  ) : (
-                    <Check className="w-3.5 h-3.5 stroke-[3]" />
+              <div className="pt-4 border-t border-slate-100 flex items-center justify-between gap-2.5">
+                <div className="text-[11px] text-slate-400">
+                  {activeModalTab !== 'gallery' && (
+                    <span>💡 Tip: Buka tab "Galeri Foto & SEO" untuk mengatur Alt Text dan multi-gambar.</span>
                   )}
-                  <span>Simpan Produk</span>
-                </button>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setIsModalOpen(false)}
+                    className="px-4 py-2.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 font-bold text-xs cursor-pointer"
+                  >
+                    Batal
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={saving}
+                    className="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-md shadow-blue-600/25 flex items-center gap-1.5 cursor-pointer"
+                  >
+                    {saving ? (
+                      <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                    ) : (
+                      <Check className="w-3.5 h-3.5 stroke-[3]" />
+                    )}
+                    <span>Simpan Produk</span>
+                  </button>
+                </div>
               </div>
             </form>
           </div>

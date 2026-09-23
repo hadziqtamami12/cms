@@ -29,6 +29,11 @@ export const initDbConnection = async (customConfig = null) => {
   activeDbType = dbType;
 
   try {
+    if (dbType === 'static' || dbType === 'memory') {
+      activeDbType = 'memory';
+      return { success: true, type: 'static', message: 'Terkoneksi ke Static Zero-Config Database secara instan' };
+    }
+
     if (dbType === 'postgres') {
       const connectionString = customConfig?.connectionString || process.env.DATABASE_URL;
       if (!connectionString) {

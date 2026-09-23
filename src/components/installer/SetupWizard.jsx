@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Database, Shield, Key, Sparkles, CheckCircle2, ArrowRight, ArrowLeft, Loader2, CloudUpload } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Database, Shield, Key, Sparkles, CheckCircle2, ArrowRight, ArrowLeft, Loader2, CloudUpload, Zap } from 'lucide-react';
 import { testInstallerDb, completeInstaller } from '../../lib/api';
 import { formatLicenseKey } from '../../lib/licenseUtils';
 
@@ -8,16 +8,33 @@ export const SetupWizard = ({ onComplete }) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
 
+  useEffect(() => {
+    document.title = 'Instalasi CMS Enterprise Multi-Industri | Setup Wizard';
+    // Auto-fetch demo key for convenience
+    fetch('/api/installer/demo-key')
+      .then(res => res.json())
+      .then(data => {
+        if (data.success && data.demoKey) {
+          setLicenseConfig(prev => ({
+            ...prev,
+            licenseKey: prev.licenseKey || data.demoKey,
+            clientName: prev.clientName || 'Demo Enterprise Client'
+          }));
+        }
+      })
+      .catch(() => {});
+  }, []);
+
   // Step 1: Database & R2 Storage
   const [dbConfig, setDbConfig] = useState({
-    dbType: 'postgres',
+    dbType: 'static',
     connectionString: '',
     r2AccountId: '',
     r2AccessKey: '',
     r2SecretKey: '',
     r2Bucket: 'cms-assets'
   });
-  const [dbTested, setDbTested] = useState(false);
+  const [dbTested, setDbTested] = useState(true);
 
   // Step 2: Admin Slug & Account
   const [adminConfig, setAdminConfig] = useState({
@@ -30,7 +47,7 @@ export const SetupWizard = ({ onComplete }) => {
   // Step 3: License Activation
   const [licenseConfig, setLicenseConfig] = useState({
     licenseKey: '',
-    clientName: ''
+    clientName: 'Demo Enterprise Client'
   });
 
   // Step 4: Industry & Starter Theme
@@ -175,22 +192,37 @@ export const SetupWizard = ({ onComplete }) => {
 
               <div>
                 <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-2">Tipe Basis Data</label>
-                <div className="grid grid-cols-3 gap-3">
-                  {['postgres', 'mysql', 'mongodb'].map((type) => (
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                  {[
+                    { id: 'static', label: 'Static (JSON)', desc: 'Zero-Config Instan' },
+                    { id: 'postgres', label: 'PostgreSQL', desc: 'Supabase / Neon' },
+                    { id: 'mysql', label: 'MySQL', desc: 'MariaDB / Cloud' },
+                    { id: 'mongodb', label: 'MongoDB', desc: 'Atlas / Cluster' }
+                  ].map((db) => (
                     <button
-                      key={type}
+                      key={db.id}
                       type="button"
-                      onClick={() => setDbConfig({ ...dbConfig, dbType: type })}
-                      className={`py-3 px-4 rounded-xl border text-sm font-semibold capitalize text-center transition-all ${
-                        dbConfig.dbType === type
-                          ? 'border-blue-600 bg-blue-50 text-blue-700 shadow-sm'
+                      onClick={() => {
+                        setDbConfig({ ...dbConfig, dbType: db.id });
+                        if (db.id === 'static') setDbTested(true);
+                      }}
+                      className={`p-3 rounded-xl border text-left transition-all ${
+                        dbConfig.dbType === db.id
+                          ? 'border-blue-600 bg-blue-50 text-blue-900 shadow-sm ring-1 ring-blue-600'
                           : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
                       }`}
                     >
-                      {type}
+                      <div className="font-bold text-xs">{db.label}</div>
+                      <div className="text-[10px] text-slate-500 mt-0.5">{db.desc}</div>
                     </button>
                   ))}
                 </div>
+                {dbConfig.dbType === 'static' && (
+                  <p className="mt-2 text-xs text-emerald-700 font-medium flex items-center gap-1.5 bg-emerald-50 p-2.5 rounded-lg border border-emerald-200">
+                    <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-600" />
+                    <span>Mode Static Database aktif. Seluruh data CMS tersimpan secara instan tanpa perlu menginstall server database eksternal.</span>
+                  </p>
+                )}
               </div>
 
               <div>

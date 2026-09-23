@@ -10,10 +10,10 @@ export const AppProvider = ({ children }) => {
   const [adminToken, setAdminToken] = useState(() => localStorage.getItem('cms_admin_token') || '');
   const [adminSlug, setAdminSlug] = useState('admin');
   const [licenseStatus, setLicenseStatus] = useState({
-    isInstalled: true,
+    isInstalled: false,
     isLocked: false,
-    status: 'active',
-    daysRemaining: 365
+    status: 'uninstalled',
+    daysRemaining: 30
   });
 
   const loadConfig = async () => {

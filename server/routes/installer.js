@@ -1,11 +1,19 @@
 import { Router } from 'express';
 import { initDbConnection } from '../config/db.js';
-import { activateLicense, getSystemLicenseStatus, verifyLicenseKey, setInitialInstalledState } from '../services/licenseService.js';
+import { activateLicense, getSystemLicenseStatus, verifyLicenseKey, setInitialInstalledState, generateLicenseKey } from '../services/licenseService.js';
 import { setAdminSlug } from '../middleware/dynamicSlugRouter.js';
 import { setAdminCredentials } from './admin.js';
 import { switchThemeVariant } from '../services/themeService.js';
 
 const router = Router();
+
+/**
+ * GET /api/installer/demo-key
+ */
+router.get('/demo-key', (req, res) => {
+  const key = generateLicenseKey({ clientName: 'STARTER_CLIENT', type: 'yearly' });
+  res.json({ success: true, demoKey: key.licenseKey });
+});
 
 /**
  * GET /api/installer/status

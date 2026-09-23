@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import pg from 'pg';
 import bcrypt from 'bcryptjs';
-import { initDbConnection, query, getDbType } from '../config/db.js';
+import { initDbConnection, query, getDbType, testDbConnection, checkIsDatabaseInstalled } from '../config/db.js';
 import { getPublicSettings, saveSettings, DEFAULT_APP_CONFIG } from '../services/configService.js';
 import { activateLicense, getSystemLicenseStatus, verifyLicenseKey, setInitialInstalledState, generateLicenseKey } from '../services/licenseService.js';
 import { getAdminSlug, setAdminSlug } from '../middleware/dynamicSlugRouter.js';
@@ -11,27 +11,60 @@ import { switchThemeVariant } from '../services/themeService.js';
 const router = Router();
 
 /**
+ * Helper to safely parse database URL into discrete connection parameters
+ */
+const parseDbUrl = (urlStr) => {
+  if (!urlStr) return null;
+  try {
+    const parsed = new URL(urlStr);
+    return {
+      protocol: (parsed.protocol || '').replace(':', ''),
+      host: parsed.hostname || '',
+      port: parsed.port || '',
+      user: decodeURIComponent(parsed.username || ''),
+      password: decodeURIComponent(parsed.password || ''),
+      database: (parsed.pathname || '').replace(/^\//, '')
+    };
+  } catch {
+    return null;
+  }
+};
+
+/**
  * 1. GET /api/setup/env-status
  * Safely inspects current runtime environment (.env)
  * Pre-fills database, storage, and branding config without exposing raw secrets
  */
 router.get('/env-status', async (req, res) => {
   try {
-    const rawDbUrl = process.env.DATABASE_URL || '';
+    const rawDbUrl = process.env.DATABASE_URL || process.env.MYSQL_URL || process.env.MONGODB_URI || '';
+    const parsed = parseDbUrl(rawDbUrl) || {};
+
     const isSupabase = rawDbUrl.includes('supabase.com') || Boolean(process.env.SUPABASE_URL);
-    const dbProvider = process.env.DB_PROVIDER || (isSupabase ? 'supabase' : (rawDbUrl ? 'postgresql' : 'postgresql'));
+    let detectedDbType = process.env.DB_TYPE || (isSupabase ? 'supabase' : 'postgres');
+    if (rawDbUrl.startsWith('mysql')) detectedDbType = 'mysql';
+    if (rawDbUrl.startsWith('mongodb')) detectedDbType = 'mongodb';
 
     const hasR2 = Boolean(process.env.R2_ACCOUNT_ID && process.env.R2_ACCESS_KEY_ID);
     const hasSupabaseStorage = Boolean(process.env.SUPABASE_URL && process.env.SUPABASE_ANON_KEY);
     const storageDriver = process.env.STORAGE_DRIVER || (hasR2 ? 'r2' : (hasSupabaseStorage ? 'supabase' : 'local'));
 
+    // Persistent database installation check
+    const dbInstallCheck = await checkIsDatabaseInstalled().catch(() => ({ isInstalled: false }));
     const licenseStatus = await getSystemLicenseStatus().catch(() => ({ isInstalled: false }));
+    const isInstalled = Boolean(dbInstallCheck?.isInstalled || licenseStatus?.isInstalled);
 
     res.json({
       success: true,
       data: {
         database_url: rawDbUrl,
-        db_provider: dbProvider,
+        db_type: detectedDbType,
+        db_provider: isSupabase ? 'supabase' : detectedDbType,
+        db_host: process.env.DB_HOST || parsed.host || '',
+        db_port: process.env.DB_PORT || parsed.port || (detectedDbType === 'mysql' ? '3306' : detectedDbType === 'mongodb' ? '27017' : '5432'),
+        db_user: process.env.DB_USER || parsed.user || '',
+        db_name: process.env.DB_NAME || parsed.database || '',
+        db_ssl: process.env.DB_SSL === 'true' || isSupabase,
         app_name: process.env.APP_NAME || 'OmniLanding CMS',
         app_tagline: process.env.APP_TAGLINE || 'Platform Website & CMS Multi-Industri Cepat',
         license_key: process.env.LICENSE_KEY || '',
@@ -39,7 +72,7 @@ router.get('/env-status', async (req, res) => {
         has_storage_keys: hasR2 || hasSupabaseStorage,
         default_admin_slug: process.env.ADMIN_SLUG || 'admin',
         default_admin_user: process.env.ADMIN_DEFAULT_USER || 'admin',
-        is_installed: Boolean(licenseStatus?.isInstalled)
+        is_installed: isInstalled
       }
     });
   } catch (err) {
@@ -49,59 +82,48 @@ router.get('/env-status', async (req, res) => {
 
 /**
  * 2. POST /api/setup/test-connection
- * Tests PostgreSQL / Supabase connection with SSL handling
+ * Dynamic Multi-Database Driver Connection Tester (PostgreSQL, Supabase, MySQL, MongoDB, SQLite/Static, Cloudflare)
  */
 router.post('/test-connection', async (req, res) => {
-  const { database_url, connectionString } = req.body || {};
-  const targetUrl = database_url || connectionString || process.env.DATABASE_URL;
+  const { db_type, dbType, database_url, connectionString, host, port, user, password, database } = req.body || {};
+  const selectedType = (db_type || dbType || 'postgres').toLowerCase();
 
-  if (!targetUrl) {
-    return res.status(400).json({
-      success: false,
-      error: 'URL koneksi basis data (DATABASE_URL) tidak boleh kosong.'
-    });
+  // Construct connection string if individual params were provided
+  let targetUrl = database_url || connectionString || '';
+  if (!targetUrl && host && user && selectedType === 'mysql') {
+    targetUrl = `mysql://${encodeURIComponent(user)}:${encodeURIComponent(password || '')}@${host}:${port || 3306}/${database || ''}`;
+  } else if (!targetUrl && host && user && (selectedType === 'postgres' || selectedType === 'supabase')) {
+    targetUrl = `postgresql://${encodeURIComponent(user)}:${encodeURIComponent(password || '')}@${host}:${port || 5432}/${database || ''}`;
+  } else if (!targetUrl) {
+    targetUrl = process.env.DATABASE_URL || process.env.MYSQL_URL || process.env.MONGODB_URI || '';
   }
 
-  const isSupabase = targetUrl.includes('supabase.com');
-  const requiresSsl = process.env.DB_SSL === 'true' || 
-                      isSupabase || 
-                      targetUrl.includes('sslmode=require') || 
-                      process.env.DB_SSL !== 'false';
-
-  let testPool = null;
   try {
-    testPool = new pg.Pool({
+    const testResult = await testDbConnection({
+      type: selectedType,
       connectionString: targetUrl,
-      ssl: requiresSsl ? { rejectUnauthorized: false } : false,
-      connectionTimeoutMillis: 7000,
-      max: 2
+      host,
+      port,
+      user,
+      password,
+      database
     });
 
-    const client = await testPool.connect();
-    const queryResult = await client.query('SELECT NOW() as server_time, version() as db_version');
-    client.release();
-    await testPool.end();
-
-    // Re-initialize primary server pool with verified connection string
-    await initDbConnection({ type: 'postgres', connectionString: targetUrl });
+    // Re-initialize active pool/client on success
+    if (selectedType !== 'static' && selectedType !== 'memory') {
+      await initDbConnection({ type: selectedType, connectionString: targetUrl });
+    }
 
     res.json({
       success: true,
-      message: `Koneksi ke ${isSupabase ? 'Supabase PostgreSQL' : 'PostgreSQL'} berhasil terhubung!`,
-      details: {
-        provider: isSupabase ? 'Supabase Cloud PostgreSQL' : 'PostgreSQL Server',
-        serverTime: queryResult.rows[0]?.server_time,
-        version: (queryResult.rows[0]?.db_version || '').split(' ')[0] + ' ' + (queryResult.rows[0]?.db_version || '').split(' ')[1]
-      }
+      message: testResult.message || `Koneksi ke basis data ${selectedType.toUpperCase()} berhasil!`,
+      details: testResult
     });
   } catch (err) {
-    if (testPool) {
-      try { await testPool.end(); } catch {}
-    }
     console.error('[Setup Test Connection Error]', err.message);
     res.status(400).json({
       success: false,
-      error: `Gagal menyambung ke database: ${err.message}`
+      error: err.message || 'Gagal menghubungi database. Pastikan connection string benar.'
     });
   }
 });
@@ -256,7 +278,14 @@ router.post('/initialize', async (req, res) => {
         VALUES ($1, $2, $3, $4, CURRENT_TIMESTAMP)
         ON CONFLICT (id) DO UPDATE 
         SET username = EXCLUDED.username, password_hash = EXCLUDED.password_hash, admin_slug = EXCLUDED.admin_slug, updated_at = CURRENT_TIMESTAMP;
-      `, ['master', cleanUser, passwordHash, cleanSlug]);
+      `, ['default_admin', cleanUser, passwordHash, cleanSlug]);
+    } else if (currentDbType === 'mysql') {
+      await query(`
+        INSERT INTO admin_settings (\`id\`, \`username\`, \`password_hash\`, \`admin_slug\`, \`updated_at\`)
+        VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)
+        ON DUPLICATE KEY UPDATE 
+        \`username\` = VALUES(\`username\`), \`password_hash\` = VALUES(\`password_hash\`), \`admin_slug\` = VALUES(\`admin_slug\`), \`updated_at\` = CURRENT_TIMESTAMP;
+      `, ['default_admin', cleanUser, passwordHash, cleanSlug]);
     }
 
     // Update in-memory credentials & slug for seamless zero-reload session
@@ -312,7 +341,7 @@ router.post('/initialize', async (req, res) => {
         adminSlug: cleanSlug,
         adminUser: cleanUser,
         isInstalled: true,
-        redirectUrl: `/${cleanSlug}`
+        redirectUrl: '/'
       }
     });
   } catch (err) {

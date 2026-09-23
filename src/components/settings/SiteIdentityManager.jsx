@@ -43,7 +43,12 @@ export const SiteIdentityManager = ({
     phone: config.phone || '+62 812-8899-0011',
     whatsapp: config.whatsapp || '6281288990011',
     email: config.email || 'info@enterprise.com',
-    location: config.location || 'Jakarta Selatan & Bali'
+    location: config.location || 'Jakarta Selatan & Bali',
+    google_maps_embed_url: config.google_maps?.embed_url || config.seo?.gmbEmbedMapUrl || '',
+    google_maps_coords: config.google_maps?.coordinates || '',
+    google_maps_address: config.google_maps?.address || config.location || '',
+    splash_screen_enabled: config.splash_screen?.enabled !== false,
+    splash_screen_duration: config.splash_screen?.duration || 2.5
   });
 
   const [saving, setSaving] = useState(false);
@@ -61,7 +66,12 @@ export const SiteIdentityManager = ({
         phone: config.phone || prev.phone,
         whatsapp: config.whatsapp || prev.whatsapp,
         email: config.email || prev.email,
-        location: config.location || prev.location
+        location: config.location || prev.location,
+        google_maps_embed_url: config.google_maps?.embed_url || config.seo?.gmbEmbedMapUrl || prev.google_maps_embed_url,
+        google_maps_coords: config.google_maps?.coordinates || prev.google_maps_coords,
+        google_maps_address: config.google_maps?.address || config.location || prev.google_maps_address,
+        splash_screen_enabled: config.splash_screen?.enabled !== false,
+        splash_screen_duration: config.splash_screen?.duration || prev.splash_screen_duration || 2.5
       }));
     }
   }, [config]);
@@ -90,10 +100,20 @@ export const SiteIdentityManager = ({
       whatsapp: cleanWhatsapp,
       email: formData.email.trim(),
       location: formData.location.trim(),
+      google_maps: {
+        embed_url: formData.google_maps_embed_url.trim(),
+        coordinates: formData.google_maps_coords.trim(),
+        address: formData.google_maps_address.trim()
+      },
+      splash_screen: {
+        enabled: Boolean(formData.splash_screen_enabled),
+        duration: Math.max(0.5, Math.min(10, Number(formData.splash_screen_duration) || 2.5))
+      },
       seo: {
         ...(config.seo || {}),
         title: cleanTitle,
-        metaDescription: cleanMetaDesc
+        metaDescription: cleanMetaDesc,
+        gmbEmbedMapUrl: formData.google_maps_embed_url.trim()
       },
       floating_whatsapp: {
         ...(config.floating_whatsapp || {}),
@@ -261,12 +281,12 @@ export const SiteIdentityManager = ({
               </div>
             </div>
 
-            {/* Section 2: Kontak Resmi Bisnis */}
+            {/* Section 2: Kontak Utama Bisnis */}
             <div className="border-t border-slate-100 pt-5 space-y-4">
               <div className="border-b border-slate-100 pb-3">
                 <h3 className="text-base font-extrabold text-slate-900 flex items-center gap-2">
                   <Phone className="w-4 h-4 text-emerald-600" />
-                  <span>2. Kontak Resmi & Lokasi Operasional</span>
+                  <span>2. Kontak Utama & Lokasi Operasional</span>
                 </h3>
                 <p className="text-xs text-slate-500 mt-0.5">
                   Informasi kontak yang terpasang pada tombol telepon navbar, WhatsApp, dan footer.
@@ -315,7 +335,7 @@ export const SiteIdentityManager = ({
                 {/* Email */}
                 <div>
                   <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
-                    Email Resmi Bisnis *
+                    Email Perusahaan *
                   </label>
                   <div className="relative">
                     <Mail className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
@@ -349,6 +369,150 @@ export const SiteIdentityManager = ({
                     />
                   </div>
                 </div>
+              </div>
+            </div>
+
+            {/* Section 3: Pengaturan Splash Screen Awal */}
+            <div className="border-t border-slate-100 pt-5 space-y-4">
+              <div className="border-b border-slate-100 pb-3">
+                <h3 className="text-base font-extrabold text-slate-900 flex items-center gap-2">
+                  <Sparkles className="w-4 h-4 text-amber-500" />
+                  <span>3. Splash Screen Dinamis (Rendering Awal)</span>
+                </h3>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Layar pembuka elegan sebelum landing page ditampilkan kepada pengunjung.
+                </p>
+              </div>
+
+              <div className="bg-slate-50 p-4 sm:p-5 rounded-2xl border border-slate-200 space-y-4">
+                {/* Toggle On / Off */}
+                <div className="flex items-center justify-between gap-4">
+                  <div>
+                    <span className="font-extrabold text-xs sm:text-sm text-slate-900 block">
+                      Aktifkan Fitur Splash Screen
+                    </span>
+                    <span className="text-[11px] text-slate-500 block">
+                      Tampilkan logo & animasi progress saat pengunjung pertama kali membuka web.
+                    </span>
+                  </div>
+                  <label className="relative inline-flex items-center cursor-pointer shrink-0">
+                    <input
+                      type="checkbox"
+                      checked={formData.splash_screen_enabled}
+                      onChange={(e) => setFormData(prev => ({ ...prev, splash_screen_enabled: e.target.checked }))}
+                      className="sr-only peer"
+                    />
+                    <div className="w-11 h-6 bg-slate-200 peer-focus:outline-hidden rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                  </label>
+                </div>
+
+                {/* Durasi Tampil */}
+                {formData.splash_screen_enabled && (
+                  <div className="pt-3 border-t border-slate-200/70 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div>
+                      <span className="font-bold text-xs text-slate-800 block">
+                        Durasi Tampil (Detik):
+                      </span>
+                      <span className="text-[11px] text-slate-500 block">
+                        Waktu splash screen muncul sebelum membuka landing page (1 – 10 detik). Default: 2.5 detik.
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="number"
+                        min="0.5"
+                        max="10"
+                        step="0.5"
+                        name="splash_screen_duration"
+                        value={formData.splash_screen_duration}
+                        onChange={handleChange}
+                        className="w-24 px-3 py-2 rounded-xl border border-slate-300 bg-white text-xs sm:text-sm font-bold font-mono text-center text-slate-900 focus:ring-2 focus:ring-blue-600 focus:outline-hidden"
+                      />
+                      <span className="text-xs font-bold text-slate-500">Detik</span>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Section 4: Integrasi Google Maps Dinamis */}
+            <div className="border-t border-slate-100 pt-5 space-y-4">
+              <div className="border-b border-slate-100 pb-3">
+                <h3 className="text-base font-extrabold text-slate-900 flex items-center gap-2">
+                  <MapPin className="w-4 h-4 text-rose-600" />
+                  <span>4. Integrasi Google Maps & Lokasi Kantor</span>
+                </h3>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Tampilkan peta interaktif Google Maps pada bagian bawah landing page agar kredibilitas bisnis meningkat.
+                </p>
+              </div>
+
+              <div className="space-y-4 bg-slate-50 p-4 sm:p-5 rounded-2xl border border-slate-200">
+                {/* Embed URL */}
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
+                    Google Maps Embed URL (Iframe src)
+                  </label>
+                  <input
+                    type="url"
+                    name="google_maps_embed_url"
+                    value={formData.google_maps_embed_url}
+                    onChange={handleChange}
+                    placeholder="https://www.google.com/maps/embed?pb=..."
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 bg-white text-xs font-mono text-slate-800 focus:ring-2 focus:ring-blue-600 focus:outline-hidden"
+                  />
+                  <span className="text-[11px] text-slate-500 block mt-1">
+                    Dapatkan dari Google Maps: Bagikan (Share) &rarr; Sematkan Peta (Embed a map) &rarr; Salin URL di atribut src.
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {/* Coordinates */}
+                  <div>
+                    <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
+                      Koordinat GPS (Latitude, Longitude)
+                    </label>
+                    <input
+                      type="text"
+                      name="google_maps_coords"
+                      value={formData.google_maps_coords}
+                      onChange={handleChange}
+                      placeholder="-6.229728, 106.758849"
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 bg-white text-xs sm:text-sm font-mono text-slate-800 focus:ring-2 focus:ring-blue-600 focus:outline-hidden"
+                    />
+                  </div>
+
+                  {/* Physical Address */}
+                  <div>
+                    <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
+                      Alamat Fisik Lengkap
+                    </label>
+                    <input
+                      type="text"
+                      name="google_maps_address"
+                      value={formData.google_maps_address}
+                      onChange={handleChange}
+                      placeholder="Jl. Jenderal Sudirman No. Kav 52-53, Jakarta Selatan"
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 bg-white text-xs sm:text-sm text-slate-800 focus:ring-2 focus:ring-blue-600 focus:outline-hidden"
+                    />
+                  </div>
+                </div>
+
+                {/* Live Preview */}
+                {formData.google_maps_embed_url && (
+                  <div className="mt-3">
+                    <span className="text-xs font-bold text-slate-700 block mb-1.5">Pratinjau Peta:</span>
+                    <div className="h-44 w-full rounded-xl overflow-hidden border border-slate-300 bg-slate-200">
+                      <iframe
+                        src={formData.google_maps_embed_url}
+                        title="Google Maps Preview"
+                        className="w-full h-full border-0"
+                        loading="lazy"
+                        referrerPolicy="no-referrer-when-downgrade"
+                      />
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
 

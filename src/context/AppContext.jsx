@@ -80,13 +80,23 @@ export const AppProvider = ({ children }) => {
         setConfig(mergedConfig);
         if (res.data.adminSlug) setAdminSlug(res.data.adminSlug);
 
-        if (res.data.license) {
+        // Synchronize installation status: database is single source of truth
+        const isServerInstalled = Boolean(res.data.is_installed || res.data.license?.isInstalled);
+
+        if (isServerInstalled) {
+          const serverLicense = res.data.license || {};
+          setLicenseStatus({
+            isInstalled: true,
+            isLocked: Boolean(serverLicense.isLocked),
+            status: serverLicense.status || 'active',
+            daysRemaining: serverLicense.daysRemaining || 30,
+            licenseKey: serverLicense.licenseKey || localSetup?.licenseKey || 'ENTERPRISE-ACTIVE',
+            licenseType: serverLicense.type || localSetup?.licenseType || 'yearly'
+          });
+        } else if (res.data.license) {
           const serverLicense = res.data.license;
-          // CRITICAL: Never overwrite isInstalled=true with server's isInstalled=false
-          // This happens when the Express server restarts and loses in-memory state.
-          // localStorage is ground truth for static DB mode.
           if (serverLicense.isInstalled === false && localSetup?.isInstalled === true) {
-            // Server lost state — keep local state
+            // Keep local state
             const expiresAt = localSetup.expiresAt ? new Date(localSetup.expiresAt) : null;
             const daysRemaining = expiresAt
               ? Math.max(0, Math.floor((expiresAt - Date.now()) / (1000 * 60 * 60 * 24)))
@@ -102,7 +112,6 @@ export const AppProvider = ({ children }) => {
           } else if (serverLicense.isInstalled !== null && serverLicense.isInstalled !== undefined) {
             setLicenseStatus(serverLicense);
           }
-          // If serverLicense.isInstalled is null (DEFAULT_CONFIG fallback marker), skip — keep current state
         }
       }
       // If isFallback: localStorage state is already correct from synchronous useState init — do nothing

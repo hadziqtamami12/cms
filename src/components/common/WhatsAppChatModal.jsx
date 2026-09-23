@@ -73,7 +73,7 @@ export const WhatsAppChatModal = ({
                   {brandName}
                 </h3>
                 <span className="bg-emerald-500/30 text-emerald-200 border border-emerald-400/40 text-[9px] font-bold px-1.5 py-0.2 rounded-full uppercase shrink-0">
-                  Resmi
+                  Verified
                 </span>
               </div>
               <div className="flex items-center gap-1 text-[11px] text-emerald-100/90 mt-0.5">
@@ -189,7 +189,7 @@ export const WhatsAppChatModal = ({
           </button>
 
           <p className="text-[10px] text-center text-slate-400">
-            🔒 Terhubung langsung ke WhatsApp Resmi tanpa perantara.
+            🔒 Terhubung langsung ke WhatsApp Layanan Pelanggan tanpa perantara.
           </p>
         </div>
       </div>

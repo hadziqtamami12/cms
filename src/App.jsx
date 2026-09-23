@@ -6,6 +6,9 @@ import SetupPage from './pages/SetupPage';
 import LockoutPage from './pages/LockoutPage';
 import ProgrammerPortalPage from './pages/ProgrammerPortalPage';
 import LandingPageSkeleton from './components/common/LandingPageSkeleton';
+import SplashScreen from './components/common/SplashScreen';
+import ArticlesPage from './pages/ArticlesPage';
+import ArticleDetailPage from './pages/ArticleDetailPage';
 import { adminLogin } from './lib/api';
 import { ShieldCheck, Lock, ArrowRight, Loader2, Eye, EyeOff } from 'lucide-react';
 
@@ -37,6 +40,7 @@ export const App = () => {
   const [showLoginPassword, setShowLoginPassword] = useState(false);
   const [loginLoading, setLoginLoading] = useState(false);
   const [loginError, setLoginError] = useState('');
+  const [splashFinished, setSplashFinished] = useState(false);
 
   useEffect(() => {
     const handlePopState = () => setCurrentPath(window.location.pathname);
@@ -49,13 +53,30 @@ export const App = () => {
     setCurrentPath(path);
   };
 
+  // Route Guard: Pengecekan Akses Installer vs Landing Page
+  const isInstalled = Boolean(licenseStatus?.isInstalled);
+  const isInstallerRoute = currentPath === '/install' || currentPath === '/setup';
+
+  // 1. Loading State Handler (Splash Screen or Shimmer Skeleton)
   if (loading) {
     const cleanPath = currentPath.replace(/^\/+|\/+$/g, '');
     const activeSlug = (adminSlug || 'admin').replace(/^\/+|\/+$/g, '');
     const isAdminRoute = cleanPath === activeSlug || cleanPath.startsWith(`${activeSlug}/`);
 
-    // High-fidelity Landing Page Skeleton while fetching data on public routes
-    if (!isAdminRoute && currentPath !== '/install' && currentPath !== '/setup' && currentPath !== '/keygen' && currentPath !== '/secret-keygen') {
+    // If splash screen is active and on public landing page
+    if (!isAdminRoute && !isInstallerRoute && config.splash_screen?.enabled !== false && !splashFinished) {
+      return (
+        <SplashScreen
+          brandName={config.brandName || 'Royal Fleet Premiere'}
+          tagline={config.tagline || 'Sewa Mobil & Armada Terpercaya'}
+          duration={config.splash_screen?.duration || 1.2}
+          onFinish={() => setSplashFinished(true)}
+        />
+      );
+    }
+
+    // High-fidelity Shimmer Landing Page Skeleton while fetching data
+    if (!isAdminRoute && !isInstallerRoute && currentPath !== '/keygen' && currentPath !== '/secret-keygen') {
       return <LandingPageSkeleton />;
     }
 
@@ -69,22 +90,48 @@ export const App = () => {
     );
   }
 
-  // 1. Secret Programmer Keygen Portal Route
+  // 2. Secret Programmer Keygen Portal Route
   if (currentPath === '/keygen' || currentPath === '/secret-keygen') {
     return <ProgrammerPortalPage />;
   }
 
-  // 2. Setup Installer Wizard Route
-  if (currentPath === '/install' || currentPath === '/setup' || (licenseStatus && !licenseStatus.isInstalled)) {
+  // 3. Installation Route Guard Logic
+  // A. Jika sistem SUDAH TERINSTAL tapi mencoba buka /install atau /setup:
+  // Cegah akses ulang installer dan arahkan langsung ke root (/)
+  if (isInstalled && isInstallerRoute) {
+    if (typeof window !== 'undefined') {
+      window.history.replaceState(null, '', '/');
+    }
+    // Lanjutkan rendering landing page di bawah
+  }
+
+  // B. Jika sistem BELUM TERINSTAL:
+  // Pengguna yang mengakses root (/) atau /install wajib diarahkan ke installer
+  if (!isInstalled) {
+    if (typeof window !== 'undefined' && !isInstallerRoute) {
+      window.history.replaceState(null, '', '/install');
+    }
     return (
       <SetupPage
         onComplete={(res) => {
-          // Immediately mark as installed and navigate
+          // Tandai instalasi selesai dan arahkan langsung ke landing page utama (/)
           setLicenseStatus(prev => ({ ...prev, isInstalled: true, isLocked: false, status: 'active' }));
           const slug = res?.data?.adminSlug || res?.adminSlug || adminSlug || 'admin';
           if (setAdminSlug) setAdminSlug(slug);
-          navigate(`/${slug}`);
+          navigate('/');
         }}
+      />
+    );
+  }
+
+  // 4. Splash Screen for Initial Landing Page Load (when already loaded from cache)
+  if (currentPath === '/' && config.splash_screen?.enabled !== false && !splashFinished) {
+    return (
+      <SplashScreen
+        brandName={config.brandName || 'OmniLanding CMS'}
+        tagline={config.tagline || 'Platform Website & CMS Multi-Industri Cepat'}
+        duration={config.splash_screen?.duration || 2.5}
+        onFinish={() => setSplashFinished(true)}
       />
     );
   }
@@ -217,8 +264,29 @@ export const App = () => {
     );
   }
 
-  // 5. Default Public Landing Page
-  return <LandingPage config={config} />;
+  // 5. Public Articles & SEO Blog Routes
+  if (currentPath === '/artikel' || currentPath === '/artikel/') {
+    return <ArticlesPage />;
+  }
+  if (currentPath.startsWith('/artikel/')) {
+    const slug = currentPath.replace(/^\/artikel\/?/, '').replace(/\/$/, '');
+    return <ArticleDetailPage slug={slug} />;
+  }
+
+  // 6. Default Public Landing Page
+  return (
+    <>
+      {config.splash_screen?.enabled !== false && !splashFinished && (
+        <SplashScreen
+          brandName={config.brandName || 'Royal Fleet Premiere'}
+          tagline={config.tagline || 'Sewa Mobil & Armada Terpercaya'}
+          duration={config.splash_screen?.duration || 1.2}
+          onFinish={() => setSplashFinished(true)}
+        />
+      )}
+      <LandingPage config={config} />
+    </>
+  );
 };
 
 export default App;

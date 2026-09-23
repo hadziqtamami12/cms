@@ -31,7 +31,7 @@ const safeFetchJson = async (url, options = {}) => {
 export const fetchConfig = async () => {
   try {
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 3500);
+    const timeoutId = setTimeout(() => controller.abort(), 12000);
 
     const res = await fetch(`${API_BASE}/config?_t=${Date.now()}`, {
       cache: 'no-store',

@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import {
   Car, Shield, Check, Star, Fuel, Users, Calendar, ArrowRight,
-  Clock, MapPin, Zap, Navigation, Award, ChevronRight, Phone, Plane
+  Clock, MapPin, Zap, Navigation, Award, ChevronRight, Phone, Plane,
+  KeyRound, UserCheck
 } from 'lucide-react';
 
 /**
@@ -21,11 +22,13 @@ import {
 export const AutomotiveThemeRenderer = ({ themeId, config, onSelectItem }) => {
   const { items = [], features = [], pricing = [], testimonials = [], faqs = [], whatsapp, phone } = config;
   const [selectedCategory, setSelectedCategory] = useState('Semua');
+  const [visibleCount, setVisibleCount] = useState(6);
 
   const categories = ['Semua', ...Array.from(new Set(items.map(i => i.category).filter(Boolean)))];
   const filteredItems = selectedCategory === 'Semua' 
     ? items 
     : items.filter(i => i.category === selectedCategory);
+  const displayedItems = filteredItems.slice(0, visibleCount);
 
   return (
     <div className="w-full max-w-full overflow-x-hidden min-w-0 space-y-28 sm:space-y-36 py-16 sm:py-24 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -260,7 +263,7 @@ export const AutomotiveThemeRenderer = ({ themeId, config, onSelectItem }) => {
             ? 'grid-cols-1 lg:grid-cols-2 gap-6 sm:gap-8'
             : 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8'
         }`}>
-          {filteredItems.map((item) => {
+          {displayedItems.map((item) => {
             const waBookingUrl = whatsapp
               ? `https://wa.me/${whatsapp.replace(/[^0-9]/g, '')}?text=Halo%20saya%20mau%20sewa%20${encodeURIComponent(item.title)}`
               : '#contact';
@@ -744,7 +747,15 @@ export const AutomotiveThemeRenderer = ({ themeId, config, onSelectItem }) => {
               );
             }
 
-            // 9. BOOKING BAR HERO & 10. FLEET GRID (Standard Default Card)
+            // 9. BOOKING BAR HERO & 10. FLEET GRID & DEFAULT: Rich Card with Dual Pricing & Dual Action
+            const cleanWa = whatsapp ? whatsapp.replace(/[^0-9]/g, '') : '';
+            const waBookingSelfDrive = cleanWa
+              ? `https://wa.me/${cleanWa}?text=Halo,%20saya%20tertarik%20sewa%20${encodeURIComponent(item.title)}%20opsi%20Lepas%20Kunci`
+              : '#contact';
+            const waBookingWithDriver = cleanWa
+              ? `https://wa.me/${cleanWa}?text=Halo,%20saya%20tertarik%20sewa%20${encodeURIComponent(item.title)}%20opsi%20Dengan%20Sopir`
+              : '#contact';
+
             return (
               <div
                 key={item.id}
@@ -754,6 +765,7 @@ export const AutomotiveThemeRenderer = ({ themeId, config, onSelectItem }) => {
                   <img
                     src={item.image}
                     alt={item.title}
+                    onError={(e) => { e.currentTarget.src = '/images/fleet/car-default.svg'; }}
                     className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                     loading="lazy"
                   />
@@ -767,7 +779,7 @@ export const AutomotiveThemeRenderer = ({ themeId, config, onSelectItem }) => {
                   </span>
                 </div>
 
-                <div className="p-6 sm:p-7 flex-1 flex flex-col justify-between space-y-6">
+                <div className="p-6 sm:p-7 flex-1 flex flex-col justify-between space-y-5">
                   <div>
                     <h3 className="text-lg sm:text-xl font-bold text-slate-900 leading-snug">{item.title}</h3>
                     <div className="mt-4 flex flex-wrap gap-2 sm:gap-2.5">
@@ -783,30 +795,70 @@ export const AutomotiveThemeRenderer = ({ themeId, config, onSelectItem }) => {
                     </div>
                   </div>
 
-                  <div className="pt-5 mt-2 border-t border-slate-100 flex items-center justify-between gap-4">
-                    <div>
-                      <span className="text-xs text-slate-400 block font-medium">Mulai Dari</span>
-                      <div className="text-lg sm:text-xl font-black text-blue-600">
-                        {item.price}
-                        <span className="text-xs font-normal text-slate-500 ml-1">{item.period || '/hari'}</span>
+                  <div className="space-y-4">
+                    {/* Dual Pricing Badges */}
+                    <div className="grid grid-cols-2 gap-2 p-3 rounded-2xl bg-slate-50 border border-slate-100">
+                      <div className="flex flex-col">
+                        <span className="text-[10px] text-slate-500 font-semibold flex items-center gap-1">
+                          <KeyRound className="w-3 h-3 text-blue-600 shrink-0" />
+                          Lepas Kunci
+                        </span>
+                        <span className="font-extrabold text-slate-900 text-xs sm:text-sm mt-0.5">
+                          {item.price_self_drive || item.price}
+                        </span>
+                      </div>
+                      <div className="flex flex-col border-l border-slate-200 pl-2.5">
+                        <span className="text-[10px] text-slate-500 font-semibold flex items-center gap-1">
+                          <UserCheck className="w-3 h-3 text-emerald-600 shrink-0" />
+                          Dengan Sopir
+                        </span>
+                        <span className="font-extrabold text-slate-900 text-xs sm:text-sm mt-0.5">
+                          {item.price_with_driver || item.price}
+                        </span>
                       </div>
                     </div>
 
-                    <a
-                      href={waBookingUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs sm:text-sm font-bold transition-all shadow-sm flex items-center gap-2"
-                    >
-                      <span>Pesan Unit</span>
-                      <ArrowRight className="w-4 h-4" />
-                    </a>
+                    {/* Dual Booking Buttons */}
+                    <div className="grid grid-cols-2 gap-2 pt-2 border-t border-slate-100">
+                      <a
+                        href={waBookingSelfDrive}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="py-2.5 px-2 sm:px-3 rounded-xl border border-blue-600 text-blue-600 hover:bg-blue-50 text-center text-xs font-bold transition-all flex items-center justify-center gap-1"
+                      >
+                        <KeyRound className="w-3 h-3 shrink-0" />
+                        <span>Lepas Kunci</span>
+                      </a>
+                      <a
+                        href={waBookingWithDriver}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="py-2.5 px-2 sm:px-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-center text-xs font-bold transition-all shadow-sm flex items-center justify-center gap-1"
+                      >
+                        <UserCheck className="w-3 h-3 shrink-0" />
+                        <span>+ Sopir</span>
+                      </a>
+                    </div>
                   </div>
                 </div>
               </div>
             );
           })}
         </div>
+
+        {/* Load More Pagination */}
+        {visibleCount < filteredItems.length && (
+          <div className="pt-8 flex justify-center">
+            <button
+              type="button"
+              onClick={() => setVisibleCount(prev => prev + 6)}
+              className="px-8 py-3.5 rounded-2xl bg-white border-2 border-slate-200 hover:border-blue-600 text-slate-800 hover:text-blue-600 font-bold text-sm shadow-sm hover:shadow-md transition-all flex items-center gap-2 cursor-pointer"
+            >
+              <span>Muat Lebih Banyak Unit ({filteredItems.length - visibleCount} unit lainnya)</span>
+              <ArrowRight className="w-4 h-4" />
+            </button>
+          </div>
+        )}
       </section>
 
       {/* ----------------- FEATURES SECTION ----------------- */}

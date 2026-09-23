@@ -18,6 +18,10 @@ export const DEFAULT_APP_CONFIG = {
   whatsapp: '6281288990011',
   email: 'concierge@royalfleet.com',
   location: 'Jakarta Selatan & Bali',
+  splash_screen: {
+    enabled: true,
+    duration: 2.5
+  },
   floating_whatsapp: {
     enabled: true,
     phone: '6281288990011',
@@ -66,6 +70,8 @@ export const DEFAULT_APP_CONFIG = {
       title: 'Toyota Alphard Transformer Facelift',
       category: 'Luxury MPV',
       price: 'Rp 2.500.000',
+      price_self_drive: 'Rp 2.000.000',
+      price_with_driver: 'Rp 2.500.000',
       period: '/hari',
       badge: 'Favorit VIP',
       specs: ['7 Kursi Captain Seat', 'Matic', 'Bensin', 'Driver + BBM Available'],
@@ -76,6 +82,8 @@ export const DEFAULT_APP_CONFIG = {
       title: 'Toyota Innova Zenix Hybrid',
       category: 'Family Touring',
       price: 'Rp 850.000',
+      price_self_drive: 'Rp 650.000',
+      price_with_driver: 'Rp 850.000',
       period: '/hari',
       badge: 'Paling Irit',
       specs: ['7 Kursi Nyaman', 'Matic CVT', 'Hybrid Super Irit', 'Sunroof'],
@@ -86,6 +94,8 @@ export const DEFAULT_APP_CONFIG = {
       title: 'Toyota Fortuner GR Sport 2.8',
       category: 'Premium SUV',
       price: 'Rp 1.400.000',
+      price_self_drive: 'Rp 1.100.000',
+      price_with_driver: 'Rp 1.400.000',
       period: '/hari',
       badge: 'Gagah & Bertenaga',
       specs: ['7 Kursi', 'Matic 4x2', 'Diesel Turbo 2.8L', 'Tangguh Segala Medan'],
@@ -96,6 +106,8 @@ export const DEFAULT_APP_CONFIG = {
       title: 'Toyota HiAce Premio Luxury VIP',
       category: 'Executive Van',
       price: 'Rp 1.800.000',
+      price_self_drive: 'Rp 1.400.000',
+      price_with_driver: 'Rp 1.800.000',
       period: '/hari',
       badge: 'Rombongan Elegan',
       specs: ['9 Captain Seats', 'Matic', 'Full Entertainment Audio', 'Karaoke On-Board'],
@@ -106,6 +118,8 @@ export const DEFAULT_APP_CONFIG = {
       title: 'Honda HR-V RS Turbo',
       category: 'Compact Crossover',
       price: 'Rp 650.000',
+      price_self_drive: 'Rp 450.000',
+      price_with_driver: 'Rp 650.000',
       period: '/hari',
       badge: 'Stylish City',
       specs: ['5 Kursi', 'Matic', 'Bensin Turbo', 'Panoramic Roof'],
@@ -116,6 +130,8 @@ export const DEFAULT_APP_CONFIG = {
       title: 'Hyundai Ioniq 5 Signature',
       category: 'Electric Vehicle',
       price: 'Rp 1.600.000',
+      price_self_drive: 'Rp 1.300.000',
+      price_with_driver: 'Rp 1.600.000',
       period: '/hari',
       badge: 'Zero Emission',
       specs: ['5 Kursi', 'Full Electric', 'Range 450KM', 'Fast Charging Support'],
@@ -193,6 +209,33 @@ export const DEFAULT_APP_CONFIG = {
       avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=150&q=80'
     }
   ],
+  special_moments: [
+    {
+      id: 'moment-1',
+      title: 'Wedding Car & VIP Luxury Convoy',
+      subtitle: 'Armada Mewah Berhias Bunga Segar & Sopir Berbusana Rapi',
+      description: 'Sempurnakan momen pernikahan terindah Anda dengan unit Alphard atau Camry bertabur dekorasi bunga fresh eksklusif dan driver profesional berbusana jas resmi.',
+      starting_price: 'Mulai Rp 2.500.000 / Hari',
+      badge: 'Momen Spesial',
+      ctaText: 'Konsultasi Momen VIP',
+      image: 'https://images.unsplash.com/photo-1519741497674-611481863552?auto=format&fit=crop&w=1000&q=80'
+    },
+    {
+      id: 'moment-2',
+      title: 'Private Executive Corporate Gathering',
+      subtitle: 'Kenyamanan Armada Bisnis Untuk Delegasi & Tamu Kehormatan',
+      description: 'Layanan HiAce Luxury & Fortuner untuk kunjungan kerja, dinas kementerian, hingga penjemputan tamu VVIP bandara dengan privasi dan kenyamanan tinggi.',
+      starting_price: 'Mulai Rp 1.800.000 / Hari',
+      badge: 'Corporate & VVIP',
+      ctaText: 'Reservasi Korporasi',
+      image: 'https://images.unsplash.com/photo-1549399542-7e3f8b79c341?auto=format&fit=crop&w=1000&q=80'
+    }
+  ],
+  google_maps: {
+    embed_url: 'https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d126920.2858189608!2d106.758849!3d-6.229728!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x2e69f3e945e34b9d%3A0x5371bf0fdad786a2!2sJakarta!5e0!3m2!1sen!2sid!4v1700000000000!5m2!1sen!2sid',
+    coordinates: '-6.229728, 106.758849',
+    address: 'Jl. Jenderal Sudirman No. Kav 52-53, Jakarta Selatan'
+  },
   faqs: [
     {
       q: 'Apa saja syarat untuk sewa mobil lepas kunci?',
@@ -207,8 +250,8 @@ export const DEFAULT_APP_CONFIG = {
       a: 'Kami menyediakan layanan ganti unit darurat gratis dalam waktu 60-90 menit serta tim mekanik siaga 24 jam.'
     },
     {
-      q: 'Apakah tersedia kwitansi resmi untuk keperluan reimbursement kantor?',
-      a: 'Ya, kami menerbitkan invoice resmi berstempel dan faktur pajak lengkap jika diperlukan oleh instansi atau korporasi Anda.'
+      q: 'Apakah tersedia kwitansi untuk keperluan reimbursement kantor?',
+      a: 'Ya, kami menerbitkan invoice berstempel dan faktur lengkap jika diperlukan oleh instansi atau korporasi Anda.'
     }
   ],
   seo: {
@@ -399,11 +442,34 @@ export const getPublicSettings = async (forceDb = false) => {
       ...DEFAULT_APP_CONFIG.floating_whatsapp,
       ...(dbConfig?.floating_whatsapp || {})
     },
+    splash_screen: {
+      ...DEFAULT_APP_CONFIG.splash_screen,
+      ...(dbConfig?.splash_screen || {})
+    },
     seo: {
       ...DEFAULT_APP_CONFIG.seo,
       ...(dbConfig?.seo || {})
-    }
+    },
+    special_moments: dbConfig?.special_moments?.length ? dbConfig.special_moments : DEFAULT_APP_CONFIG.special_moments,
+    google_maps: {
+      ...DEFAULT_APP_CONFIG.google_maps,
+      ...(dbConfig?.google_maps || {})
+    },
+    faqs: dbConfig?.faqs?.length ? dbConfig.faqs : DEFAULT_APP_CONFIG.faqs
   };
+
+  // Ensure each item has dual pricing fields
+  if (Array.isArray(merged.items)) {
+    merged.items = merged.items.map(item => {
+      const basePrice = item.price || 'Rp 500.000';
+      const baseNum = parseInt(String(basePrice).replace(/[^\d]/g, ''), 10) || 500000;
+      return {
+        ...item,
+        price_self_drive: item.price_self_drive || (baseNum > 300000 ? `Rp ${(baseNum - 200000).toLocaleString('id-ID')}` : basePrice),
+        price_with_driver: item.price_with_driver || basePrice
+      };
+    });
+  }
 
   // Harmonize bottom navigation variant and legacy bottomNavStyle
   const variant = normalizeBottomNavVariant(merged.bottom_nav_variant || merged.bottomNavStyle);
@@ -441,6 +507,10 @@ export const saveSettings = async (partialSettings = {}) => {
     floating_whatsapp: {
       ...current.floating_whatsapp,
       ...(partialSettings.floating_whatsapp || {})
+    },
+    splash_screen: {
+      ...current.splash_screen,
+      ...(partialSettings.splash_screen || {})
     },
     seo: {
       ...current.seo,

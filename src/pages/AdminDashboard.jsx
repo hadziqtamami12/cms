@@ -4,7 +4,8 @@ import {
   RefreshCw, Globe, Shield, Smartphone, Layers, Save, AlertCircle,
   Menu, X, ChevronLeft, ChevronRight, ExternalLink, Activity, Sparkles, Check,
   Lock, Key, ShieldCheck, Eye, EyeOff, UserCheck, AlertTriangle, Copy,
-  PanelLeftClose, PanelLeftOpen, Package, MessageCircle, Sliders, LayoutDashboard, ArrowRight
+  PanelLeftClose, PanelLeftOpen, Package, MessageCircle, Sliders, LayoutDashboard, ArrowRight,
+  Compass, FileText, HelpCircle, Download
 } from 'lucide-react';
 import OrderManager from '../components/orders/OrderManager';
 import InteractiveSeoDashboard from '../components/seo/InteractiveSeoDashboard';
@@ -14,6 +15,10 @@ import { ProductCatalogManager } from '../components/products/ProductCatalogMana
 import { SlideshowManager } from '../components/slideshow/SlideshowManager';
 import { WhatsAppStudio } from '../components/whatsapp/WhatsAppStudio';
 import { SiteIdentityManager } from '../components/settings/SiteIdentityManager';
+import { CompetitorScraperModal } from '../components/scraper/CompetitorScraperModal';
+import { TravelTripManager } from '../components/admin/TravelTripManager';
+import { ArticleManager } from '../components/admin/ArticleManager';
+import { FaqManager } from '../components/admin/FaqManager';
 import { getPresetForIndustry } from '../lib/industryCatalogs';
 import {
   switchTheme,
@@ -34,7 +39,7 @@ export const AdminDashboard = ({
   const [activeTab, setActiveTabState] = useState(() => {
     try {
       const savedTab = localStorage.getItem('cms_admin_active_tab');
-      const validTabs = ['dashboard', 'branding', 'themes', 'slideshow', 'products', 'whatsapp', 'seo', 'leads', 'settings'];
+      const validTabs = ['dashboard', 'branding', 'themes', 'slideshow', 'products', 'travel', 'articles', 'faqs', 'scraper', 'whatsapp', 'seo', 'leads', 'settings'];
       if (savedTab && validTabs.includes(savedTab)) {
         return savedTab;
       }
@@ -66,6 +71,7 @@ export const AdminDashboard = ({
   const [desktopSidebarMode, setDesktopSidebarMode] = useState('expanded');
   const [loading, setLoading] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
+  const [isScraperOpen, setIsScraperOpen] = useState(false);
 
   // Local state for theme switching
   const [currentIndustry, setCurrentIndustry] = useState(config?.industry || 'automotive');
@@ -373,11 +379,14 @@ export const AdminDashboard = ({
     { id: 'dashboard', label: 'Dashboard Ringkasan', icon: LayoutDashboard, badge: 'Utama' },
     { id: 'branding', label: 'Identitas & Judul Situs', icon: Globe, badge: 'Situs' },
     { id: 'themes', label: 'Tema & Tampilan', icon: Palette, badge: '50' },
-    { id: 'slideshow', label: 'Slideshow Hero (CRUD)', icon: Sliders, badge: (config?.heroSlides || []).length || 'Slide' },
-    { id: 'products', label: 'Katalog Produk (CRUD)', icon: Package, badge: (config?.items || []).length || 'Unit' },
-    { id: 'whatsapp', label: 'Floating WhatsApp', icon: MessageCircle, badge: 'Studio' },
-    { id: 'seo', label: 'SEO & Performance', icon: TrendingUp, badge: 'Live' },
-    { id: 'leads', label: 'Manajemen Pesanan', icon: Users, badge: 'CRUD' },
+    { id: 'slideshow', label: 'Slideshow & Banner', icon: Sliders, badge: (config?.heroSlides || []).length || 'Slide' },
+    { id: 'products', label: 'Katalog Armada & Produk', icon: Package, badge: (config?.items || []).length || 'Unit' },
+    { id: 'travel', label: 'Paket Wisata & Tour', icon: Compass, badge: 'Wisata' },
+    { id: 'articles', label: 'Artikel & SEO Daerah', icon: FileText, badge: 'SEO' },
+    { id: 'faqs', label: 'Pertanyaan Umum (FAQ)', icon: HelpCircle, badge: 'FAQ' },
+    { id: 'whatsapp', label: 'Pengaturan WhatsApp', icon: MessageCircle, badge: 'Kontak' },
+    { id: 'seo', label: 'SEO & Optimasi', icon: TrendingUp, badge: 'Optimasi' },
+    { id: 'leads', label: 'Manajemen Pesanan', icon: Users, badge: 'Pesanan' },
     { id: 'settings', label: 'Keamanan & Portal', icon: Settings },
   ];
 
@@ -695,17 +704,28 @@ export const AdminDashboard = ({
                 {activeTab === 'dashboard' && 'Dashboard Ringkasan & Status Sistem'}
                 {activeTab === 'branding' && 'Identitas Aplikasi & Pengaturan Judul Situs'}
                 {activeTab === 'themes' && 'Engine 50 Tema Multi-Industri'}
-                {activeTab === 'slideshow' && 'Manajemen Slideshow & Hero Banner (CRUD)'}
-                {activeTab === 'products' && 'Manajemen Produk & Unit (CRUD)'}
-                {activeTab === 'whatsapp' && 'Studio WhatsApp & Floating Contact'}
-                {activeTab === 'seo' && 'SEO & Performance Hub #1'}
-                {activeTab === 'leads' && 'Manajemen Pesanan (Order CRUD)'}
-                {activeTab === 'settings' && 'Pengaturan Keamanan & Slug'}
+                {activeTab === 'slideshow' && 'Manajemen Slideshow & Banner Beranda'}
+                {activeTab === 'products' && 'Manajemen Armada & Katalog Produk'}
+                {activeTab === 'travel' && 'Manajemen Paket Wisata & Tour'}
+                {activeTab === 'articles' && 'Artikel & Multi-Location Programmatic SEO'}
+                {activeTab === 'faqs' && 'Manajemen Pertanyaan Umum (FAQ)'}
+                {activeTab === 'whatsapp' && 'Pengaturan WhatsApp & Kontak Terapung'}
+                {activeTab === 'seo' && 'SEO & Optimasi Performa'}
+                {activeTab === 'leads' && 'Manajemen Pesanan & Permintaan Layanan'}
+                {activeTab === 'settings' && 'Pengaturan Keamanan & Slug Admin'}
               </h1>
             </div>
           </div>
 
           <div className="flex items-center gap-2.5 shrink-0">
+            <button
+              type="button"
+              onClick={() => setIsScraperOpen(true)}
+              className="px-3.5 py-1.5 rounded-xl bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold transition-all shadow-sm flex items-center gap-1.5 cursor-pointer"
+            >
+              <Download className="w-3.5 h-3.5" />
+              <span>Scraper Eksternal</span>
+            </button>
             <div className="px-3 py-1 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-semibold flex items-center gap-1.5">
               <Activity className="w-3.5 h-3.5 text-emerald-600" />
               <span>Core Web Vitals 98+</span>
@@ -1048,12 +1068,46 @@ export const AdminDashboard = ({
           )}
 
           {/* ========================================================
-           * TAB 2: PRODUCT & UNIT CATALOG MANAGER (FULL PRODUCT CRUD)
+           * TAB 2: PRODUCT & UNIT CATALOG MANAGER (FULL PRODUCT MANAGEMENT)
            * ======================================================== */}
           {activeTab === 'products' && (
             <ProductCatalogManager
               items={config?.items || []}
               currentIndustry={currentIndustry}
+              adminToken={adminToken}
+              onConfigUpdated={(newCfg) => {
+                if (onConfigUpdated) onConfigUpdated(newCfg);
+              }}
+              showToast={showToast}
+            />
+          )}
+
+          {/* ========================================================
+           * TAB: TRAVEL TRIPS & TOUR PACKAGES
+           * ======================================================== */}
+          {activeTab === 'travel' && (
+            <TravelTripManager
+              adminToken={adminToken}
+              showToast={showToast}
+            />
+          )}
+
+          {/* ========================================================
+           * TAB: ARTICLES & MULTI-LOCATION PROGRAMMATIC SEO
+           * ======================================================== */}
+          {activeTab === 'articles' && (
+            <ArticleManager
+              adminToken={adminToken}
+              showToast={showToast}
+            />
+          )}
+
+          {/* ========================================================
+           * TAB: FAQS MANAGER
+           * ======================================================== */}
+          {activeTab === 'faqs' && (
+            <FaqManager
+              faqs={config?.faqs || []}
               adminToken={adminToken}
               onConfigUpdated={(newCfg) => {
                 if (onConfigUpdated) onConfigUpdated(newCfg);
@@ -1324,6 +1378,18 @@ export const AdminDashboard = ({
         </div>
       </main>
 
+      {/* Competitor Scraper & Content Extraction Modal */}
+      <CompetitorScraperModal
+        isOpen={isScraperOpen}
+        onClose={() => setIsScraperOpen(false)}
+        adminToken={adminToken}
+        onImportSuccess={(newItems) => {
+          if (onConfigUpdated) {
+            onConfigUpdated({ items: [...(config?.items || []), ...newItems] });
+          }
+        }}
+        showToast={showToast}
+      />
     </div>
   );
 };

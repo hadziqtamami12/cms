@@ -41,11 +41,59 @@ export const SetupWizard = ({ onComplete }) => {
 
   // Step 1: Database & Storage Configuration
   const [dbConfig, setDbConfig] = useState({
+    db_type: 'postgres', // 'postgres' | 'mysql' | 'mongodb' | 'sqlite' | 'cloudflare'
     database_url: '',
-    db_provider: 'supabase',
-    storage_driver: 'supabase',
+    db_host: '',
+    db_port: '5432',
+    db_user: '',
+    db_name: '',
+    storage_driver: 'local',
     has_storage_keys: false
   });
+
+  // Database Drivers Definition
+  const dbDrivers = [
+    {
+      id: 'postgres',
+      name: 'PostgreSQL / Supabase',
+      badge: 'Direkomendasikan',
+      desc: 'Mendukung Supabase Pooler (port 6543/5432), Neon, RDS, & PostgreSQL Server.',
+      defaultPort: '5432',
+      placeholder: 'postgresql://postgres.xxx:pass@aws-0-ap-northeast-1.pooler.supabase.com:6543/postgres'
+    },
+    {
+      id: 'mysql',
+      name: 'MySQL / MariaDB',
+      badge: 'Native Pool',
+      desc: 'Driver mysql2 berkecepatan tinggi dengan auto-reconnect dan pooling.',
+      defaultPort: '3306',
+      placeholder: 'mysql://root:password@127.0.0.1:3306/cms_db'
+    },
+    {
+      id: 'mongodb',
+      name: 'MongoDB Atlas',
+      badge: 'Document DB',
+      desc: 'Driver mongodb native untuk clustering dokumen multi-region.',
+      defaultPort: '27017',
+      placeholder: 'mongodb+srv://user:password@cluster0.mongodb.net/cms_db'
+    },
+    {
+      id: 'sqlite',
+      name: 'SQLite / Zero-Config',
+      badge: 'Standalone',
+      desc: 'Berjalan instan di server lokal / file JSON tanpa setup server database eksternal.',
+      defaultPort: '',
+      placeholder: 'memory://zero-config-standalone'
+    },
+    {
+      id: 'cloudflare',
+      name: 'Cloudflare D1 / Hyperdrive',
+      badge: 'Edge Cloud',
+      desc: 'Koneksi Cloudflare Hyperdrive Postgres & D1 REST Database.',
+      defaultPort: '5432',
+      placeholder: 'postgres://user:pass@hyperdrive.cloudflare.com/d1_db'
+    }
+  ];
 
   // Step 2: Branding & Industry Configuration
   const [brandingConfig, setBrandingConfig] = useState({
@@ -92,8 +140,12 @@ export const SetupWizard = ({ onComplete }) => {
         if (res && res.success && res.data) {
           const d = res.data;
           setDbConfig({
+            db_type: d.db_type || (d.database_url?.startsWith('mysql') ? 'mysql' : d.database_url?.startsWith('mongodb') ? 'mongodb' : 'postgres'),
             database_url: d.database_url || '',
-            db_provider: d.db_provider || 'supabase',
+            db_host: d.db_host || '',
+            db_port: d.db_port || (d.db_type === 'mysql' ? '3306' : d.db_type === 'mongodb' ? '27017' : '5432'),
+            db_user: d.db_user || '',
+            db_name: d.db_name || '',
             storage_driver: d.storage_driver || 'local',
             has_storage_keys: Boolean(d.has_storage_keys)
           });
@@ -155,13 +207,18 @@ export const SetupWizard = ({ onComplete }) => {
 
     try {
       const res = await testSetupConnection({
-        database_url: dbConfig.database_url
+        db_type: dbConfig.db_type,
+        database_url: dbConfig.database_url,
+        host: dbConfig.db_host,
+        port: dbConfig.db_port,
+        user: dbConfig.db_user,
+        database: dbConfig.db_name
       });
 
       if (res && res.success) {
         setDbTestResult({
           success: true,
-          message: res.message || 'Koneksi ke database PostgreSQL / Supabase berhasil!'
+          message: res.message || `Koneksi ke database ${dbConfig.db_type.toUpperCase()} berhasil!`
         });
       } else {
         setDbTestResult({
@@ -181,7 +238,7 @@ export const SetupWizard = ({ onComplete }) => {
 
   // Step 1 Validation
   const handleProceedStep1 = () => {
-    if (!dbConfig.database_url.trim()) {
+    if (dbConfig.db_type !== 'sqlite' && dbConfig.db_type !== 'static' && !dbConfig.database_url.trim()) {
       setErrorMessage('URL koneksi basis data (DATABASE_URL) tidak boleh kosong.');
       return;
     }
@@ -246,7 +303,7 @@ export const SetupWizard = ({ onComplete }) => {
       const res = await initializeSetup(payload);
 
       if (res && res.success) {
-        const targetUrl = res.data?.redirectUrl || `/${cleanSlug}`;
+        const targetUrl = res.data?.redirectUrl || '/';
         setFinalRedirectUrl(targetUrl);
         setSuccessAnimation(true);
 
@@ -366,7 +423,7 @@ export const SetupWizard = ({ onComplete }) => {
                 <div className="flex items-center justify-between gap-2 flex-wrap">
                   <h2 className="text-lg sm:text-xl font-black text-slate-900 flex items-center gap-2">
                     <Database className="w-5 h-5 text-blue-600" />
-                    <span>Langkah 1: Deteksi Koneksi Database & Storage</span>
+                    <span>Langkah 1: Pilih Driver & Konfigurasi Basis Data</span>
                   </h2>
                   {detectedFromEnv.databaseUrl && (
                     <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-bold">
@@ -376,68 +433,138 @@ export const SetupWizard = ({ onComplete }) => {
                   )}
                 </div>
                 <p className="text-xs sm:text-sm text-slate-500 mt-1">
-                  Sistem otomatis mendeteksi URL koneksi database PostgreSQL / Supabase dari file lingkungan runtime Anda.
+                  Pilih driver basis data yang Anda gunakan dan sistem otomatis mengisi konfigurasi dari file lingkungan (.env).
                 </p>
               </div>
 
-              {/* Provider Badge */}
-              <div className="flex items-center gap-3 p-3.5 rounded-2xl bg-slate-50 border border-slate-200/70">
-                <div className="w-9 h-9 rounded-xl bg-blue-600/10 text-blue-600 flex items-center justify-center font-black text-xs shrink-0">
-                  <Server className="w-5 h-5" />
+              {/* Driver Database Selector Cards */}
+              <div className="space-y-2.5">
+                <label className="text-xs font-bold uppercase tracking-wider text-slate-700 block">
+                  Pilih Jenis Database Engine:
+                </label>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                  {dbDrivers.map((driver) => {
+                    const isSelected = dbConfig.db_type === driver.id;
+                    return (
+                      <button
+                        key={driver.id}
+                        type="button"
+                        onClick={() => {
+                          setDbConfig(prev => ({
+                            ...prev,
+                            db_type: driver.id,
+                            db_port: driver.defaultPort || prev.db_port
+                          }));
+                          setDbTestResult(null);
+                        }}
+                        className={`p-3.5 rounded-2xl border text-left transition-all cursor-pointer flex flex-col justify-between h-full ${
+                          isSelected
+                            ? 'bg-blue-50/70 border-blue-600 ring-2 ring-blue-600/20 shadow-sm'
+                            : 'bg-white border-slate-200 hover:border-slate-300 hover:bg-slate-50/60'
+                        }`}
+                      >
+                        <div>
+                          <div className="flex items-center justify-between gap-2 mb-1.5">
+                            <span className="font-extrabold text-xs sm:text-sm text-slate-900">
+                              {driver.name}
+                            </span>
+                            {isSelected && (
+                              <span className="w-4 h-4 rounded-full bg-blue-600 text-white flex items-center justify-center shrink-0">
+                                <Check className="w-2.5 h-2.5" />
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-[11px] text-slate-500 leading-snug">
+                            {driver.desc}
+                          </p>
+                        </div>
+                        <span className={`inline-block mt-2 px-2 py-0.5 rounded text-[10px] font-bold w-fit ${
+                          isSelected ? 'bg-blue-200 text-blue-800' : 'bg-slate-100 text-slate-600'
+                        }`}>
+                          {driver.badge}
+                        </span>
+                      </button>
+                    );
+                  })}
                 </div>
-                <div className="min-w-0 flex-1">
-                  <span className="text-[10px] uppercase font-bold text-slate-400 block tracking-wider">Tipe Database Terkonfigurasi</span>
-                  <span className="text-xs sm:text-sm font-bold text-slate-800 truncate block">
-                    {dbConfig.database_url?.includes('supabase') ? 'Supabase PostgreSQL Cloud Pooler' : 'PostgreSQL Database Engine'}
+              </div>
+
+              {/* Discrete Fields or Full Connection String */}
+              {dbConfig.db_type !== 'sqlite' && dbConfig.db_type !== 'static' && (
+                <div className="space-y-4 pt-1">
+                  <div>
+                    <div className="flex items-center justify-between mb-1.5">
+                      <label className="text-xs font-bold uppercase tracking-wider text-slate-700 block">
+                        Connection String / URI:
+                      </label>
+                      <span className="text-[11px] text-slate-400 font-medium">Bisa diedit langsung</span>
+                    </div>
+                    <input
+                      type="text"
+                      value={dbConfig.database_url}
+                      onChange={(e) => {
+                        setDbConfig({ ...dbConfig, database_url: e.target.value });
+                        setDbTestResult(null);
+                      }}
+                      placeholder={dbDrivers.find(d => d.id === dbConfig.db_type)?.placeholder || 'URI database...'}
+                      className="w-full px-4 py-3 rounded-2xl border border-slate-300 text-slate-800 text-xs sm:text-sm font-mono focus:bg-white focus:ring-2 focus:ring-blue-600 focus:border-transparent transition-all shadow-xs"
+                      required
+                    />
+                  </div>
+
+                  {/* Discrete Host / Port / User indicators if available */}
+                  {(dbConfig.db_host || dbConfig.db_name) && (
+                    <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 text-xs grid grid-cols-2 sm:grid-cols-4 gap-2">
+                      <div>
+                        <span className="text-[10px] text-slate-400 uppercase font-bold block">Host</span>
+                        <span className="font-mono text-slate-700 truncate block">{dbConfig.db_host || 'localhost'}</span>
+                      </div>
+                      <div>
+                        <span className="text-[10px] text-slate-400 uppercase font-bold block">Port</span>
+                        <span className="font-mono text-slate-700 truncate block">{dbConfig.db_port || '-'}</span>
+                      </div>
+                      <div>
+                        <span className="text-[10px] text-slate-400 uppercase font-bold block">User</span>
+                        <span className="font-mono text-slate-700 truncate block">{dbConfig.db_user || '-'}</span>
+                      </div>
+                      <div>
+                        <span className="text-[10px] text-slate-400 uppercase font-bold block">Database</span>
+                        <span className="font-mono text-slate-700 truncate block">{dbConfig.db_name || '-'}</span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Standalone Zero-Config Notice */}
+              {(dbConfig.db_type === 'sqlite' || dbConfig.db_type === 'static') && (
+                <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-900 text-xs space-y-1">
+                  <span className="font-bold block flex items-center gap-1.5">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                    Mode Zero-Config Siap Tanpa Database Eksternal
                   </span>
+                  <p className="text-emerald-700 leading-relaxed text-[11px]">
+                    Sistem akan menggunakan memori dan file lokal secara otomatis. Anda tidak perlu mengkonfigurasi server database tambahan.
+                  </p>
                 </div>
-                <span className="px-2.5 py-1 rounded-full bg-blue-100 text-blue-700 text-[11px] font-bold shrink-0">
-                  SSL Active
-                </span>
-              </div>
-
-              {/* Input DATABASE_URL */}
-              <div>
-                <div className="flex items-center justify-between mb-1.5">
-                  <label className="text-xs font-bold uppercase tracking-wider text-slate-700 block">
-                    DATABASE_URL Connection String:
-                  </label>
-                  <span className="text-[11px] text-slate-400 font-medium">Bisa diedit manual jika perlu</span>
-                </div>
-                <div className="relative">
-                  <input
-                    type="text"
-                    value={dbConfig.database_url}
-                    onChange={(e) => {
-                      setDbConfig({ ...dbConfig, database_url: e.target.value });
-                      setDbTestResult(null);
-                    }}
-                    placeholder="postgresql://postgres:password@aws-0-ap-northeast-1.pooler.supabase.com:6543/postgres"
-                    className="w-full px-4 py-3 rounded-2xl border border-slate-300 text-slate-800 text-xs sm:text-sm font-mono focus:bg-white focus:ring-2 focus:ring-blue-600 focus:border-transparent transition-all shadow-xs"
-                    required
-                  />
-                </div>
-                <p className="text-[11px] text-slate-400 mt-1.5 leading-relaxed">
-                  Mendukung connection string standar PostgreSQL dari Supabase, Neon, AWS RDS, atau server PostgreSQL lokal.
-                </p>
-              </div>
+              )}
 
               {/* Tombol Interaktif: Uji Koneksi Basis Data */}
               <div className="bg-slate-50 p-4 sm:p-5 rounded-2xl border border-slate-200 space-y-3">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                   <div>
                     <span className="font-extrabold text-xs sm:text-sm text-slate-900 block">
-                      Verifikasi Keterjangkauan Database:
+                      Verifikasi Keterjangkauan Driver:
                     </span>
                     <span className="text-[11px] text-slate-500">
-                      Uji sambungan ke host sebelum melakukan pembuatan tabel dan inisialisasi.
+                      Uji koneksi ke host database sebelum pembuatan tabel dan inisialisasi.
                     </span>
                   </div>
 
                   <button
                     type="button"
                     onClick={handleTestDatabase}
-                    disabled={isTestingDb || !dbConfig.database_url.trim()}
+                    disabled={isTestingDb || (dbConfig.db_type !== 'sqlite' && dbConfig.db_type !== 'static' && !dbConfig.database_url.trim())}
                     className="h-11 px-5 rounded-xl bg-white border border-slate-300 hover:border-blue-500 hover:bg-blue-50/50 text-slate-700 font-bold text-xs flex items-center justify-center gap-2 shadow-xs transition-all cursor-pointer disabled:opacity-50 shrink-0"
                   >
                     {isTestingDb ? (

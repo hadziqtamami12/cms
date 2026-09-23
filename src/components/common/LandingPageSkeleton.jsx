@@ -42,7 +42,7 @@ export const LandingPageSkeleton = () => {
       </header>
 
       {/* 2. HERO SLIDESHOW SKELETON */}
-      <section className="relative w-full min-h-[100dvh] flex items-center justify-center overflow-hidden bg-slate-950 pt-24 sm:pt-32 pb-16 sm:pb-20">
+      <section className="relative w-full min-h-[100dvh] flex items-center justify-center overflow-hidden bg-slate-950 pt-24 sm:pt-32 pb-16 sm:pb-20 shimmer-wrapper shimmer-dark">
         {/* Background Ambient Glow */}
         <div className="absolute inset-0 w-full h-full bg-gradient-to-br from-slate-950 via-slate-900 to-indigo-950/40" />
         <div className="absolute -top-32 -left-32 w-96 h-96 bg-blue-600/10 rounded-full blur-3xl pointer-events-none" />
@@ -87,7 +87,7 @@ export const LandingPageSkeleton = () => {
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 -mt-8 relative z-20 w-full">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-6">
           {[1, 2, 3, 4].map((i) => (
-            <div key={i} className="bg-white rounded-2xl p-4 sm:p-5 border border-slate-200/80 shadow-subtle flex items-center gap-3">
+            <div key={i} className="bg-white rounded-2xl p-4 sm:p-5 border border-slate-200/80 shadow-subtle flex items-center gap-3 shimmer-wrapper">
               <div className="w-10 h-10 rounded-xl bg-slate-100 animate-pulse shrink-0" />
               <div className="space-y-1.5 flex-1 min-w-0">
                 <div className="h-4 w-3/4 bg-slate-200 rounded animate-pulse" />
@@ -117,7 +117,7 @@ export const LandingPageSkeleton = () => {
         {/* Product Cards Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8">
           {[1, 2, 3].map((card) => (
-            <div key={card} className="bg-white rounded-3xl border border-slate-200/80 overflow-hidden shadow-subtle p-4 space-y-4">
+            <div key={card} className="bg-white rounded-3xl border border-slate-200/80 overflow-hidden shadow-subtle p-4 space-y-4 shimmer-wrapper">
               {/* Product Image Placeholder */}
               <div className="w-full h-48 sm:h-52 bg-slate-200 rounded-2xl relative overflow-hidden animate-pulse">
                 <div className="absolute top-3 left-3 h-6 w-20 bg-white/80 rounded-full" />

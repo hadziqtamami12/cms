@@ -11,6 +11,9 @@ import adminRoutes from './routes/admin.js';
 import setupRoutes from './routes/setup.js';
 import installerRoutes from './routes/installer.js';
 import keygenRoutes from './routes/keygen.js';
+import scraperRoutes from './routes/scraper.js';
+import articleRoutes from './routes/articles.js';
+import travelRoutes from './routes/travel.js';
 import { licenseGuard } from './middleware/licenseGuard.js';
 import { dynamicSlugRouter } from './middleware/dynamicSlugRouter.js';
 import { initDbConnection } from './config/db.js';
@@ -41,6 +44,8 @@ app.use(dynamicSlugRouter);
 app.use('/api/setup', setupRoutes);
 app.use('/api/installer', installerRoutes);
 app.use('/api/keygen', keygenRoutes);
+app.use('/api/articles', articleRoutes);
+app.use('/api/travel-trips', travelRoutes);
 
 // License Guard Middleware (Interception of locked or uninstalled requests)
 app.use('/api', licenseGuard);
@@ -48,6 +53,9 @@ app.use('/api', licenseGuard);
 // Core API & Admin Routes
 app.use('/api', apiRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/admin/scraper', scraperRoutes);
+app.use('/api/admin/articles', articleRoutes);
+app.use('/api/admin/travel-trips', travelRoutes);
 
 // Mock Media Upload for zero-config testing
 app.post('/api/media/mock-upload', (req, res) => {

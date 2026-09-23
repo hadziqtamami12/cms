@@ -42,8 +42,8 @@ export const LandingPage = ({ config }) => {
     <div className="min-h-screen flex flex-col bg-surface-warm text-slate-800">
       {/* Dynamic SEO, Meta Tags, JSON-LD Schema & Marketing Scripts */}
       <SeoHead
-        title={seo.title || `${brandName} - ${tagline}`}
-        description={seo.metaDescription}
+        title={seo.title || config.title || `${brandName} - ${tagline}`}
+        description={seo.metaDescription || config.metaDescription}
         keywords={seo.targetKeywords}
         canonicalUrl={typeof window !== 'undefined' ? window.location.href : ''}
         ogImage={heroSlides[0]?.image}

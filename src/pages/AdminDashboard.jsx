@@ -13,6 +13,7 @@ import { InteractiveBottomNavSelector } from '../components/themes/InteractiveBo
 import { ProductCatalogManager } from '../components/products/ProductCatalogManager';
 import { SlideshowManager } from '../components/slideshow/SlideshowManager';
 import { WhatsAppStudio } from '../components/whatsapp/WhatsAppStudio';
+import { SiteIdentityManager } from '../components/settings/SiteIdentityManager';
 import { getPresetForIndustry } from '../lib/industryCatalogs';
 import {
   switchTheme,
@@ -341,6 +342,7 @@ export const AdminDashboard = ({
 
   const navMenuItems = [
     { id: 'dashboard', label: 'Dashboard Ringkasan', icon: LayoutDashboard, badge: 'Utama' },
+    { id: 'branding', label: 'Identitas & Judul Situs', icon: Globe, badge: 'Situs' },
     { id: 'themes', label: 'Tema & Tampilan', icon: Palette, badge: '50' },
     { id: 'slideshow', label: 'Slideshow Hero (CRUD)', icon: Sliders, badge: (config?.heroSlides || []).length || 'Slide' },
     { id: 'products', label: 'Katalog Produk (CRUD)', icon: Package, badge: (config?.items || []).length || 'Unit' },
@@ -699,6 +701,7 @@ export const AdminDashboard = ({
               </div>
               <h1 className="text-lg font-extrabold text-slate-900 tracking-tight truncate">
                 {activeTab === 'dashboard' && 'Dashboard Ringkasan & Status Sistem'}
+                {activeTab === 'branding' && 'Identitas Aplikasi & Pengaturan Judul Situs'}
                 {activeTab === 'themes' && 'Engine 50 Tema Multi-Industri'}
                 {activeTab === 'slideshow' && 'Manajemen Slideshow & Hero Banner (CRUD)'}
                 {activeTab === 'products' && 'Manajemen Produk & Unit (CRUD)'}
@@ -906,6 +909,20 @@ export const AdminDashboard = ({
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5">
                   <button
                     type="button"
+                    onClick={() => setActiveTab('branding')}
+                    className="p-4 rounded-2xl border border-slate-200 hover:border-blue-400 hover:bg-blue-50/40 text-left transition-all group flex items-start gap-3.5 cursor-pointer"
+                  >
+                    <span className="p-2.5 rounded-xl bg-blue-100 text-blue-700 group-hover:scale-105 transition-transform shrink-0">
+                      <Globe className="w-5 h-5" />
+                    </span>
+                    <div>
+                      <div className="text-sm font-bold text-slate-900 group-hover:text-blue-600">Identitas & Judul Situs</div>
+                      <div className="text-xs text-slate-500 mt-0.5">Ubah nama app, judul SEO, tagline, hotline, dan kontak.</div>
+                    </div>
+                  </button>
+
+                  <button
+                    type="button"
                     onClick={() => setActiveTab('themes')}
                     className="p-4 rounded-2xl border border-slate-200 hover:border-blue-400 hover:bg-blue-50/40 text-left transition-all group flex items-start gap-3.5 cursor-pointer"
                   >
@@ -990,6 +1007,18 @@ export const AdminDashboard = ({
                 </div>
               </div>
             </div>
+          )}
+
+          {/* ========================================================
+           * TAB: IDENTITAS SITUS, APP NAME, TITLE & KONTAK
+           * ======================================================== */}
+          {activeTab === 'branding' && (
+            <SiteIdentityManager
+              config={config}
+              adminToken={adminToken}
+              onConfigUpdated={onConfigUpdated}
+              showToast={showToast}
+            />
           )}
 
           {/* ========================================================

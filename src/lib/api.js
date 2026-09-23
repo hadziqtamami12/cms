@@ -311,6 +311,26 @@ export const syncSeoService = async (serviceId, token) => {
   });
 };
 
+export const fetchSetupEnvStatus = async () => {
+  return await safeFetchJson(`${API_BASE}/setup/env-status`);
+};
+
+export const testSetupConnection = async (payload) => {
+  return await safeFetchJson(`${API_BASE}/setup/test-connection`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload)
+  });
+};
+
+export const initializeSetup = async (payload) => {
+  return await safeFetchJson(`${API_BASE}/setup/initialize`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload)
+  });
+};
+
 export const testInstallerDb = async (params) => {
   return await safeFetchJson(`${API_BASE}/installer/test-db`, {
     method: 'POST',

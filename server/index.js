@@ -8,6 +8,7 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import apiRoutes from './routes/api.js';
 import adminRoutes from './routes/admin.js';
+import setupRoutes from './routes/setup.js';
 import installerRoutes from './routes/installer.js';
 import keygenRoutes from './routes/keygen.js';
 import { licenseGuard } from './middleware/licenseGuard.js';
@@ -37,6 +38,7 @@ app.use(express.urlencoded({ extended: true, limit: '15mb' }));
 app.use(dynamicSlugRouter);
 
 // Public & Installer API Routes
+app.use('/api/setup', setupRoutes);
 app.use('/api/installer', installerRoutes);
 app.use('/api/keygen', keygenRoutes);
 

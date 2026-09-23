@@ -182,6 +182,7 @@ export const AppProvider = ({ children }) => {
         loading,
         adminToken,
         adminSlug,
+        setAdminSlug,
         licenseStatus,
         setLicenseStatus,
         updateConfigLocally,

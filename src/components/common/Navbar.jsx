@@ -23,7 +23,7 @@ export const Navbar = ({ brandName, phone, whatsapp, tagline }) => {
       className={`fixed top-0 left-0 right-0 z-40 transition-all duration-300 ease-in-out ${
         isScrolled
           ? 'bg-white/95 backdrop-blur-md shadow-sm border-b border-slate-200 py-3.5'
-          : 'bg-white/90 backdrop-blur-md shadow-xs border-b border-slate-200/70 py-4'
+          : 'bg-transparent py-5 border-b border-transparent'
       }`}
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -34,10 +34,14 @@ export const Navbar = ({ brandName, phone, whatsapp, tagline }) => {
               <ShieldCheck className="w-6 h-6 text-white" />
             </div>
             <div>
-              <span className="font-extrabold text-lg sm:text-xl tracking-tight text-slate-900">
+              <span className={`font-extrabold text-lg sm:text-xl tracking-tight transition-colors ${
+                isScrolled ? 'text-slate-900' : 'text-white drop-shadow-md'
+              }`}>
                 {brandName || 'Royal Fleet'}
               </span>
-              <span className="hidden sm:block text-xs text-slate-500 font-medium">
+              <span className={`hidden sm:block text-xs font-medium transition-colors ${
+                isScrolled ? 'text-slate-500' : 'text-slate-200/90 drop-shadow-sm'
+              }`}>
                 {tagline || 'Enterprise Service Partner'}
               </span>
             </div>
@@ -47,31 +51,41 @@ export const Navbar = ({ brandName, phone, whatsapp, tagline }) => {
           <nav className="hidden md:flex items-center gap-8">
             <a
               href="#fleet"
-              className="text-sm font-semibold text-slate-700 hover:text-blue-600 transition-colors"
+              className={`text-sm font-semibold transition-colors ${
+                isScrolled ? 'text-slate-700 hover:text-blue-600' : 'text-white/90 hover:text-white drop-shadow-sm'
+              }`}
             >
               Katalog Pilihan
             </a>
             <a
               href="#features"
-              className="text-sm font-semibold text-slate-700 hover:text-blue-600 transition-colors"
+              className={`text-sm font-semibold transition-colors ${
+                isScrolled ? 'text-slate-700 hover:text-blue-600' : 'text-white/90 hover:text-white drop-shadow-sm'
+              }`}
             >
               Keunggulan
             </a>
             <a
               href="#pricing"
-              className="text-sm font-semibold text-slate-700 hover:text-blue-600 transition-colors"
+              className={`text-sm font-semibold transition-colors ${
+                isScrolled ? 'text-slate-700 hover:text-blue-600' : 'text-white/90 hover:text-white drop-shadow-sm'
+              }`}
             >
               Paket Tarif
             </a>
             <a
               href="#testimonials"
-              className="text-sm font-semibold text-slate-700 hover:text-blue-600 transition-colors"
+              className={`text-sm font-semibold transition-colors ${
+                isScrolled ? 'text-slate-700 hover:text-blue-600' : 'text-white/90 hover:text-white drop-shadow-sm'
+              }`}
             >
               Testimoni
             </a>
             <a
               href="#faq"
-              className="text-sm font-semibold text-slate-700 hover:text-blue-600 transition-colors"
+              className={`text-sm font-semibold transition-colors ${
+                isScrolled ? 'text-slate-700 hover:text-blue-600' : 'text-white/90 hover:text-white drop-shadow-sm'
+              }`}
             >
               FAQ
             </a>
@@ -82,9 +96,13 @@ export const Navbar = ({ brandName, phone, whatsapp, tagline }) => {
             {phone && (
               <a
                 href={`tel:${phone.replace(/[^0-9+]/g, '')}`}
-                className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold text-slate-700 hover:bg-slate-100/80 transition-all border border-slate-200"
+                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all border ${
+                  isScrolled
+                    ? 'text-slate-700 hover:bg-slate-100/80 border-slate-200'
+                    : 'text-white hover:bg-white/20 border-white/30 bg-white/10 backdrop-blur-sm'
+                }`}
               >
-                <Phone className="w-4 h-4 text-slate-500" />
+                <Phone className={`w-4 h-4 ${isScrolled ? 'text-slate-500' : 'text-white'}`} />
                 <span>{phone}</span>
               </a>
             )}
@@ -116,7 +134,11 @@ export const Navbar = ({ brandName, phone, whatsapp, tagline }) => {
             )}
             <button
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="p-2 rounded-lg border border-slate-200 bg-white/90 text-slate-700 hover:bg-slate-50 focus:outline-none"
+              className={`p-2 rounded-lg border transition-all focus:outline-none ${
+                isScrolled
+                  ? 'border-slate-200 bg-white/90 text-slate-700 hover:bg-slate-50'
+                  : 'border-white/30 bg-white/10 backdrop-blur-sm text-white hover:bg-white/20'
+              }`}
               aria-label="Toggle menu"
             >
               {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}

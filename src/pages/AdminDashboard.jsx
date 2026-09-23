@@ -557,34 +557,42 @@ export const AdminDashboard = ({
           desktopSidebarMode === 'rail' ? 'w-20' : 'w-64'
         }`}
       >
-        {/* Desktop Brand Header */}
+        {/* Desktop Brand Header with Single Minimize/Maximize Toggle */}
         <div className="p-4 border-b border-slate-100 flex items-center justify-between">
           {desktopSidebarMode === 'expanded' ? (
-            <div className="flex items-center gap-3 min-w-0">
-              <div className="w-9 h-9 rounded-2xl bg-blue-600 text-white flex items-center justify-center font-black shadow-sm shrink-0">
-                M
+            <>
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="w-9 h-9 rounded-2xl bg-blue-600 text-white flex items-center justify-center font-black shadow-sm shrink-0">
+                  M
+                </div>
+                <div className="truncate">
+                  <span className="font-extrabold text-sm text-slate-900 block leading-tight truncate">MultiCMS</span>
+                  <span className="text-[10px] text-blue-600 font-mono truncate block">/{adminSlug}</span>
+                </div>
               </div>
-              <div className="truncate">
-                <span className="font-extrabold text-sm text-slate-900 block leading-tight truncate">MultiCMS</span>
-                <span className="text-[10px] text-blue-600 font-mono truncate block">/{adminSlug}</span>
-              </div>
-            </div>
+              <button
+                type="button"
+                onClick={() => setDesktopSidebarMode('rail')}
+                className="p-1.5 rounded-xl border border-slate-200 text-slate-400 hover:text-slate-700 hover:bg-slate-50 transition-colors cursor-pointer"
+                title="Minimize Sidebar (Perkecil ke Rail)"
+                aria-label="Minimize Sidebar"
+              >
+                <PanelLeftClose className="w-4 h-4" />
+              </button>
+            </>
           ) : (
             <div className="w-full flex justify-center">
-              <div className="w-10 h-10 rounded-2xl bg-blue-600 text-white flex items-center justify-center font-black shadow-sm">
-                M
-              </div>
+              <button
+                type="button"
+                onClick={() => setDesktopSidebarMode('expanded')}
+                className="w-10 h-10 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white flex items-center justify-center font-black shadow-sm transition-all group relative cursor-pointer"
+                title="Maximize Sidebar (Perluas)"
+                aria-label="Maximize Sidebar"
+              >
+                <span className="group-hover:hidden font-black">M</span>
+                <PanelLeftOpen className="w-5 h-5 hidden group-hover:block" />
+              </button>
             </div>
-          )}
-
-          {desktopSidebarMode === 'expanded' && (
-            <button
-              onClick={() => setDesktopSidebarMode('rail')}
-              className="p-1.5 rounded-xl border border-slate-200 text-slate-400 hover:text-slate-700 hover:bg-slate-50 transition-colors"
-              title="Perkecil ke Mini Icon Rail"
-            >
-              <PanelLeftClose className="w-4 h-4" />
-            </button>
           )}
         </div>
 
@@ -683,18 +691,11 @@ export const AdminDashboard = ({
             </>
           ) : (
             <div className="space-y-2 flex flex-col items-center">
-              <button
-                onClick={() => setDesktopSidebarMode('expanded')}
-                className="p-2 rounded-xl border border-slate-200 text-slate-400 hover:text-blue-600 hover:bg-slate-50"
-                title="Perluas Sidebar"
-              >
-                <PanelLeftOpen className="w-4 h-4" />
-              </button>
               <a
                 href="/"
                 target="_blank"
                 rel="noreferrer"
-                className="w-10 h-10 rounded-xl border border-slate-200 bg-white flex items-center justify-center text-blue-600 hover:bg-slate-50"
+                className="w-10 h-10 rounded-xl border border-slate-200 bg-white flex items-center justify-center text-blue-600 hover:bg-slate-50 transition-colors"
                 title="Lihat Website"
               >
                 <Globe className="w-4 h-4" />
@@ -793,138 +794,126 @@ export const AdminDashboard = ({
                 </div>
               </div>
 
-              {/* 4 Cards: Tema Aktif, Status Lisensi, Audit PageSpeed (GSC conditional), Koleksi Tema */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
-                {/* Card 1: Tema Aktif */}
-                <div className="bg-white rounded-3xl border border-slate-200 p-5 sm:p-6 shadow-xs space-y-3 flex flex-col justify-between hover:border-blue-300 transition-colors">
-                  <div className="space-y-1.5">
-                    <div className="flex items-center justify-between">
-                      <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 block">Tema Aktif</span>
-                      <span className="p-2 rounded-xl bg-blue-50 text-blue-600">
-                        <Palette className="w-4 h-4" />
-                      </span>
-                    </div>
-                    <div className="text-lg font-black text-slate-900 capitalize truncate" title={currentIndustry}>
-                      {currentIndustry}
-                    </div>
-                    <div className="text-xs text-blue-600 font-mono font-bold truncate" title={currentThemeId}>
-                      ID: {currentThemeId}
-                    </div>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setActiveTab('themes')}
-                    className="pt-3 border-t border-slate-100 flex items-center justify-between text-xs font-bold text-blue-600 hover:text-blue-700 cursor-pointer"
-                  >
-                    <span>Ganti Tema</span>
-                    <ArrowRight className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-
-                {/* Card 2: Status Lisensi */}
-                <div className="bg-white rounded-3xl border border-slate-200 p-5 sm:p-6 shadow-xs space-y-3 flex flex-col justify-between hover:border-emerald-300 transition-colors">
-                  <div className="space-y-1.5">
-                    <div className="flex items-center justify-between">
-                      <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 block">Status Lisensi</span>
-                      <span className="p-2 rounded-xl bg-emerald-50 text-emerald-600">
-                        <ShieldCheck className="w-4 h-4" />
-                      </span>
-                    </div>
-                    <div className="text-lg font-black text-emerald-600 flex items-center gap-1.5 truncate">
-                      <CheckCircle2 className="w-4 h-4 shrink-0" />
-                      <span>Aktif Terverifikasi</span>
-                    </div>
-                    <div className="flex items-center gap-1.5 text-xs text-slate-500 font-mono truncate">
-                      <span>MULTICMS-2026-PRO</span>
+              {/* Dashboard Cards: Tema Aktif, Status Lisensi, Audit PageSpeed (Hanya Muncul Jika GSC Terhubung), Koleksi Tema */}
+              {(() => {
+                const isGscConnected = Boolean(config?.seo?.gscConnected || config?.seo?.gscVerificationTag);
+                return (
+                  <div className={`grid grid-cols-1 sm:grid-cols-2 ${isGscConnected ? 'lg:grid-cols-4' : 'lg:grid-cols-3'} gap-4 sm:gap-5`}>
+                    {/* Card 1: Tema Aktif */}
+                    <div className="bg-white rounded-3xl border border-slate-200 p-5 sm:p-6 shadow-xs space-y-3 flex flex-col justify-between hover:border-blue-300 transition-colors">
+                      <div className="space-y-1.5">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 block">Tema Aktif</span>
+                          <span className="p-2 rounded-xl bg-blue-50 text-blue-600">
+                            <Palette className="w-4 h-4" />
+                          </span>
+                        </div>
+                        <div className="text-lg font-black text-slate-900 capitalize truncate" title={currentIndustry}>
+                          {currentIndustry}
+                        </div>
+                        <div className="text-xs text-blue-600 font-mono font-bold truncate" title={currentThemeId}>
+                          ID: {currentThemeId}
+                        </div>
+                      </div>
                       <button
                         type="button"
-                        onClick={() => copyToClipboard('MULTICMS-2026-PRO', 'Token Lisensi')}
-                        className="p-1 rounded-md text-slate-400 hover:text-blue-600 hover:bg-slate-100 transition-colors shrink-0"
-                        title="Salin Token Lisensi"
+                        onClick={() => setActiveTab('themes')}
+                        className="pt-3 border-t border-slate-100 flex items-center justify-between text-xs font-bold text-blue-600 hover:text-blue-700 cursor-pointer"
                       >
-                        <Copy className="w-3.5 h-3.5" />
+                        <span>Ganti Tema</span>
+                        <ArrowRight className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+
+                    {/* Card 2: Status Lisensi */}
+                    <div className="bg-white rounded-3xl border border-slate-200 p-5 sm:p-6 shadow-xs space-y-3 flex flex-col justify-between hover:border-emerald-300 transition-colors">
+                      <div className="space-y-1.5">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 block">Status Lisensi</span>
+                          <span className="p-2 rounded-xl bg-emerald-50 text-emerald-600">
+                            <ShieldCheck className="w-4 h-4" />
+                          </span>
+                        </div>
+                        <div className="text-lg font-black text-emerald-600 flex items-center gap-1.5 truncate">
+                          <CheckCircle2 className="w-4 h-4 shrink-0" />
+                          <span>Aktif Terverifikasi</span>
+                        </div>
+                        <div className="flex items-center gap-1.5 text-xs text-slate-500 font-mono truncate">
+                          <span>MULTICMS-2026-PRO</span>
+                          <button
+                            type="button"
+                            onClick={() => copyToClipboard('MULTICMS-2026-PRO', 'Token Lisensi')}
+                            className="p-1 rounded-md text-slate-400 hover:text-blue-600 hover:bg-slate-100 transition-colors shrink-0"
+                            title="Salin Token Lisensi"
+                          >
+                            <Copy className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </div>
+                      <div className="pt-3 border-t border-slate-100 text-[11px] text-slate-400 font-medium">
+                        Lisensi Enterprise Seumur Hidup
+                      </div>
+                    </div>
+
+                    {/* Card 3: Audit PageSpeed (HANYA Muncul jika Terhubung GSC) */}
+                    {isGscConnected && (
+                      <div className="bg-white rounded-3xl border border-slate-200 p-5 sm:p-6 shadow-xs space-y-3 flex flex-col justify-between hover:border-indigo-300 transition-colors">
+                        <div className="space-y-1.5">
+                          <div className="flex items-center justify-between">
+                            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 block">Audit PageSpeed</span>
+                            <span className="p-2 rounded-xl bg-emerald-50 text-emerald-600">
+                              <TrendingUp className="w-4 h-4" />
+                            </span>
+                          </div>
+                          <div className="text-lg font-black text-slate-900 flex items-center gap-1 truncate">
+                            <span className="text-2xl text-emerald-600 font-black">98</span>
+                            <span className="text-xs text-slate-400 font-normal">/100 Core Web Vitals</span>
+                          </div>
+                          <div className="text-xs text-emerald-600 font-semibold truncate flex items-center gap-1">
+                            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                            <span>GSC Terhubung • TTFB &lt; 50ms</span>
+                          </div>
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={() => setActiveTab('seo')}
+                          className="pt-3 border-t border-slate-100 flex items-center justify-between text-xs font-bold text-blue-600 hover:text-blue-700 cursor-pointer"
+                        >
+                          <span>Cek Analitik SEO</span>
+                          <ArrowRight className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    )}
+
+                    {/* Card 4: Koleksi Tema */}
+                    <div className="bg-white rounded-3xl border border-slate-200 p-5 sm:p-6 shadow-xs space-y-3 flex flex-col justify-between hover:border-purple-300 transition-colors">
+                      <div className="space-y-1.5">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 block">Koleksi Tema</span>
+                          <span className="p-2 rounded-xl bg-purple-50 text-purple-600">
+                            <Layers className="w-4 h-4" />
+                          </span>
+                        </div>
+                        <div className="text-lg font-black text-slate-900 truncate">
+                          50 Varian Desain
+                        </div>
+                        <div className="text-xs text-purple-600 font-medium truncate">
+                          5 Industri Siap Pakai
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setActiveTab('themes')}
+                        className="pt-3 border-t border-slate-100 flex items-center justify-between text-xs font-bold text-blue-600 hover:text-blue-700 cursor-pointer"
+                      >
+                        <span>Buka Koleksi Tema</span>
+                        <ArrowRight className="w-3.5 h-3.5" />
                       </button>
                     </div>
                   </div>
-                  <div className="pt-3 border-t border-slate-100 text-[11px] text-slate-400 font-medium">
-                    Lisensi Enterprise Seumur Hidup
-                  </div>
-                </div>
-
-                {/* Card 3: Audit PageSpeed (Hanya Muncul jika Terhubung GSC) */}
-                <div className="bg-white rounded-3xl border border-slate-200 p-5 sm:p-6 shadow-xs space-y-3 flex flex-col justify-between hover:border-indigo-300 transition-colors">
-                  <div className="space-y-1.5">
-                    <div className="flex items-center justify-between">
-                      <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 block">Audit PageSpeed</span>
-                      <span className={`p-2 rounded-xl ${
-                        Boolean(config?.seo?.gscConnected || config?.seo?.gscVerificationTag)
-                          ? 'bg-emerald-50 text-emerald-600'
-                          : 'bg-amber-50 text-amber-600'
-                      }`}>
-                        <TrendingUp className="w-4 h-4" />
-                      </span>
-                    </div>
-
-                    {Boolean(config?.seo?.gscConnected || config?.seo?.gscVerificationTag) ? (
-                      <>
-                        <div className="text-lg font-black text-slate-900 flex items-center gap-1 truncate">
-                          <span className="text-2xl text-emerald-600 font-black">98</span>
-                          <span className="text-xs text-slate-400 font-normal">/100 Core Web Vitals</span>
-                        </div>
-                        <div className="text-xs text-emerald-600 font-semibold truncate flex items-center gap-1">
-                          <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                          <span>GSC Terhubung • TTFB &lt; 50ms</span>
-                        </div>
-                      </>
-                    ) : (
-                      <>
-                        <div className="text-sm font-black text-amber-600 flex items-center gap-1.5">
-                          <AlertTriangle className="w-4 h-4 shrink-0" />
-                          <span>Belum Terhubung GSC</span>
-                        </div>
-                        <p className="text-[11px] text-slate-500 leading-tight">
-                          Audit PageSpeed baru muncul setelah Google Search Console terverifikasi.
-                        </p>
-                      </>
-                    )}
-                  </div>
-
-                  <button
-                    type="button"
-                    onClick={() => setActiveTab('seo')}
-                    className="pt-3 border-t border-slate-100 flex items-center justify-between text-xs font-bold text-blue-600 hover:text-blue-700 cursor-pointer"
-                  >
-                    <span>{Boolean(config?.seo?.gscConnected || config?.seo?.gscVerificationTag) ? 'Cek Analitik SEO' : 'Hubungkan GSC'}</span>
-                    <ArrowRight className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-
-                {/* Card 4: Koleksi Tema */}
-                <div className="bg-white rounded-3xl border border-slate-200 p-5 sm:p-6 shadow-xs space-y-3 flex flex-col justify-between hover:border-purple-300 transition-colors">
-                  <div className="space-y-1.5">
-                    <div className="flex items-center justify-between">
-                      <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 block">Koleksi Tema</span>
-                      <span className="p-2 rounded-xl bg-purple-50 text-purple-600">
-                        <Layers className="w-4 h-4" />
-                      </span>
-                    </div>
-                    <div className="text-lg font-black text-slate-900 truncate">
-                      50 Varian Desain
-                    </div>
-                    <div className="text-xs text-purple-600 font-medium truncate">
-                      5 Industri Siap Pakai
-                    </div>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setActiveTab('themes')}
-                    className="pt-3 border-t border-slate-100 flex items-center justify-between text-xs font-bold text-blue-600 hover:text-blue-700 cursor-pointer"
-                  >
-                    <span>Buka Koleksi Tema</span>
-                    <ArrowRight className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-              </div>
+                );
+              })()}
 
               {/* Quick Navigation Studio Grid */}
               <div className="bg-white rounded-3xl border border-slate-200 p-6 sm:p-7 shadow-xs space-y-4">

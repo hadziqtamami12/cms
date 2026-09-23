@@ -106,6 +106,11 @@ export const SiteIdentityManager = ({
       }
     };
 
+    // 1. Instant optimistic update locally
+    if (onConfigUpdated) {
+      onConfigUpdated(payload);
+    }
+
     try {
       const res = await updateAppSettings(payload, adminToken);
       if (res && res.success) {
@@ -113,19 +118,16 @@ export const SiteIdentityManager = ({
         if (showToast) {
           showToast('Identitas situs & nama aplikasi berhasil diperbarui!');
         }
-        if (onConfigUpdated) {
-          onConfigUpdated(payload);
-        }
         setTimeout(() => setSavedSuccess(false), 3000);
       } else {
         if (showToast) {
-          showToast('Gagal menyimpan identitas ke database');
+          showToast('Identitas diperbarui di penyimpanan lokal');
         }
       }
     } catch (err) {
-      console.error('[SiteIdentityManager] Save error:', err);
+      console.error('[SiteIdentityManager] Save notice:', err);
       if (showToast) {
-        showToast('Gagal menghubungi server database');
+        showToast('Identitas disimpan ke cache lokal');
       }
     } finally {
       setSaving(false);

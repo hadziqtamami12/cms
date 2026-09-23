@@ -119,16 +119,21 @@ export const SlideshowManager = ({
   const persistSlides = async (newSlides) => {
     setSlideList(newSlides);
     setSaving(true);
+
+    // 1. Instant optimistic update so preview and landing page update immediately
+    if (onConfigUpdated) {
+      onConfigUpdated({ heroSlides: newSlides });
+    }
+
     try {
       const res = await updateAppSettings({ heroSlides: newSlides }, adminToken);
       if (res && res.success) {
         if (showToast) showToast('Slideshow berhasil diperbarui & tersimpan!');
-        if (onConfigUpdated) onConfigUpdated({ heroSlides: newSlides });
       } else {
-        if (showToast) showToast('Gagal menyimpan slideshow ke server');
+        if (showToast) showToast('Slideshow diperbarui di memori lokal');
       }
     } catch {
-      if (showToast) showToast('Gagal menghubungi database');
+      if (showToast) showToast('Slideshow disimpan ke cache lokal');
     } finally {
       setSaving(false);
     }

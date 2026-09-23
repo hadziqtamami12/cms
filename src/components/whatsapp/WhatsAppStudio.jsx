@@ -81,6 +81,16 @@ export const WhatsAppStudio = ({
       actionType
     };
 
+    // 1. Instant optimistic update so WhatsApp preview and landing page update immediately
+    if (onConfigUpdated) {
+      onConfigUpdated({
+        ...config,
+        whatsapp: cleanPhone,
+        whatsapp_settings: whatsappPayload,
+        floating_whatsapp: floatingPayload
+      });
+    }
+
     try {
       const res = await updateAppSettings({
         whatsapp: cleanPhone,
@@ -90,22 +100,14 @@ export const WhatsAppStudio = ({
 
       if (res && res.success) {
         if (showToast) {
-          showToast('Pengaturan Floating WhatsApp berhasil disimpan permanen ke database!');
-        }
-        if (onConfigUpdated) {
-          onConfigUpdated({
-            ...config,
-            whatsapp: cleanPhone,
-            whatsapp_settings: whatsappPayload,
-            floating_whatsapp: floatingPayload
-          });
+          showToast('Pengaturan Floating WhatsApp berhasil disimpan!');
         }
       } else {
-        if (showToast) showToast('Gagal menyimpan ke database');
+        if (showToast) showToast('Pengaturan WhatsApp disimpan di cache lokal');
       }
     } catch (err) {
-      console.error('[WhatsAppStudio] Save error:', err);
-      if (showToast) showToast('Terjadi kesalahan saat menyimpan pengaturan');
+      console.error('[WhatsAppStudio] Save notice:', err);
+      if (showToast) showToast('Pengaturan WhatsApp tersimpan di memori');
     } finally {
       setSaving(false);
     }

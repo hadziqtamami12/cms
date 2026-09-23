@@ -25,7 +25,18 @@ const memoryStore = {
 export const getDbType = () => activeDbType;
 
 export const initDbConnection = async (customConfig = null) => {
-  const dbType = customConfig?.type || process.env.DB_TYPE || 'postgres';
+  let dbType = customConfig?.type || process.env.DB_TYPE || 'postgres';
+  if (dbType === 'dynamic') {
+    if (process.env.DATABASE_URL && (process.env.DATABASE_URL.startsWith('postgres') || process.env.DATABASE_URL.startsWith('postgresql'))) {
+      dbType = 'postgres';
+    } else if (process.env.MYSQL_URL) {
+      dbType = 'mysql';
+    } else if (process.env.MONGODB_URI) {
+      dbType = 'mongodb';
+    } else {
+      dbType = 'static';
+    }
+  }
   activeDbType = dbType;
 
   try {
@@ -40,15 +51,22 @@ export const initDbConnection = async (customConfig = null) => {
         activeDbType = 'memory';
         return { success: true, type: 'memory', message: 'No Postgres connection string provided, using memory fallback' };
       }
+      
+      const requiresSsl = process.env.DB_SSL === 'true' || 
+                          connectionString.includes('supabase.com') || 
+                          connectionString.includes('sslmode=require') || 
+                          process.env.DB_SSL !== 'false';
+
       pgPool = new pg.Pool({
         connectionString,
-        ssl: process.env.DB_SSL === 'false' ? false : { rejectUnauthorized: false },
+        ssl: requiresSsl ? { rejectUnauthorized: false } : false,
         max: 20,
         idleTimeoutMillis: 30000,
-        connectionTimeoutMillis: 5000,
+        connectionTimeoutMillis: 10000,
       });
       const client = await pgPool.connect();
       client.release();
+      activeDbType = 'postgres';
       return { success: true, type: 'postgres', message: 'Connected to PostgreSQL successfully' };
     }
 

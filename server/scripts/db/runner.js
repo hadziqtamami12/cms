@@ -234,6 +234,7 @@ const executeCli = async () => {
         console.error(`Unknown command "${command}". Available commands: migrate, rollback, fresh, status, seed, reset.`);
         process.exit(1);
     }
+    process.exit(0);
   } catch (err) {
     console.error(`❌ [DB Error] Command failed:`, err);
     process.exit(1);

@@ -15,6 +15,7 @@ export const App = () => {
     adminToken,
     adminSlug,
     licenseStatus,
+    setLicenseStatus,
     updateConfigLocally,
     handleAdminLogin,
     handleAdminLogout,
@@ -58,9 +59,12 @@ export const App = () => {
   if (currentPath === '/install' || currentPath === '/setup' || (licenseStatus && !licenseStatus.isInstalled)) {
     return (
       <SetupPage
-        onComplete={() => {
+        onComplete={(res) => {
+          // Immediately mark as installed in context so routing doesn't loop back to /install
+          setLicenseStatus(prev => ({ ...prev, isInstalled: true, isLocked: false, status: 'active' }));
+          const slug = res?.data?.adminSlug || adminSlug || 'admin';
           reloadConfig();
-          navigate(`/${adminSlug}`);
+          navigate(`/${slug}`);
         }}
       />
     );

@@ -6,48 +6,58 @@ const AppContext = createContext();
 
 export const AppProvider = ({ children }) => {
   const [config, setConfig] = useState(DEFAULT_CONFIG);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true); // Start true — wait for loadConfig before rendering routes
+
   const [adminToken, setAdminToken] = useState(() => localStorage.getItem('cms_admin_token') || '');
-  const [adminSlug, setAdminSlug] = useState('admin');
-  const [licenseStatus, setLicenseStatus] = useState({
-    isInstalled: false,
-    isLocked: false,
-    status: 'uninstalled',
-    daysRemaining: 30
+  const [adminSlug, setAdminSlug] = useState(() => {
+    try {
+      const raw = localStorage.getItem('cms_setup_state');
+      if (raw) {
+        const s = JSON.parse(raw);
+        return s.adminSlug || 'admin';
+      }
+    } catch {}
+    return 'admin';
+  });
+
+  // Read local setup state synchronously so first render is correct
+  const [licenseStatus, setLicenseStatus] = useState(() => {
+    try {
+      const raw = localStorage.getItem('cms_setup_state');
+      if (raw) {
+        const s = JSON.parse(raw);
+        if (s && s.isInstalled) {
+          const expiresAt = s.expiresAt ? new Date(s.expiresAt) : null;
+          const daysRemaining = expiresAt
+            ? Math.max(0, Math.floor((expiresAt - Date.now()) / (1000 * 60 * 60 * 24)))
+            : 30;
+          return {
+            isInstalled: true,
+            isLocked: daysRemaining <= 0,
+            status: daysRemaining > 0 ? 'active' : 'expired',
+            daysRemaining,
+            licenseKey: s.licenseKey,
+            licenseType: s.licenseType || 'trial'
+          };
+        }
+      }
+    } catch {}
+    return { isInstalled: false, isLocked: false, status: 'uninstalled', daysRemaining: 30 };
   });
 
   const loadConfig = async () => {
     try {
       setLoading(true);
 
-      // Check local Static DB setup state first (written by client-side installer)
-      let localSetup = null;
-      try {
-        const raw = localStorage.getItem('cms_setup_state');
-        if (raw) localSetup = JSON.parse(raw);
-      } catch {}
-
       const res = await fetchConfig();
       if (res && res.success && res.data) {
         setConfig(res.data);
         if (res.data.adminSlug) setAdminSlug(res.data.adminSlug);
-        if (res.data.license) setLicenseStatus(res.data.license);
-      } else if (localSetup && localSetup.isInstalled) {
-        // Backend not available, but installer ran locally — use stored state
-        if (localSetup.adminSlug) setAdminSlug(localSetup.adminSlug);
-        const expiresAt = localSetup.expiresAt ? new Date(localSetup.expiresAt) : null;
-        const daysRemaining = expiresAt
-          ? Math.max(0, Math.floor((expiresAt - Date.now()) / (1000 * 60 * 60 * 24)))
-          : 30;
-        setLicenseStatus({
-          isInstalled: true,
-          isLocked: daysRemaining <= 0,
-          status: daysRemaining > 0 ? 'active' : 'expired',
-          daysRemaining,
-          licenseKey: localSetup.licenseKey,
-          licenseType: localSetup.licenseType || 'trial'
-        });
+        if (res.data.license) {
+          setLicenseStatus(res.data.license);
+        }
       }
+      // If backend not available, the synchronous localStorage state already set correctly above
     } catch (err) {
       console.error('[AppContext] Failed to load configuration:', err);
     } finally {

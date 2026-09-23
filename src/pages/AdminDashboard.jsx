@@ -8,8 +8,7 @@ import {
 } from 'lucide-react';
 import OrderManager from '../components/orders/OrderManager';
 import InteractiveSeoDashboard from '../components/seo/InteractiveSeoDashboard';
-import { InteractiveThemeCard } from '../components/themes/InteractiveThemeCard';
-import { LiveThemeStudioModal } from '../components/themes/LiveThemeStudioModal';
+import { ThemeShowcase } from '../components/themes/ThemeShowcase';
 import {
   switchTheme,
   updateSeoMarketing,
@@ -33,18 +32,10 @@ export const AdminDashboard = ({
   const [loading, setLoading] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
 
-  // Live Theme Studio Modal State
-  const [previewTheme, setPreviewTheme] = useState(null);
-  const [previewIndustry, setPreviewIndustry] = useState(null);
-  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
-
   // Local state for theme switching
   const [currentIndustry, setCurrentIndustry] = useState(config?.industry || 'automotive');
   const [currentThemeId, setCurrentThemeId] = useState(config?.themeId || 'fleet-grid');
   const [bottomNavStyle, setBottomNavStyle] = useState(config?.bottomNavStyle || 'dock');
-
-  // Filter state for themes tab
-  const [selectedIndustryTab, setSelectedIndustryTab] = useState('all');
 
   // Local state for dynamic slug
   const [newSlug, setNewSlug] = useState(adminSlug || 'admin');
@@ -75,18 +66,6 @@ export const AdminDashboard = ({
     }
   };
 
-  // Open Live Modal Preview Studio
-  const handleOpenPreview = (theme, industry) => {
-    setPreviewTheme(theme);
-    setPreviewIndustry(industry);
-    setIsPreviewOpen(true);
-  };
-
-  const handleClosePreview = () => {
-    setIsPreviewOpen(false);
-    setPreviewTheme(null);
-    setPreviewIndustry(null);
-  };
 
   // Optimistic Instant Theme Switch Handler
   const handleSwitchTheme = async (ind, thId) => {
@@ -333,9 +312,6 @@ export const AdminDashboard = ({
     { id: 'settings', label: 'Keamanan & Portal', icon: Settings },
   ];
 
-  const filteredIndustries = selectedIndustryTab === 'all'
-    ? industryCatalog
-    : industryCatalog.filter(ind => ind.id === selectedIndustryTab);
 
   return (
     <div className="min-h-screen w-full max-w-full overflow-x-hidden bg-slate-50 text-slate-800 flex flex-col lg:flex-row antialiased min-w-0">
@@ -832,73 +808,16 @@ export const AdminDashboard = ({
                 </div>
               </div>
 
-              {/* Responsive Industry Filter (WRAPPED FLEX - ZERO HORIZONTAL SCROLL) */}
-              <div className="flex flex-wrap items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => setSelectedIndustryTab('all')}
-                  className={`px-3.5 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all flex items-center gap-1.5 ${
-                    selectedIndustryTab === 'all'
-                      ? 'bg-blue-600 text-white shadow-sm'
-                      : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'
-                  }`}
-                >
-                  <Layers className="w-4 h-4" />
-                  <span>Semua Industri (50 Tema)</span>
-                </button>
-                {industryCatalog.map((ind) => (
-                  <button
-                    key={ind.id}
-                    type="button"
-                    onClick={() => setSelectedIndustryTab(ind.id)}
-                    className={`px-3.5 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all flex items-center gap-1.5 ${
-                      selectedIndustryTab === ind.id
-                        ? 'bg-blue-600 text-white shadow-sm'
-                        : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'
-                    }`}
-                  >
-                    <span>{ind.icon}</span>
-                    <span>{ind.name}</span>
-                  </button>
-                ))}
-              </div>
-
-              {/* Industries Themes Accordions / Cards */}
-              <div className="space-y-6">
-                {filteredIndustries.map((ind) => (
-                  <div key={ind.id} className="bg-white rounded-3xl border border-slate-200 p-5 sm:p-6 shadow-xs space-y-4">
-                    <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-                      <div className="flex items-center gap-2.5 min-w-0">
-                        <span className="text-2xl shrink-0">{ind.icon}</span>
-                        <div className="truncate">
-                          <h3 className="font-extrabold text-slate-900 text-base truncate">{ind.name}</h3>
-                          <span className="text-xs text-slate-400">10 Varian Layout Siap Pakai</span>
-                        </div>
-                      </div>
-                      <span className="hidden sm:inline-block px-3 py-1 rounded-full bg-blue-50 text-blue-700 text-xs font-bold shrink-0">
-                        Multi-Layout
-                      </span>
-                    </div>
-
-                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3.5">
-                      {ind.themes.map((th) => {
-                        const isActive = currentIndustry === ind.id && currentThemeId === th.id;
-                        return (
-                          <InteractiveThemeCard
-                            key={th.id}
-                            theme={th}
-                            industry={ind}
-                            isActive={isActive}
-                            onPreview={handleOpenPreview}
-                            onActivate={handleSwitchTheme}
-                            isLoading={loading}
-                          />
-                        );
-                      })}
-                    </div>
-                  </div>
-                ))}
-              </div>
+              {/* Interactive Theme Showcase Studio (Ala WordPress Theme Directory) */}
+              <ThemeShowcase
+                industries={industryCatalog}
+                currentIndustry={currentIndustry}
+                currentThemeId={currentThemeId}
+                onSwitchTheme={handleSwitchTheme}
+                config={config}
+                loading={loading}
+                showToast={showToast}
+              />
             </div>
           )}
 

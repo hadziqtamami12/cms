@@ -244,6 +244,39 @@ export const verifySeoService = async (serviceType, idValue, token) => {
   });
 };
 
+export const connectSeoService = async (serviceId, tokenValue, propertyId, token) => {
+  return await safeFetchJson(`${API_BASE}/admin/seo-services/connect`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`
+    },
+    body: JSON.stringify({ serviceId, token: tokenValue, propertyId })
+  });
+};
+
+export const disconnectSeoService = async (serviceId, token) => {
+  return await safeFetchJson(`${API_BASE}/admin/seo-services/disconnect`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`
+    },
+    body: JSON.stringify({ serviceId })
+  });
+};
+
+export const syncSeoService = async (serviceId, token) => {
+  return await safeFetchJson(`${API_BASE}/admin/seo-services/sync`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`
+    },
+    body: JSON.stringify({ serviceId })
+  });
+};
+
 export const testInstallerDb = async (params) => {
   return await safeFetchJson(`${API_BASE}/installer/test-db`, {
     method: 'POST',
@@ -362,6 +395,9 @@ export default {
   revokeAdminSessions,
   fetchSeoAnalytics,
   verifySeoService,
+  connectSeoService,
+  disconnectSeoService,
+  syncSeoService,
   testInstallerDb,
   completeInstaller,
   programmerKeygenLogin,

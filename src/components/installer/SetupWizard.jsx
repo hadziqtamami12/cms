@@ -139,6 +139,12 @@ export const SetupWizard = ({ onComplete }) => {
         const res = await fetchSetupEnvStatus();
         if (res && res.success && res.data) {
           const d = res.data;
+          if (d.is_installed) {
+            if (onComplete) {
+              onComplete({ data: { isInstalled: true, adminSlug: d.default_admin_slug || 'admin' } });
+              return;
+            }
+          }
           setDbConfig({
             db_type: d.db_type || (d.database_url?.startsWith('mysql') ? 'mysql' : d.database_url?.startsWith('mongodb') ? 'mongodb' : 'postgres'),
             database_url: d.database_url || '',

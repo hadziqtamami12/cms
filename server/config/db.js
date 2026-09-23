@@ -7,6 +7,7 @@
 import pg from 'pg';
 import mysql from 'mysql2/promise';
 import { MongoClient } from 'mongodb';
+import bcrypt from 'bcryptjs';
 
 let pgPool = null;
 let mysqlPool = null;
@@ -15,7 +16,10 @@ let activeDbType = process.env.DB_TYPE || 'postgres'; // 'postgres' | 'mysql' | 
 
 // In-Memory store fallback for fresh zero-config installation state
 const memoryStore = {
-  configs: new Map(),
+  configs: new Map([
+    ['app_config', { is_installed: true, brandName: 'Royal Fleet Premiere' }],
+    ['theme_config', { is_installed: true, brandName: 'Royal Fleet Premiere' }]
+  ]),
   licenses: new Map(),
   themes: new Map(),
   leads: new Map(),
@@ -325,7 +329,21 @@ export const checkIsDatabaseInstalled = async () => {
       ).catch(() => [{ count: 0 }]);
 
       if (Number(checkAdmin[0]?.count) > 0) {
-        const rows = await query('SELECT id, username, admin_slug FROM admin_settings LIMIT 1').catch(() => []);
+        let rows = await query('SELECT id, username, admin_slug FROM admin_settings LIMIT 1').catch(() => []);
+        if (!rows || rows.length === 0) {
+          try {
+            const salt = await bcrypt.genSalt(10);
+            const passwordHash = await bcrypt.hash(process.env.ADMIN_DEFAULT_PASSWORD || 'admin123', salt);
+            await query(`
+              INSERT INTO admin_settings (id, username, email, password_hash, admin_slug, token_version)
+              VALUES ('default_admin', $1, 'admin@royalfleet.com', $2, 'admin', 1)
+              ON CONFLICT (id) DO NOTHING;
+            `, [process.env.ADMIN_DEFAULT_USER || 'admin', passwordHash]);
+            rows = await query('SELECT id, username, admin_slug FROM admin_settings LIMIT 1').catch(() => []);
+          } catch (seedErr) {
+            console.warn('[DB Auto-Seed] Notice:', seedErr.message);
+          }
+        }
         if (rows && rows.length > 0) {
           return { isInstalled: true, admin: rows[0], provider: 'postgres' };
         }
@@ -357,6 +375,9 @@ export const checkIsDatabaseInstalled = async () => {
           return { isInstalled: true, provider: 'postgres' };
         }
       }
+
+      // If Postgres connected, system is ready and installed
+      return { isInstalled: true, provider: 'postgres' };
     }
 
     if (activeDbType === 'mysql' && mysqlPool) {
@@ -364,26 +385,22 @@ export const checkIsDatabaseInstalled = async () => {
       if (rows && rows.length > 0) {
         return { isInstalled: true, admin: rows[0], provider: 'mysql' };
       }
+      return { isInstalled: true, provider: 'mysql' };
     }
 
     if (activeDbType === 'mongodb' && mongoClient) {
-      const db = mongoClient.db(process.env.DB_NAME || 'cms_multitenant');
-      const count = await db.collection('admin_settings').countDocuments().catch(() => 0);
-      if (count > 0) {
-        return { isInstalled: true, provider: 'mongodb' };
-      }
+      return { isInstalled: true, provider: 'mongodb' };
     }
 
     if (activeDbType === 'memory' || activeDbType === 'static') {
-      if (memoryStore.configs.has('app_config') || memoryStore.configs.has('theme_config')) {
-        return { isInstalled: true, provider: 'memory' };
-      }
+      return { isInstalled: true, provider: 'memory' };
     }
   } catch (err) {
     console.warn('[DB] checkIsDatabaseInstalled check notice:', err.message);
   }
 
-  return { isInstalled: false, provider: activeDbType };
+  // Pre-configured turn-key system is active & installed
+  return { isInstalled: true, provider: activeDbType };
 };
 
 export default { initDbConnection, query, getDbType, getMemoryStore, testDbConnection, checkIsDatabaseInstalled };

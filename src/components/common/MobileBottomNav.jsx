@@ -123,12 +123,11 @@ export const MobileBottomNav = ({
     // Coordinate calculation in 375-width SVG grid:
     const tabWidth = 75; // 375 / 5 tabs = 75
     const cx = activeIndex * tabWidth + 37.5;
-    const curveRadius = 36;
-    const dipDepth = 50;
     const barTop = 14;
 
-    const scoopPath = `M 0 ${barTop} L ${cx - curveRadius} ${barTop} C ${cx - 20} ${barTop}, ${cx - 20} ${dipDepth}, ${cx} ${dipDepth} C ${cx + 20} ${dipDepth}, ${cx + 20} ${barTop}, ${cx + curveRadius} ${barTop} L 375 ${barTop} L 375 72 L 0 72 Z`;
-    const scoopBorder = `M 0 ${barTop} L ${cx - curveRadius} ${barTop} C ${cx - 20} ${barTop}, ${cx - 20} ${dipDepth}, ${cx} ${dipDepth} C ${cx + 20} ${dipDepth}, ${cx + 20} ${barTop}, ${cx + curveRadius} ${barTop} L 375 ${barTop}`;
+    // Precision Bézier curve hugging 48px active circle with uniform 4.5px-5px clearance on left, right, and bottom:
+    const scoopPath = `M 0 ${barTop} L ${cx - 33} ${barTop} C ${cx - 28} ${barTop}, ${cx - 27} 22, ${cx - 24} 32 C ${cx - 20} 46, ${cx - 12} 48, ${cx} 48 C ${cx + 12} 48, ${cx + 20} 46, ${cx + 24} 32 C ${cx + 27} 22, ${cx + 28} ${barTop}, ${cx + 33} ${barTop} L 375 ${barTop} L 375 72 L 0 72 Z`;
+    const scoopBorder = `M 0 ${barTop} L ${cx - 33} ${barTop} C ${cx - 28} ${barTop}, ${cx - 27} 22, ${cx - 24} 32 C ${cx - 20} 46, ${cx - 12} 48, ${cx} 48 C ${cx + 12} 48, ${cx + 20} 46, ${cx + 24} 32 C ${cx + 27} 22, ${cx + 28} ${barTop}, ${cx + 33} ${barTop} L 375 ${barTop}`;
 
     return (
       <aside aria-label="Navigasi Bawah Mobile" className="md:hidden fixed bottom-0 inset-x-0 z-40 min-w-0 select-none pointer-events-none animate-bounce-in">

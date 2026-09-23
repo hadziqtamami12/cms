@@ -41,21 +41,21 @@ app.use(express.urlencoded({ extended: true, limit: '15mb' }));
 app.use(dynamicSlugRouter);
 
 // Public & Installer API Routes
-app.use('/api/setup', setupRoutes);
-app.use('/api/installer', installerRoutes);
-app.use('/api/keygen', keygenRoutes);
-app.use('/api/articles', articleRoutes);
-app.use('/api/travel-trips', travelRoutes);
+app.use(['/api/setup', '/setup'], setupRoutes);
+app.use(['/api/installer', '/installer'], installerRoutes);
+app.use(['/api/keygen', '/keygen'], keygenRoutes);
+app.use(['/api/articles', '/articles'], articleRoutes);
+app.use(['/api/travel-trips', '/travel-trips'], travelRoutes);
 
 // License Guard Middleware (Interception of locked or uninstalled requests)
-app.use('/api', licenseGuard);
+app.use(['/api', '/'], licenseGuard);
 
 // Core API & Admin Routes
-app.use('/api', apiRoutes);
-app.use('/api/admin', adminRoutes);
-app.use('/api/admin/scraper', scraperRoutes);
-app.use('/api/admin/articles', articleRoutes);
-app.use('/api/admin/travel-trips', travelRoutes);
+app.use(['/api/admin/scraper', '/admin/scraper'], scraperRoutes);
+app.use(['/api/admin/articles', '/admin/articles'], articleRoutes);
+app.use(['/api/admin/travel-trips', '/admin/travel-trips'], travelRoutes);
+app.use(['/api/admin', '/admin'], adminRoutes);
+app.use(['/api', '/'], apiRoutes);
 
 // Mock Media Upload for zero-config testing
 app.post('/api/media/mock-upload', (req, res) => {

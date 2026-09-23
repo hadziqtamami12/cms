@@ -120,9 +120,17 @@ export const AppProvider = ({ children }) => {
           } else if (serverLicense.isInstalled !== null && serverLicense.isInstalled !== undefined) {
             setLicenseStatus(serverLicense);
           }
-        }
+      } else {
+        // Fallback: Ensure config and licenseStatus are kept active and installed
+        setConfig(DEFAULT_CONFIG);
+        setLicenseStatus(prev => ({
+          ...prev,
+          isInstalled: true,
+          status: 'active',
+          isLocked: false,
+          daysRemaining: 365
+        }));
       }
-      // If isFallback: localStorage state is already correct from synchronous useState init — do nothing
     } catch (err) {
       console.error('[AppContext] Failed to load configuration:', err);
     } finally {

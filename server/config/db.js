@@ -107,10 +107,29 @@ export const initDbConnection = async (customConfig = null) => {
   }
 };
 
+let dbInitPromise = null;
+
+export const ensureDbReady = async () => {
+  if (activeDbType === 'postgres' && pgPool) return;
+  if (activeDbType === 'mysql' && mysqlPool) return;
+  if (activeDbType === 'mongodb' && mongoClient) return;
+
+  if (!dbInitPromise) {
+    dbInitPromise = initDbConnection().catch((err) => {
+      console.warn('[DB] Cold start init notice:', err.message);
+    }).finally(() => {
+      dbInitPromise = null;
+    });
+  }
+  await dbInitPromise;
+};
+
 /**
  * Universal Query Adapter with SQL injection prevention and memory fallback
  */
 export const query = async (sqlOrCollection, params = [], operation = 'find') => {
+  await ensureDbReady();
+
   if (activeDbType === 'postgres' && pgPool) {
     try {
       const res = await pgPool.query(sqlOrCollection, params);
@@ -297,6 +316,8 @@ export const testDbConnection = async (config = {}) => {
  */
 export const checkIsDatabaseInstalled = async () => {
   try {
+    await ensureDbReady();
+
     if (activeDbType === 'postgres' && pgPool) {
       // Check admin_settings table existence and content
       const checkAdmin = await query(

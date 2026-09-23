@@ -145,10 +145,10 @@ export const SlideshowManager = ({
       <div className="bg-gradient-to-r from-blue-700 via-indigo-700 to-blue-800 rounded-3xl p-6 sm:p-8 text-white shadow-xl flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="space-y-1.5 min-w-0">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/20 backdrop-blur-md text-blue-100 text-xs font-bold uppercase tracking-wider">
-            <Sliders className="w-3.5 h-3.5" /> Hero Slideshow Studio
+            <Sliders className="w-3.5 h-3.5" /> Banner Slideshow Beranda
           </div>
           <h2 className="text-xl sm:text-2xl font-black text-white tracking-tight">
-            Manajemen Slideshow & Hero Banner (CRUD)
+            Manajemen Slideshow & Banner Beranda
           </h2>
           <p className="text-blue-100 text-xs sm:text-sm">
             Tambah, edit, ubah urutan, dan hapus slide banner utama landing page dengan penyimpanan otomatis ke database.

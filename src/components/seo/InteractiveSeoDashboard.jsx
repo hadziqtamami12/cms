@@ -509,7 +509,7 @@ export const InteractiveSeoDashboard = ({
               <div className="flex items-center justify-between">
                 <span className="text-xs font-bold text-purple-800 flex items-center gap-1.5">
                   <Sparkles className="w-4 h-4 text-purple-600" />
-                  Rekomendasi AI-Powered On-Page Optimization
+                  Rekomendasi Optimasi On-Page Otomatis
                 </span>
                 <button
                   type="button"

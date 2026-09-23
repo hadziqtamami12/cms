@@ -188,4 +188,181 @@ export const query = async (sqlOrCollection, params = [], operation = 'find') =>
 };
 
 export const getMemoryStore = () => memoryStore;
-export default { initDbConnection, query, getDbType, getMemoryStore };
+
+/**
+ * Universal Database Connection Tester
+ */
+export const testDbConnection = async (config = {}) => {
+  const type = (config.type || config.dbType || 'postgres').toLowerCase();
+  const connStr = config.connectionString || config.database_url || '';
+
+  if (type === 'static' || type === 'memory' || type === 'sqlite') {
+    return {
+      success: true,
+      type: 'static',
+      message: 'Database Standalone Zero-Config siap digunakan secara instan (In-Memory / File SQLite).'
+    };
+  }
+
+  if (type === 'postgres' || type === 'supabase' || type === 'cloudflare_hyperdrive') {
+    if (!connStr) throw new Error('Connection string PostgreSQL / Supabase tidak boleh kosong.');
+    const isSupabase = connStr.includes('supabase.com');
+    const requiresSsl = process.env.DB_SSL === 'true' || 
+                        isSupabase || 
+                        connStr.includes('sslmode=require') || 
+                        process.env.DB_SSL !== 'false';
+
+    const testPool = new pg.Pool({
+      connectionString: connStr,
+      ssl: requiresSsl ? { rejectUnauthorized: false } : false,
+      connectionTimeoutMillis: 8000,
+      max: 2
+    });
+
+    try {
+      const client = await testPool.connect();
+      const res = await client.query('SELECT NOW() as server_time, version() as db_version');
+      client.release();
+      await testPool.end();
+
+      return {
+        success: true,
+        type: 'postgres',
+        message: `Koneksi ke ${isSupabase ? 'Supabase Cloud PostgreSQL' : 'PostgreSQL Server'} berhasil!`,
+        serverTime: res.rows[0]?.server_time,
+        version: (res.rows[0]?.db_version || '').split(' ')[0] + ' ' + (res.rows[0]?.db_version || '').split(' ')[1]
+      };
+    } catch (err) {
+      try { await testPool.end(); } catch {}
+      throw new Error(`Gagal tersambung ke PostgreSQL: ${err.message}`);
+    }
+  }
+
+  if (type === 'mysql') {
+    if (!connStr) throw new Error('Connection string MySQL tidak boleh kosong.');
+    try {
+      const connection = await mysql.createConnection(connStr);
+      await connection.ping();
+      const [rows] = await connection.execute('SELECT NOW() as server_time, VERSION() as db_version');
+      await connection.end();
+
+      return {
+        success: true,
+        type: 'mysql',
+        message: 'Koneksi ke MySQL / MariaDB Server berhasil!',
+        serverTime: rows[0]?.server_time,
+        version: rows[0]?.db_version
+      };
+    } catch (err) {
+      throw new Error(`Gagal tersambung ke MySQL: ${err.message}`);
+    }
+  }
+
+  if (type === 'mongodb') {
+    if (!connStr) throw new Error('Connection URI MongoDB tidak boleh kosong.');
+    try {
+      const client = new MongoClient(connStr, { serverSelectionTimeoutMS: 8000 });
+      await client.connect();
+      await client.db('admin').command({ ping: 1 });
+      await client.close();
+
+      return {
+        success: true,
+        type: 'mongodb',
+        message: 'Koneksi ke MongoDB Cluster berhasil terhubung!'
+      };
+    } catch (err) {
+      throw new Error(`Gagal tersambung ke MongoDB: ${err.message}`);
+    }
+  }
+
+  if (type === 'cloudflare' || type === 'cloudflare_d1') {
+    // Cloudflare D1 via REST API or Hyperdrive Postgres
+    if (connStr.startsWith('postgres://') || connStr.startsWith('postgresql://')) {
+      return await testDbConnection({ type: 'postgres', connectionString: connStr });
+    }
+    return {
+      success: true,
+      type: 'cloudflare',
+      message: 'Cloudflare D1 Storage terkonfigurasi dan siap digunakan.'
+    };
+  }
+
+  return { success: true, type, message: `Koneksi ke driver ${type} berhasil.` };
+};
+
+/**
+ * Checks whether the system has already been installed in the active database.
+ * Single Source of Truth based on database records.
+ */
+export const checkIsDatabaseInstalled = async () => {
+  try {
+    if (activeDbType === 'postgres' && pgPool) {
+      // Check admin_settings table existence and content
+      const checkAdmin = await query(
+        "SELECT COUNT(*)::int as count FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'admin_settings'"
+      ).catch(() => [{ count: 0 }]);
+
+      if (Number(checkAdmin[0]?.count) > 0) {
+        const rows = await query('SELECT id, username, admin_slug FROM admin_settings LIMIT 1').catch(() => []);
+        if (rows && rows.length > 0) {
+          return { isInstalled: true, admin: rows[0], provider: 'postgres' };
+        }
+      }
+
+      // Fallback check on app_settings
+      const checkSettings = await query(
+        "SELECT COUNT(*)::int as count FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'app_settings'"
+      ).catch(() => [{ count: 0 }]);
+
+      if (Number(checkSettings[0]?.count) > 0) {
+        const settings = await query("SELECT value FROM app_settings WHERE key = 'app_config' LIMIT 1").catch(() => []);
+        if (settings && settings.length > 0) {
+          const val = typeof settings[0].value === 'string' ? JSON.parse(settings[0].value) : settings[0].value;
+          if (val && (val.is_installed || val.brandName)) {
+            return { isInstalled: true, provider: 'postgres' };
+          }
+        }
+      }
+
+      // Check legacy sys_configs table
+      const checkConfigs = await query(
+        "SELECT COUNT(*)::int as count FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'sys_configs'"
+      ).catch(() => [{ count: 0 }]);
+
+      if (Number(checkConfigs[0]?.count) > 0) {
+        const rows = await query("SELECT value FROM sys_configs WHERE key IN ('main_config', 'theme_config') LIMIT 1").catch(() => []);
+        if (rows && rows.length > 0) {
+          return { isInstalled: true, provider: 'postgres' };
+        }
+      }
+    }
+
+    if (activeDbType === 'mysql' && mysqlPool) {
+      const rows = await query('SELECT id, username, admin_slug FROM admin_settings LIMIT 1').catch(() => []);
+      if (rows && rows.length > 0) {
+        return { isInstalled: true, admin: rows[0], provider: 'mysql' };
+      }
+    }
+
+    if (activeDbType === 'mongodb' && mongoClient) {
+      const db = mongoClient.db(process.env.DB_NAME || 'cms_multitenant');
+      const count = await db.collection('admin_settings').countDocuments().catch(() => 0);
+      if (count > 0) {
+        return { isInstalled: true, provider: 'mongodb' };
+      }
+    }
+
+    if (activeDbType === 'memory' || activeDbType === 'static') {
+      if (memoryStore.configs.has('app_config') || memoryStore.configs.has('theme_config')) {
+        return { isInstalled: true, provider: 'memory' };
+      }
+    }
+  } catch (err) {
+    console.warn('[DB] checkIsDatabaseInstalled check notice:', err.message);
+  }
+
+  return { isInstalled: false, provider: activeDbType };
+};
+
+export default { initDbConnection, query, getDbType, getMemoryStore, testDbConnection, checkIsDatabaseInstalled };

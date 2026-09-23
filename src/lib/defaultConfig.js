@@ -30,6 +30,10 @@ export const DEFAULT_CONFIG = {
   },
   email: 'concierge@royalfleet.com',
   location: 'Jakarta Selatan & Bali',
+  splash_screen: {
+    enabled: true,
+    duration: 2.5
+  },
   heroSlides: [
     {
       title: 'Solusi Sewa Mobil Mewah & Armada Bisnis Terlengkap',

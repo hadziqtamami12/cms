@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import bcrypt from 'bcryptjs';
-import { query } from '../config/db.js';
+import { query, getDbType } from '../config/db.js';
 import { adminAuth, generateAdminToken, revokeAllAdminSessions } from '../middleware/adminAuth.js';
 import { getActiveThemeConfig, updateActiveThemeConfig, switchThemeVariant } from '../services/themeService.js';
 import { getPublicSettings, saveSettings } from '../services/configService.js';
@@ -57,40 +57,60 @@ router.post('/login', async (req, res) => {
   const { username, password } = req.body || {};
   const cleanUser = String(username || '').trim();
   const cleanPass = String(password || '').trim();
+  const dbType = getDbType();
+  let foundDbUser = null;
 
-  // 1. Verify against database admin_users table
+  // 1. Verify against database (admin_settings and admin_users tables with Bcrypt)
   try {
-    const dbUsers = await query('SELECT * FROM admin_users WHERE LOWER(username) = LOWER($1) LIMIT 1', [cleanUser]);
-    if (dbUsers && dbUsers.length > 0) {
-      const dbUser = dbUsers[0];
-      const isBcryptMatch = await bcrypt.compare(cleanPass, dbUser.password_hash);
+    if (dbType === 'postgres') {
+      let rows = await query('SELECT * FROM admin_settings WHERE LOWER(username) = LOWER($1) LIMIT 1', [cleanUser]).catch(() => []);
+      if (!rows || rows.length === 0) {
+        rows = await query('SELECT * FROM admin_users WHERE LOWER(username) = LOWER($1) LIMIT 1', [cleanUser]).catch(() => []);
+      }
+      if (rows && rows.length > 0) foundDbUser = rows[0];
+    } else if (dbType === 'mysql') {
+      let rows = await query('SELECT * FROM admin_settings WHERE LOWER(username) = LOWER(?) LIMIT 1', [cleanUser]).catch(() => []);
+      if (!rows || rows.length === 0) {
+        rows = await query('SELECT * FROM admin_users WHERE LOWER(username) = LOWER(?) LIMIT 1', [cleanUser]).catch(() => []);
+      }
+      if (rows && rows.length > 0) foundDbUser = rows[0];
+    } else if (dbType === 'mongodb') {
+      const rows = await query('admin_settings', [{ username: new RegExp(`^${cleanUser}$`, 'i') }]);
+      if (rows && rows.length > 0) foundDbUser = rows[0];
+    }
+
+    if (foundDbUser) {
+      const isBcryptMatch = await bcrypt.compare(cleanPass, foundDbUser.password_hash);
       if (isBcryptMatch) {
-        const token = generateAdminToken({ id: dbUser.id || 'superadmin', username: dbUser.username });
+        const token = generateAdminToken({ id: foundDbUser.id || 'superadmin', username: foundDbUser.username });
         return res.json({
           success: true,
           message: 'Login berhasil',
           token,
-          adminSlug: getAdminSlug()
+          adminSlug: foundDbUser.admin_slug || getAdminSlug()
         });
+      } else {
+        return res.status(401).json({ success: false, error: 'Username atau password admin salah' });
       }
     }
   } catch (dbErr) {
-    // Database check optional fallback if db is not ready
+    console.error('[Admin Login DB Error]', dbErr.message);
   }
 
-  // 2. In-memory / ENV Fallback
-  const isConfigMatch = (cleanUser === adminCredentials.username && cleanPass === adminCredentials.password);
-  const isDefaultMatch = (cleanUser.toLowerCase() === 'admin' && (cleanPass === 'admin123' || cleanPass === 'admin'));
-
-  if (isConfigMatch || isDefaultMatch) {
-    const token = generateAdminToken({ id: 'superadmin', username: cleanUser });
-    return res.json({
-      success: true,
-      message: 'Login berhasil',
-      token,
-      adminSlug: getAdminSlug()
-    });
+  // 2. Fallback ONLY allowed when in zero-config 'static' / 'memory' mode
+  if (dbType === 'memory' || dbType === 'static') {
+    const isConfigMatch = (cleanUser === adminCredentials.username && cleanPass === adminCredentials.password);
+    if (isConfigMatch) {
+      const token = generateAdminToken({ id: 'superadmin', username: cleanUser });
+      return res.json({
+        success: true,
+        message: 'Login berhasil',
+        token,
+        adminSlug: getAdminSlug()
+      });
+    }
   }
+
   return res.status(401).json({ success: false, error: 'Username atau password admin salah' });
 });
 
@@ -100,14 +120,28 @@ router.post('/login', async (req, res) => {
 router.get('/me', adminAuth, async (req, res) => {
   const themeConfig = await getActiveThemeConfig();
   const license = await getSystemLicenseStatus();
+
+  let adminProfile = {
+    id: req.admin.id,
+    username: req.admin.username || adminCredentials.username,
+    email: adminCredentials.email,
+    role: 'superadmin'
+  };
+
+  try {
+    const dbType = getDbType();
+    if (dbType === 'postgres' || dbType === 'mysql') {
+      const rows = await query('SELECT username, email FROM admin_settings LIMIT 1').catch(() => []);
+      if (rows && rows.length > 0) {
+        adminProfile.username = rows[0].username;
+        if (rows[0].email) adminProfile.email = rows[0].email;
+      }
+    }
+  } catch {}
+
   res.json({
     success: true,
-    user: {
-      id: req.admin.id,
-      username: adminCredentials.username,
-      email: adminCredentials.email,
-      role: 'superadmin'
-    },
+    user: adminProfile,
     adminSlug: getAdminSlug(),
     themeConfig,
     license

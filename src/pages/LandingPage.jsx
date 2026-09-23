@@ -5,6 +5,9 @@ import MobileBottomNav from '../components/common/MobileBottomNav';
 import FloatingWhatsApp from '../components/common/FloatingWhatsApp';
 import SeoHead from '../components/common/SeoHead';
 import ThemeRegistry from '../components/themes/ThemeRegistry.jsx';
+import TravelTripsSection from '../components/travel/TravelTripsSection';
+import SpecialMomentsSection from '../components/travel/SpecialMomentsSection';
+import FaqAccordion from '../components/common/FaqAccordion';
 import { ShieldCheck, Phone, Mail, MapPin, ExternalLink } from 'lucide-react';
 
 export const LandingPage = ({ config }) => {
@@ -38,13 +41,12 @@ export const LandingPage = ({ config }) => {
 
   const resolvedNavVariant = bottom_nav_variant || localSavedVariant || bottomNavStyle || 'floating_dock';
   const waSettings = whatsapp_settings || {};
-  const resolvedWa = waSettings.phone || floating_whatsapp.phone || whatsapp;
-  const resolvedBrandName = waSettings.brandName || brandName;
-  const resolvedDisplayMode = waSettings.displayMode || (floating_whatsapp.enabled === false ? 'bottom_nav' : 'bottom_nav');
-  const resolvedNavPosition = waSettings.navPosition || 'center';
+  const resolvedWa = waSettings.phone || floating_whatsapp?.phone || whatsapp || '6281288990011';
+  const resolvedBrandName = waSettings.brandName || brandName || 'Royal Fleet';
   const resolvedActionType = waSettings.actionType || 'popup';
   const resolvedWelcomeMessage = waSettings.welcomeMessage;
-  const resolvedMessageTemplate = waSettings.messageTemplate || floating_whatsapp.messageTemplate || `Halo ${brandName}, saya ingin bertanya informasi lebih lanjut.`;
+  const resolvedMessageTemplate = waSettings.messageTemplate || floating_whatsapp?.messageTemplate || `Halo ${resolvedBrandName}, saya ingin bertanya informasi lebih lanjut.`;
+  const isWaEnabled = waSettings.enabled !== false && floating_whatsapp?.enabled !== false;
 
   return (
     <div className="min-h-screen flex flex-col bg-surface-warm text-slate-800">
@@ -83,25 +85,58 @@ export const LandingPage = ({ config }) => {
       />
 
       {/* Main Dynamic Multi-Industry & Multi-Theme Content */}
-      <main className="flex-1 pb-20 md:pb-12">
+      <main className="flex-1 pb-20 md:pb-12 space-y-8">
         <ThemeRegistry
           industry={industry}
           themeId={themeId}
           config={config}
         />
 
+        {/* Special Moments & Private Trips Section */}
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-10">
+          <SpecialMomentsSection
+            specialMoments={config.special_moments}
+            whatsapp={whatsapp}
+            brandName={brandName}
+          />
+        </div>
+
+        {/* Travel Trips & Tour Packages Catalog */}
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-10">
+          <TravelTripsSection
+            whatsapp={whatsapp}
+            brandName={brandName}
+          />
+        </div>
+
+        {/* Interactive FAQ Accordion */}
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-10">
+          <FaqAccordion
+            faqs={config.faqs}
+            whatsapp={whatsapp}
+            brandName={brandName}
+          />
+        </div>
+
         {/* Google Maps / Local Business Embed Section */}
-        {seo.gmbEmbedMapUrl && (
+        {(config.google_maps?.embed_url || seo.gmbEmbedMapUrl) && (
           <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 sm:py-16">
             <div className="bg-white rounded-3xl border border-slate-200 overflow-hidden shadow-subtle p-7 sm:p-9 space-y-6">
-              <div className="flex items-center gap-3 text-slate-900 font-bold text-lg">
-                <MapPin className="w-5 h-5 text-blue-600 shrink-0" />
-                <h3>Lokasi Kantor & Titik Penjemputan Resmi</h3>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3 text-slate-900 font-bold text-lg">
+                  <MapPin className="w-5 h-5 text-blue-600 shrink-0" />
+                  <h3>Lokasi Kantor & Titik Penjemputan Utama</h3>
+                </div>
+                {config.google_maps?.coordinates && (
+                  <span className="text-xs font-mono text-slate-400">
+                    GPS: {config.google_maps.coordinates}
+                  </span>
+                )}
               </div>
               <div className="w-full h-80 sm:h-96 rounded-2xl overflow-hidden bg-slate-100">
                 <iframe
                   title="Google Maps"
-                  src={seo.gmbEmbedMapUrl}
+                  src={config.google_maps?.embed_url || seo.gmbEmbedMapUrl}
                   width="100%"
                   height="100%"
                   style={{ border: 0 }}
@@ -127,10 +162,19 @@ export const LandingPage = ({ config }) => {
             <p className="text-sm text-slate-300 leading-relaxed max-w-md">
               {tagline}. Didukung oleh arsitektur Cloud Edge berkecepatan tinggi dengan skor Core Web Vitals 98+ dan enkripsi enterprise.
             </p>
+            <div className="pt-2">
+              <a
+                href="/artikel"
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-white text-xs font-bold transition-colors"
+              >
+                <span>Baca Artikel & Panduan Wisata</span>
+                <ExternalLink className="w-3.5 h-3.5" />
+              </a>
+            </div>
           </div>
 
           <div className="space-y-4">
-            <h4 className="text-white font-bold text-xs uppercase tracking-wider">Kontak Resmi</h4>
+            <h4 className="text-white font-bold text-xs uppercase tracking-wider">Informasi Kontak</h4>
             <div className="space-y-3 text-sm text-slate-300">
               {phone && (
                 <div className="flex items-center gap-2.5">
@@ -146,7 +190,7 @@ export const LandingPage = ({ config }) => {
               )}
               <div className="flex items-center gap-2.5">
                 <MapPin className="w-4 h-4 text-blue-400 shrink-0" />
-                <span>{location}</span>
+                <span>{config.google_maps?.address || location}</span>
               </div>
             </div>
           </div>
@@ -177,7 +221,7 @@ export const LandingPage = ({ config }) => {
         messageTemplate={resolvedMessageTemplate}
         welcomeMessage={resolvedWelcomeMessage}
         bottomNavVisible={isBottomNavVisible}
-        enabled={waSettings.enabled !== false && floating_whatsapp.enabled !== false}
+        enabled={isWaEnabled}
         actionType={resolvedActionType}
       />
 

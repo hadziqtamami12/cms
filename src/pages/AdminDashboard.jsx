@@ -4,7 +4,8 @@ import {
   RefreshCw, Globe, Shield, Smartphone, Layers, Save, AlertCircle,
   Menu, X, ChevronLeft, ChevronRight, ExternalLink, Activity, Sparkles, Check,
   Lock, Key, ShieldCheck, Eye, EyeOff, UserCheck, AlertTriangle, Copy,
-  PanelLeftClose, PanelLeftOpen, Package, MessageCircle, Sliders, LayoutDashboard, ArrowRight
+  PanelLeftClose, PanelLeftOpen, Package, MessageCircle, Sliders, LayoutDashboard, ArrowRight,
+  Compass, FileText, HelpCircle, Download
 } from 'lucide-react';
 import OrderManager from '../components/orders/OrderManager';
 import InteractiveSeoDashboard from '../components/seo/InteractiveSeoDashboard';
@@ -14,6 +15,10 @@ import { ProductCatalogManager } from '../components/products/ProductCatalogMana
 import { SlideshowManager } from '../components/slideshow/SlideshowManager';
 import { WhatsAppStudio } from '../components/whatsapp/WhatsAppStudio';
 import { SiteIdentityManager } from '../components/settings/SiteIdentityManager';
+import { CompetitorScraperModal } from '../components/scraper/CompetitorScraperModal';
+import { TravelTripManager } from '../components/admin/TravelTripManager';
+import { ArticleManager } from '../components/admin/ArticleManager';
+import { FaqManager } from '../components/admin/FaqManager';
 import { getPresetForIndustry } from '../lib/industryCatalogs';
 import {
   switchTheme,
@@ -34,7 +39,7 @@ export const AdminDashboard = ({
   const [activeTab, setActiveTabState] = useState(() => {
     try {
       const savedTab = localStorage.getItem('cms_admin_active_tab');
-      const validTabs = ['dashboard', 'branding', 'themes', 'slideshow', 'products', 'whatsapp', 'seo', 'leads', 'settings'];
+      const validTabs = ['dashboard', 'branding', 'themes', 'slideshow', 'products', 'travel', 'articles', 'faqs', 'scraper', 'whatsapp', 'seo', 'leads', 'settings'];
       if (savedTab && validTabs.includes(savedTab)) {
         return savedTab;
       }
@@ -66,6 +71,7 @@ export const AdminDashboard = ({
   const [desktopSidebarMode, setDesktopSidebarMode] = useState('expanded');
   const [loading, setLoading] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
+  const [isScraperOpen, setIsScraperOpen] = useState(false);
 
   // Local state for theme switching
   const [currentIndustry, setCurrentIndustry] = useState(config?.industry || 'automotive');
@@ -373,11 +379,14 @@ export const AdminDashboard = ({
     { id: 'dashboard', label: 'Dashboard Ringkasan', icon: LayoutDashboard, badge: 'Utama' },
     { id: 'branding', label: 'Identitas & Judul Situs', icon: Globe, badge: 'Situs' },
     { id: 'themes', label: 'Tema & Tampilan', icon: Palette, badge: '50' },
-    { id: 'slideshow', label: 'Slideshow Hero (CRUD)', icon: Sliders, badge: (config?.heroSlides || []).length || 'Slide' },
-    { id: 'products', label: 'Katalog Produk (CRUD)', icon: Package, badge: (config?.items || []).length || 'Unit' },
-    { id: 'whatsapp', label: 'Floating WhatsApp', icon: MessageCircle, badge: 'Studio' },
-    { id: 'seo', label: 'SEO & Performance', icon: TrendingUp, badge: 'Live' },
-    { id: 'leads', label: 'Manajemen Pesanan', icon: Users, badge: 'CRUD' },
+    { id: 'slideshow', label: 'Slideshow & Banner', icon: Sliders, badge: (config?.heroSlides || []).length || 'Slide' },
+    { id: 'products', label: 'Katalog Armada & Produk', icon: Package, badge: (config?.items || []).length || 'Unit' },
+    { id: 'travel', label: 'Paket Wisata & Tour', icon: Compass, badge: 'Wisata' },
+    { id: 'articles', label: 'Artikel & SEO Daerah', icon: FileText, badge: 'SEO' },
+    { id: 'faqs', label: 'Pertanyaan Umum (FAQ)', icon: HelpCircle, badge: 'FAQ' },
+    { id: 'whatsapp', label: 'Pengaturan WhatsApp', icon: MessageCircle, badge: 'Kontak' },
+    { id: 'seo', label: 'SEO & Optimasi', icon: TrendingUp, badge: 'Optimasi' },
+    { id: 'leads', label: 'Manajemen Pesanan', icon: Users, badge: 'Pesanan' },
     { id: 'settings', label: 'Keamanan & Portal', icon: Settings },
   ];
 
@@ -454,12 +463,12 @@ export const AdminDashboard = ({
       )}
 
       <aside
-        className={`fixed inset-y-0 left-0 z-50 w-72 max-w-[85vw] bg-white border-r border-slate-200 flex flex-col justify-between transform transition-transform duration-300 ease-out shadow-2xl lg:hidden ${
+        className={`fixed inset-y-0 left-0 z-50 w-72 max-w-[85vw] bg-white border-r border-slate-200 flex flex-col justify-between transform transition-transform duration-300 ease-out shadow-2xl overflow-x-hidden lg:hidden ${
           mobileSidebarOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
       >
         {/* Mobile Drawer Header */}
-        <div className="p-4 border-b border-slate-100 flex items-center justify-between">
+        <div className="p-4 border-b border-slate-100 flex items-center justify-between overflow-x-hidden">
           <div className="flex items-center gap-2.5 min-w-0">
             <div className="w-9 h-9 rounded-xl bg-blue-600 text-white flex items-center justify-center font-black shadow-sm shrink-0">
               M
@@ -479,7 +488,7 @@ export const AdminDashboard = ({
         </div>
 
         {/* Mobile Navigation Links */}
-        <nav className="p-3 space-y-1.5 flex-1 overflow-y-auto">
+        <nav className="p-3 space-y-1.5 flex-1 overflow-y-auto overflow-x-hidden">
           <div className="px-3 pb-2 text-[10px] font-bold uppercase tracking-wider text-slate-400">
             Navigasi Utama
           </div>
@@ -493,146 +502,6 @@ export const AdminDashboard = ({
                   setActiveTab(item.id);
                   setMobileSidebarOpen(false);
                 }}
-                className={`w-full flex items-center justify-between px-3.5 py-3 rounded-2xl text-xs sm:text-sm font-semibold transition-all ${
-                  isActive
-                    ? 'bg-blue-600 text-white shadow-sm font-bold'
-                    : 'text-slate-600 hover:bg-slate-100/70 hover:text-slate-900'
-                }`}
-              >
-                <div className="flex items-center gap-3">
-                  <Icon className={`w-5 h-5 ${isActive ? 'text-white' : 'text-slate-500'}`} />
-                  <span>{item.label}</span>
-                </div>
-                {item.badge && (
-                  <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${
-                    isActive ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-600'
-                  }`}>
-                    {item.badge}
-                  </span>
-                )}
-              </button>
-            );
-          })}
-        </nav>
-
-        {/* Mobile Footer */}
-        <div className="p-4 border-t border-slate-100 space-y-3 bg-slate-50/50">
-          <a
-            href="/"
-            target="_blank"
-            rel="noreferrer"
-            className="w-full flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl border border-slate-200 bg-white text-xs font-semibold text-slate-700 hover:bg-slate-50"
-          >
-            <Globe className="w-4 h-4 text-blue-600" />
-            <span>Lihat Halaman Publik</span>
-            <ExternalLink className="w-3.5 h-3.5 text-slate-400 ml-auto" />
-          </a>
-
-          <div className="pt-2 flex items-center justify-between">
-            <div className="flex items-center gap-2 min-w-0">
-              <div className="w-8 h-8 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center font-bold text-xs shrink-0">
-                SA
-              </div>
-              <div className="truncate">
-                <span className="text-xs font-bold text-slate-900 block truncate">Superadmin</span>
-                <span className="text-[10px] text-emerald-600 font-medium">Online</span>
-              </div>
-            </div>
-            <button
-              onClick={onLogout}
-              className="p-2 rounded-xl text-slate-400 hover:text-red-600 hover:bg-red-50"
-              title="Keluar"
-            >
-              <LogOut className="w-4 h-4" />
-            </button>
-          </div>
-        </div>
-      </aside>
-
-      {/* ========================================================
-       * DESKTOP ERGONOMIC SIDEBAR (Expanded w-64 vs Mini Rail w-20)
-       * ======================================================== */}
-      <aside
-        className={`hidden lg:flex fixed top-0 bottom-0 left-0 z-40 bg-white border-r border-slate-200 flex-col justify-between transition-all duration-300 ease-in-out ${
-          desktopSidebarMode === 'rail' ? 'w-20' : 'w-64'
-        }`}
-      >
-        {/* Desktop Brand Header with Single Minimize/Maximize Toggle */}
-        <div className="p-4 border-b border-slate-100 flex items-center justify-between">
-          {desktopSidebarMode === 'expanded' ? (
-            <>
-              <div className="flex items-center gap-3 min-w-0">
-                <div className="w-9 h-9 rounded-2xl bg-blue-600 text-white flex items-center justify-center font-black shadow-sm shrink-0">
-                  M
-                </div>
-                <div className="truncate">
-                  <span className="font-extrabold text-sm text-slate-900 block leading-tight truncate">MultiCMS</span>
-                  <span className="text-[10px] text-blue-600 font-mono truncate block">/{adminSlug}</span>
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => setDesktopSidebarMode('rail')}
-                className="p-1.5 rounded-xl border border-slate-200 text-slate-400 hover:text-slate-700 hover:bg-slate-50 transition-colors cursor-pointer"
-                title="Minimize Sidebar (Perkecil ke Rail)"
-                aria-label="Minimize Sidebar"
-              >
-                <PanelLeftClose className="w-4 h-4" />
-              </button>
-            </>
-          ) : (
-            <div className="w-full flex justify-center">
-              <button
-                type="button"
-                onClick={() => setDesktopSidebarMode('expanded')}
-                className="w-10 h-10 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white flex items-center justify-center font-black shadow-sm transition-all group relative cursor-pointer"
-                title="Maximize Sidebar (Perluas)"
-                aria-label="Maximize Sidebar"
-              >
-                <span className="group-hover:hidden font-black">M</span>
-                <PanelLeftOpen className="w-5 h-5 hidden group-hover:block" />
-              </button>
-            </div>
-          )}
-        </div>
-
-        {/* Desktop Navigation Links */}
-        <nav className="p-3 space-y-2 flex-1 overflow-y-auto">
-          {navMenuItems.map((item) => {
-            const Icon = item.icon;
-            const isActive = activeTab === item.id;
-
-            if (desktopSidebarMode === 'rail') {
-              return (
-                <div key={item.id} className="relative group flex justify-center">
-                  <button
-                    onClick={() => setActiveTab(item.id)}
-                    className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-all ${
-                      isActive
-                        ? 'bg-blue-600 text-white shadow-md shadow-blue-600/30'
-                        : 'text-slate-500 hover:bg-slate-100 hover:text-slate-900'
-                    }`}
-                    aria-label={item.label}
-                  >
-                    <Icon className="w-5 h-5" />
-                  </button>
-                  {/* Floating Tooltip */}
-                  <div className="absolute left-full ml-3 px-3 py-1.5 bg-slate-900 text-white text-xs font-semibold rounded-xl shadow-xl whitespace-nowrap opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto transition-opacity z-50 flex items-center gap-1.5">
-                    <span>{item.label}</span>
-                    {item.badge && (
-                      <span className="text-[10px] bg-blue-500 text-white px-1.5 py-0.5 rounded-full">
-                        {item.badge}
-                      </span>
-                    )}
-                  </div>
-                </div>
-              );
-            }
-
-            return (
-              <button
-                key={item.id}
-                onClick={() => setActiveTab(item.id)}
                 className={`w-full flex items-center justify-between px-3.5 py-3 rounded-2xl text-xs sm:text-sm font-semibold transition-all ${
                   isActive
                     ? 'bg-blue-600 text-white shadow-sm font-bold'
@@ -655,54 +524,156 @@ export const AdminDashboard = ({
           })}
         </nav>
 
-        {/* Desktop Footer */}
-        <div className="p-3 border-t border-slate-100 space-y-3 bg-slate-50/50">
+        {/* Mobile Footer */}
+        <div className="p-4 border-t border-slate-100 bg-slate-50/50 overflow-x-hidden">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2 min-w-0">
+              <div className="w-8 h-8 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center font-bold text-xs shrink-0">
+                SA
+              </div>
+              <div className="truncate">
+                <span className="text-xs font-bold text-slate-900 block truncate">Superadmin</span>
+                <span className="text-[10px] text-emerald-600 font-medium">Online</span>
+              </div>
+            </div>
+            <button
+              onClick={onLogout}
+              className="p-2 rounded-xl text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors shrink-0"
+              title="Keluar"
+            >
+              <LogOut className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+      </aside>
+
+      {/* ========================================================
+       * DESKTOP ERGONOMIC SIDEBAR (Expanded w-64 vs Mini Rail w-20)
+       * STRICT ZERO HORIZONTAL OVERFLOW: overflow-x-hidden
+       * ======================================================== */}
+      <aside
+        className={`hidden lg:flex fixed top-0 bottom-0 left-0 z-40 bg-white border-r border-slate-200 flex-col justify-between transition-all duration-300 ease-in-out overflow-x-hidden min-w-0 ${
+          desktopSidebarMode === 'rail' ? 'w-20 max-w-[5rem]' : 'w-64 max-w-64'
+        }`}
+      >
+        {/* Desktop Brand Header with Single Minimize/Maximize Toggle */}
+        <div className="p-4 border-b border-slate-100 flex items-center justify-between overflow-x-hidden w-full">
           {desktopSidebarMode === 'expanded' ? (
             <>
-              <a
-                href="/"
-                target="_blank"
-                rel="noreferrer"
-                className="w-full flex items-center justify-center gap-2 py-2 px-3 rounded-xl border border-slate-200 bg-white text-xs font-semibold text-slate-700 hover:bg-slate-50 transition-all shadow-xs"
-              >
-                <Globe className="w-4 h-4 text-blue-600" />
-                <span className="truncate">Halaman Publik</span>
-                <ExternalLink className="w-3.5 h-3.5 text-slate-400 ml-auto" />
-              </a>
-
-              <div className="pt-2 flex items-center justify-between">
-                <div className="flex items-center gap-2 min-w-0">
-                  <div className="w-8 h-8 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center font-bold text-xs shrink-0">
-                    SA
-                  </div>
-                  <div className="truncate">
-                    <span className="text-xs font-bold text-slate-900 block truncate">Superadmin</span>
-                    <span className="text-[10px] text-emerald-600 font-medium">Online</span>
-                  </div>
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="w-9 h-9 rounded-2xl bg-blue-600 text-white flex items-center justify-center font-black shadow-sm shrink-0">
+                  M
                 </div>
-                <button
-                  onClick={onLogout}
-                  className="p-2 rounded-xl text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors shrink-0"
-                  title="Keluar"
-                >
-                  <LogOut className="w-4 h-4" />
-                </button>
+                <div className="truncate">
+                  <span className="font-extrabold text-sm text-slate-900 block leading-tight truncate">MultiCMS</span>
+                  <span className="text-[10px] text-blue-600 font-mono truncate block">/{adminSlug}</span>
+                </div>
               </div>
+              <button
+                type="button"
+                onClick={() => setDesktopSidebarMode('rail')}
+                className="p-1.5 rounded-xl border border-slate-200 text-slate-500 hover:text-slate-800 hover:bg-slate-100 transition-colors cursor-pointer shrink-0"
+                title="Minimize Sidebar (Perkecil ke Rail)"
+                aria-label="Minimize Sidebar"
+              >
+                <ChevronLeft className="w-4 h-4" />
+              </button>
             </>
           ) : (
-            <div className="space-y-2 flex flex-col items-center">
-              <a
-                href="/"
-                target="_blank"
-                rel="noreferrer"
-                className="w-10 h-10 rounded-xl border border-slate-200 bg-white flex items-center justify-center text-blue-600 hover:bg-slate-50 transition-colors"
-                title="Lihat Website"
+            <div className="w-full flex flex-col items-center gap-2">
+              <div className="w-10 h-10 rounded-2xl bg-blue-600 text-white flex items-center justify-center font-black shadow-sm shrink-0">
+                M
+              </div>
+              <button
+                type="button"
+                onClick={() => setDesktopSidebarMode('expanded')}
+                className="w-10 h-10 rounded-xl border border-slate-200 bg-slate-50 hover:bg-blue-50 hover:border-blue-300 text-slate-600 hover:text-blue-600 flex items-center justify-center transition-all cursor-pointer shadow-xs group shrink-0"
+                title="Maximize Sidebar (Perluas Menu)"
+                aria-label="Maximize Sidebar"
               >
-                <Globe className="w-4 h-4" />
-              </a>
+                <ChevronRight className="w-5 h-5 text-blue-600 group-hover:translate-x-0.5 transition-transform" />
+              </button>
+            </div>
+          )}
+        </div>
+
+        {/* Desktop Navigation Links */}
+        <nav className="p-3 space-y-2 flex-1 overflow-y-auto overflow-x-hidden w-full max-w-full">
+          {navMenuItems.map((item) => {
+            const Icon = item.icon;
+            const isActive = activeTab === item.id;
+
+            if (desktopSidebarMode === 'rail') {
+              return (
+                <div key={item.id} className="w-full flex justify-center overflow-x-hidden">
+                  <button
+                    onClick={() => setActiveTab(item.id)}
+                    className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-all shrink-0 cursor-pointer ${
+                      isActive
+                        ? 'bg-blue-600 text-white shadow-md shadow-blue-600/30'
+                        : 'text-slate-500 hover:bg-slate-100 hover:text-slate-900'
+                    }`}
+                    title={`${item.label}${item.badge ? ` (${item.badge})` : ''}`}
+                    aria-label={item.label}
+                  >
+                    <Icon className="w-5 h-5 shrink-0" />
+                  </button>
+                </div>
+              );
+            }
+
+            return (
+              <button
+                key={item.id}
+                onClick={() => setActiveTab(item.id)}
+                className={`w-full flex items-center justify-between px-3.5 py-3 rounded-2xl text-xs sm:text-sm font-semibold transition-all cursor-pointer ${
+                  isActive
+                    ? 'bg-blue-600 text-white shadow-sm font-bold'
+                    : 'text-slate-600 hover:bg-slate-100/70 hover:text-slate-900'
+                }`}
+              >
+                <div className="flex items-center gap-3 min-w-0">
+                  <Icon className={`w-5 h-5 shrink-0 ${isActive ? 'text-white' : 'text-slate-500'}`} />
+                  <span className="truncate">{item.label}</span>
+                </div>
+                {item.badge && (
+                  <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold shrink-0 ${
+                    isActive ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-600'
+                  }`}>
+                    {item.badge}
+                  </span>
+                )}
+              </button>
+            );
+          })}
+        </nav>
+
+        {/* Desktop Footer (Clean without public page link) */}
+        <div className="p-3 border-t border-slate-100 bg-slate-50/50 overflow-x-hidden w-full">
+          {desktopSidebarMode === 'expanded' ? (
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2 min-w-0">
+                <div className="w-8 h-8 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center font-bold text-xs shrink-0">
+                  SA
+                </div>
+                <div className="truncate">
+                  <span className="text-xs font-bold text-slate-900 block truncate">Superadmin</span>
+                  <span className="text-[10px] text-emerald-600 font-medium">Online</span>
+                </div>
+              </div>
               <button
                 onClick={onLogout}
-                className="w-10 h-10 rounded-xl text-red-600 hover:bg-red-50 flex items-center justify-center"
+                className="p-2 rounded-xl text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors shrink-0 cursor-pointer"
+                title="Keluar"
+              >
+                <LogOut className="w-4 h-4" />
+              </button>
+            </div>
+          ) : (
+            <div className="flex flex-col items-center justify-center w-full">
+              <button
+                onClick={onLogout}
+                className="w-10 h-10 rounded-xl text-slate-400 hover:text-red-600 hover:bg-red-50 flex items-center justify-center transition-colors cursor-pointer"
                 title="Keluar"
               >
                 <LogOut className="w-4 h-4" />
@@ -733,17 +704,28 @@ export const AdminDashboard = ({
                 {activeTab === 'dashboard' && 'Dashboard Ringkasan & Status Sistem'}
                 {activeTab === 'branding' && 'Identitas Aplikasi & Pengaturan Judul Situs'}
                 {activeTab === 'themes' && 'Engine 50 Tema Multi-Industri'}
-                {activeTab === 'slideshow' && 'Manajemen Slideshow & Hero Banner (CRUD)'}
-                {activeTab === 'products' && 'Manajemen Produk & Unit (CRUD)'}
-                {activeTab === 'whatsapp' && 'Studio WhatsApp & Floating Contact'}
-                {activeTab === 'seo' && 'SEO & Performance Hub #1'}
-                {activeTab === 'leads' && 'Manajemen Pesanan (Order CRUD)'}
-                {activeTab === 'settings' && 'Pengaturan Keamanan & Slug'}
+                {activeTab === 'slideshow' && 'Manajemen Slideshow & Banner Beranda'}
+                {activeTab === 'products' && 'Manajemen Armada & Katalog Produk'}
+                {activeTab === 'travel' && 'Manajemen Paket Wisata & Tour'}
+                {activeTab === 'articles' && 'Artikel & Multi-Location Programmatic SEO'}
+                {activeTab === 'faqs' && 'Manajemen Pertanyaan Umum (FAQ)'}
+                {activeTab === 'whatsapp' && 'Pengaturan WhatsApp & Kontak Terapung'}
+                {activeTab === 'seo' && 'SEO & Optimasi Performa'}
+                {activeTab === 'leads' && 'Manajemen Pesanan & Permintaan Layanan'}
+                {activeTab === 'settings' && 'Pengaturan Keamanan & Slug Admin'}
               </h1>
             </div>
           </div>
 
           <div className="flex items-center gap-2.5 shrink-0">
+            <button
+              type="button"
+              onClick={() => setIsScraperOpen(true)}
+              className="px-3.5 py-1.5 rounded-xl bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold transition-all shadow-sm flex items-center gap-1.5 cursor-pointer"
+            >
+              <Download className="w-3.5 h-3.5" />
+              <span>Scraper Eksternal</span>
+            </button>
             <div className="px-3 py-1 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-semibold flex items-center gap-1.5">
               <Activity className="w-3.5 h-3.5 text-emerald-600" />
               <span>Core Web Vitals 98+</span>
@@ -1086,12 +1068,46 @@ export const AdminDashboard = ({
           )}
 
           {/* ========================================================
-           * TAB 2: PRODUCT & UNIT CATALOG MANAGER (FULL PRODUCT CRUD)
+           * TAB 2: PRODUCT & UNIT CATALOG MANAGER (FULL PRODUCT MANAGEMENT)
            * ======================================================== */}
           {activeTab === 'products' && (
             <ProductCatalogManager
               items={config?.items || []}
               currentIndustry={currentIndustry}
+              adminToken={adminToken}
+              onConfigUpdated={(newCfg) => {
+                if (onConfigUpdated) onConfigUpdated(newCfg);
+              }}
+              showToast={showToast}
+            />
+          )}
+
+          {/* ========================================================
+           * TAB: TRAVEL TRIPS & TOUR PACKAGES
+           * ======================================================== */}
+          {activeTab === 'travel' && (
+            <TravelTripManager
+              adminToken={adminToken}
+              showToast={showToast}
+            />
+          )}
+
+          {/* ========================================================
+           * TAB: ARTICLES & MULTI-LOCATION PROGRAMMATIC SEO
+           * ======================================================== */}
+          {activeTab === 'articles' && (
+            <ArticleManager
+              adminToken={adminToken}
+              showToast={showToast}
+            />
+          )}
+
+          {/* ========================================================
+           * TAB: FAQS MANAGER
+           * ======================================================== */}
+          {activeTab === 'faqs' && (
+            <FaqManager
+              faqs={config?.faqs || []}
               adminToken={adminToken}
               onConfigUpdated={(newCfg) => {
                 if (onConfigUpdated) onConfigUpdated(newCfg);
@@ -1362,6 +1378,18 @@ export const AdminDashboard = ({
         </div>
       </main>
 
+      {/* Competitor Scraper & Content Extraction Modal */}
+      <CompetitorScraperModal
+        isOpen={isScraperOpen}
+        onClose={() => setIsScraperOpen(false)}
+        adminToken={adminToken}
+        onImportSuccess={(newItems) => {
+          if (onConfigUpdated) {
+            onConfigUpdated({ items: [...(config?.items || []), ...newItems] });
+          }
+        }}
+        showToast={showToast}
+      />
     </div>
   );
 };

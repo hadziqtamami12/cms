@@ -30,6 +30,8 @@ export const ProductCatalogManager = ({
     title: '',
     category: '',
     price: '',
+    price_self_drive: '',
+    price_with_driver: '',
     period: '/hari',
     badge: '',
     image: '',
@@ -56,11 +58,13 @@ export const ProductCatalogManager = ({
     setFormData({
       title: '',
       category: categories[1] || 'Umum',
-      price: 'Rp ',
+      price: 'Rp 500.000',
+      price_self_drive: 'Rp 450.000',
+      price_with_driver: 'Rp 650.000',
       period: currentIndustry === 'automotive' ? '/hari' : currentIndustry === 'fnb' ? '/porsi' : '/unit',
       badge: '',
       image: 'https://images.unsplash.com/photo-1549399542-7e3f8b79c341?auto=format&fit=crop&w=800&q=80',
-      specs: 'Spesifikasi 1, Fitur 2, Garansi Resmi'
+      specs: 'Spesifikasi 1, Fitur 2, Kondisi Prima'
     });
     setIsModalOpen(true);
   };
@@ -72,6 +76,8 @@ export const ProductCatalogManager = ({
       title: item.title || '',
       category: item.category || '',
       price: item.price || '',
+      price_self_drive: item.price_self_drive || '',
+      price_with_driver: item.price_with_driver || '',
       period: item.period || '',
       badge: item.badge || '',
       image: item.image || '',
@@ -129,6 +135,8 @@ export const ProductCatalogManager = ({
               title: formData.title,
               category: formData.category,
               price: formData.price,
+              price_self_drive: formData.price_self_drive || formData.price,
+              price_with_driver: formData.price_with_driver || formData.price,
               period: formData.period,
               badge: formData.badge,
               image: formData.image,
@@ -143,6 +151,8 @@ export const ProductCatalogManager = ({
         title: formData.title,
         category: formData.category,
         price: formData.price,
+        price_self_drive: formData.price_self_drive || formData.price,
+        price_with_driver: formData.price_with_driver || formData.price,
         period: formData.period,
         badge: formData.badge,
         image: formData.image,
@@ -161,16 +171,16 @@ export const ProductCatalogManager = ({
 
   // Delete product
   const handleDeleteProduct = async (id, title) => {
-    if (!window.confirm(`Yakin ingin menghapus produk "${title}" dari landing page?`)) {
+    if (!window.confirm(`Yakin ingin menghapus produk "${title}" dari katalog?`)) {
       return;
     }
     const updatedList = productList.filter(item => item.id !== id);
-    await persistProducts(updatedList, `Produk "${title}" berhasil dihapus dari landing page.`);
+    await persistProducts(updatedList, `Produk "${title}" berhasil dihapus dari katalog.`);
   };
 
   // Reset to industry default presets
   const handleResetPresets = async () => {
-    if (!window.confirm(`Reset katalog ke produk default industri ${currentIndustry.toUpperCase()}? Seluruh item saat ini akan diganti dengan preset resmi.`)) {
+    if (!window.confirm(`Reset katalog ke produk default industri ${currentIndustry.toUpperCase()}? Seluruh item saat ini akan diganti dengan preset default.`)) {
       return;
     }
     const preset = getPresetForIndustry(currentIndustry);
@@ -188,14 +198,14 @@ export const ProductCatalogManager = ({
                 <Package className="w-5 h-5" />
               </span>
               <h2 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight truncate">
-                Manajemen Produk & Unit (CRUD)
+                Manajemen Armada & Produk
               </h2>
               <span className="px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-700 text-xs font-bold font-mono">
                 {productList.length} Produk
               </span>
             </div>
             <p className="text-xs sm:text-sm text-slate-500">
-              Kelola daftar unit/produk kartu di landing page (tambah baru, edit harga, ubah spesifikasi & foto).
+              Kelola daftar unit/produk kartu di landing page (tambah baru, edit tarif lepas kunci & sopir, spesifikasi, dan foto).
             </p>
           </div>
 
@@ -413,16 +423,42 @@ export const ProductCatalogManager = ({
                 </div>
               </div>
 
+              {/* Dual Pricing Row (Rental Mobil / Armada) */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 p-3.5 bg-blue-50/60 rounded-2xl border border-blue-100">
+                <div className="space-y-1">
+                  <label className="block text-xs font-bold text-slate-800">Tarif Lepas Kunci (Self-Drive)</label>
+                  <input
+                    type="text"
+                    value={formData.price_self_drive}
+                    onChange={(e) => setFormData({ ...formData, price_self_drive: e.target.value })}
+                    placeholder="Contoh: Rp 450.000"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 font-medium"
+                  />
+                  <span className="text-[10px] text-slate-500">Opsi sewa tanpa driver</span>
+                </div>
+                <div className="space-y-1">
+                  <label className="block text-xs font-bold text-slate-800">Tarif Dengan Sopir (Chauffeur)</label>
+                  <input
+                    type="text"
+                    value={formData.price_with_driver}
+                    onChange={(e) => setFormData({ ...formData, price_with_driver: e.target.value })}
+                    placeholder="Contoh: Rp 650.000"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 font-medium"
+                  />
+                  <span className="text-[10px] text-slate-500">Include sopir berpengalaman</span>
+                </div>
+              </div>
+
               {/* Price & Period Row */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-1">
-                  <label className="block text-xs font-bold text-slate-700">Tarif / Harga *</label>
+                  <label className="block text-xs font-bold text-slate-700">Tarif Standar / Mulai Dari *</label>
                   <input
                     type="text"
                     required
                     value={formData.price}
                     onChange={(e) => setFormData({ ...formData, price: e.target.value })}
-                    placeholder="Contoh: Rp 2.500.000"
+                    placeholder="Contoh: Rp 450.000"
                     className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 font-medium"
                   />
                 </div>

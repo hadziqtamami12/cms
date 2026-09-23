@@ -96,13 +96,129 @@ export const AutomotiveThemeRenderer = ({ themeId, config, onSelectItem }) => {
         </section>
       )}
 
-      {/* ----------------- FLEET CATALOG SECTION (Themes 1, 4, 5, 6, 7, 8, 9, 10) ----------------- */}
+      {/* ----------------- THEME 4 SPECIFIC: MINIMALIST FAST RENT ----------------- */}
+      {themeId === 'minimalist-rent' && (
+        <section className="bg-blue-50/70 border border-blue-200/80 rounded-3xl p-6 sm:p-10 flex flex-col md:flex-row items-center justify-between gap-6 shadow-xs">
+          <div className="space-y-2">
+            <span className="inline-block px-3 py-1 rounded-full bg-blue-600 text-white text-[11px] font-black uppercase tracking-wider">
+              ⚡ Minimalist Fast Rent
+            </span>
+            <h3 className="text-xl sm:text-2xl font-black text-slate-900">
+              Sewa Kilat Tanpa Ribet - Lepas Kunci Siap 10 Menit
+            </h3>
+            <p className="text-xs sm:text-sm text-slate-600">
+              Cukup upload foto KTP dan SIM via WhatsApp, armada langsung diantarkan ke lokasi Anda.
+            </p>
+          </div>
+          <a
+            href="#fleet"
+            className="shrink-0 px-6 py-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-md transition-all flex items-center gap-2"
+          >
+            <span>Pilih Unit Kilat</span>
+            <ArrowRight className="w-4 h-4" />
+          </a>
+        </section>
+      )}
+
+      {/* ----------------- THEME 5 SPECIFIC: DAILY EXPRESS ----------------- */}
+      {themeId === 'daily-express' && (
+        <section className="bg-gradient-to-r from-emerald-600 to-teal-700 rounded-3xl p-8 sm:p-10 text-white flex flex-col md:flex-row items-center justify-between gap-6 shadow-xl">
+          <div className="space-y-2">
+            <span className="inline-block px-3.5 py-1 rounded-full bg-white/20 text-white text-xs font-bold uppercase tracking-wider">
+              🚀 Daily Express Low-Rate
+            </span>
+            <h3 className="text-2xl sm:text-3xl font-black">
+              Tarif Harian Termurah dengan Jaminan Unit Bersih Wangi
+            </h3>
+            <p className="text-emerald-100 text-xs sm:text-sm">
+              Diskon spesial 15% untuk pemakaian sewa 3 hari atau lebih berturut-turut.
+            </p>
+          </div>
+          <a
+            href="#pricing"
+            className="shrink-0 px-7 py-3.5 rounded-xl bg-white text-emerald-800 hover:bg-emerald-50 font-black text-xs sm:text-sm shadow-lg transition-all"
+          >
+            Cek Promo Harian
+          </a>
+        </section>
+      )}
+
+      {/* ----------------- THEME 6 SPECIFIC: OFFROAD ADVENTURE ----------------- */}
+      {themeId === 'offroad-adventure' && (
+        <section className="bg-amber-950 text-white rounded-3xl p-8 sm:p-12 border border-amber-900/60 shadow-xl flex flex-col md:flex-row items-center justify-between gap-8">
+          <div className="space-y-3">
+            <span className="inline-block px-3.5 py-1 rounded-full bg-amber-600/30 text-amber-400 border border-amber-600/40 text-xs font-bold uppercase tracking-wider">
+              🏔️ 4x4 & Tour Adventure Explorer
+            </span>
+            <h3 className="text-2xl sm:text-3xl font-black">
+              Armada Tangguh untuk Jelajah Alam, Bromo & Medan Ekstrem
+            </h3>
+            <p className="text-amber-200/80 text-xs sm:text-sm">
+              Dilengkapi winch, ban all-terrain, recovery gear, dan opsi sopir pemandu medan berpengalaman.
+            </p>
+          </div>
+          <a
+            href="#fleet"
+            className="shrink-0 px-7 py-3.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-black text-xs sm:text-sm shadow-lg transition-all"
+          >
+            Pilih Mobil 4x4
+          </a>
+        </section>
+      )}
+
+      {/* ----------------- THEME 7 SPECIFIC: EXECUTIVE VAN ----------------- */}
+      {themeId === 'executive-van' && (
+        <section className="bg-slate-900 text-white rounded-3xl p-8 sm:p-12 border border-slate-800 shadow-xl flex flex-col md:flex-row items-center justify-between gap-8">
+          <div className="space-y-3">
+            <span className="inline-block px-3.5 py-1 rounded-full bg-purple-500/20 text-purple-300 border border-purple-500/30 text-xs font-bold uppercase tracking-wider">
+              🚐 Executive Van & VIP Group Shuttle
+            </span>
+            <h3 className="text-2xl sm:text-3xl font-black">
+              Kenyamanan Maksimal Rombongan VIP dengan HiAce Premio Luxury
+            </h3>
+            <p className="text-slate-300 text-xs sm:text-sm">
+              Kabin senyap dengan 9 captain seat ergonomis, karaoke on-board, meja lipat, dan ambient lighting.
+            </p>
+          </div>
+          <a
+            href="#fleet"
+            className="shrink-0 px-7 py-3.5 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs sm:text-sm shadow-lg transition-all"
+          >
+            Lihat Unit Van
+          </a>
+        </section>
+      )}
+
+      {/* ----------------- THEME 8 SPECIFIC: ECO ELECTRIC ----------------- */}
+      {themeId === 'eco-electric' && (
+        <section className="bg-teal-900 text-white rounded-3xl p-8 sm:p-12 border border-teal-800 shadow-xl flex flex-col md:flex-row items-center justify-between gap-8">
+          <div className="space-y-3">
+            <span className="inline-block px-3.5 py-1 rounded-full bg-teal-500/20 text-teal-300 border border-teal-500/30 text-xs font-bold uppercase tracking-wider">
+              🌱 Eco Electric EV Fleet
+            </span>
+            <h3 className="text-2xl sm:text-3xl font-black">
+              Perjalanan Senyap, Ramah Lingkungan dengan Zero Emission
+            </h3>
+            <p className="text-teal-200/80 text-xs sm:text-sm">
+              Unit Ioniq 5 & BYD terbaru dengan jarak tempuh hingga 450 km per pengisian dan gratis charging card.
+            </p>
+          </div>
+          <a
+            href="#fleet"
+            className="shrink-0 px-7 py-3.5 rounded-xl bg-teal-400 hover:bg-teal-500 text-slate-950 font-black text-xs sm:text-sm shadow-lg transition-all"
+          >
+            Sewa Mobil Listrik
+          </a>
+        </section>
+      )}
+
+      {/* ----------------- FLEET CATALOG SECTION ----------------- */}
       <section id="fleet" className="space-y-10 sm:space-y-14">
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 pb-2">
           <div className="space-y-3">
             <div className="inline-flex items-center gap-2 text-blue-600 font-bold text-xs uppercase tracking-widest">
               <Car className="w-4 h-4" />
-              <span>Armada Terpilih & Terawat</span>
+              <span>Armada Terpilih & Terawat • Layout: {themeId}</span>
             </div>
             <h2 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold text-slate-900 tracking-tight leading-tight">
               {themeId === 'eco-electric' ? 'Katalog Armada Listrik (EV)' :
@@ -110,6 +226,8 @@ export const AutomotiveThemeRenderer = ({ themeId, config, onSelectItem }) => {
                themeId === 'offroad-adventure' ? 'Armada SUV & 4x4 Adventure Tour' :
                themeId === 'airport-shuttle' ? 'Armada Antar Jemput Bandara Nyaman' :
                themeId === 'bike-scooter' ? 'Armada Rental Motor & Skuter Kota' :
+               themeId === 'minimalist-rent' ? 'Katalog Sewa Kilat Minimalis' :
+               themeId === 'daily-express' ? 'Pilihan Unit Harian Hemat' :
                'Katalog Pilihan Unit Terbaru Siap Jalan'}
             </h2>
           </div>

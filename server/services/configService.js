@@ -328,15 +328,30 @@ export const saveSettingToDb = async (key, value) => {
         ON CONFLICT (key) DO UPDATE
         SET value = EXCLUDED.value, updated_at = NOW();
       `, [key, jsonVal]);
+
+      // Dual persistence into legacy sys_configs table
+      await query(`
+        INSERT INTO sys_configs (key, value, updated_at)
+        VALUES ($1, $2, NOW())
+        ON CONFLICT (key) DO UPDATE
+        SET value = EXCLUDED.value, updated_at = NOW();
+      `, ['theme_config', jsonVal]).catch(() => {});
     } else if (dbType === 'mysql') {
       await query(`
         INSERT INTO app_settings (\`key\`, \`value\`, updated_at)
         VALUES (?, ?, NOW())
         ON DUPLICATE KEY UPDATE \`value\` = VALUES(\`value\`), updated_at = NOW();
       `, [key, jsonVal]);
+
+      await query(`
+        INSERT INTO sys_configs (\`key\`, \`value\`, updated_at)
+        VALUES (?, ?, NOW())
+        ON DUPLICATE KEY UPDATE \`value\` = VALUES(\`value\`), updated_at = NOW();
+      `, ['theme_config', jsonVal]).catch(() => {});
     } else if (dbType === 'memory') {
       const mem = getMemoryStore();
       mem.configs.set(key, value);
+      mem.configs.set('theme_config', value);
     }
   } catch (err) {
     console.error(`[ConfigService] Error saving setting [${key}] to DB:`, err.message);

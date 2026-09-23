@@ -155,16 +155,25 @@ export const query = async (sqlOrCollection, params = [], operation = 'find') =>
 
   // Memory Adapter Operations
   const table = sqlOrCollection.toLowerCase();
-  if (table.includes('config') || table.includes('system')) {
-    if (params.key && params.value !== undefined) {
-      memoryStore.configs.set(params.key, params.value);
-      return [{ key: params.key, value: params.value }];
+  if (table.includes('config') || table.includes('system') || table.includes('setting') || table.includes('app')) {
+    const k = Array.isArray(params) ? params[0] : params?.key;
+    const v = Array.isArray(params) ? params[1] : params?.value;
+
+    if (k && v !== undefined) {
+      try {
+        const parsed = typeof v === 'string' ? JSON.parse(v) : v;
+        memoryStore.configs.set(k, parsed);
+        return [{ key: k, value: parsed }];
+      } catch {
+        memoryStore.configs.set(k, v);
+        return [{ key: k, value: v }];
+      }
     }
-    if (params.key) {
-      const val = memoryStore.configs.get(params.key);
-      return val ? [{ key: params.key, value: val }] : [];
+    if (k) {
+      const val = memoryStore.configs.get(k);
+      return val ? [{ key: k, value: val }] : [];
     }
-    return Array.from(memoryStore.configs.entries()).map(([k, v]) => ({ key: k, value: v }));
+    return Array.from(memoryStore.configs.entries()).map(([key, value]) => ({ key, value }));
   }
 
   if (table.includes('license')) {

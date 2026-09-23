@@ -4,12 +4,14 @@ import {
   RefreshCw, Globe, Shield, Smartphone, Layers, Save, AlertCircle,
   Menu, X, ChevronLeft, ChevronRight, ExternalLink, Activity, Sparkles, Check,
   Lock, Key, ShieldCheck, Eye, EyeOff, UserCheck, AlertTriangle, Copy,
-  PanelLeftClose, PanelLeftOpen
+  PanelLeftClose, PanelLeftOpen, Package
 } from 'lucide-react';
 import OrderManager from '../components/orders/OrderManager';
 import InteractiveSeoDashboard from '../components/seo/InteractiveSeoDashboard';
 import { ThemeShowcase } from '../components/themes/ThemeShowcase';
 import { InteractiveBottomNavSelector } from '../components/themes/InteractiveBottomNavSelector';
+import { ProductCatalogManager } from '../components/products/ProductCatalogManager';
+import { getPresetForIndustry } from '../lib/industryCatalogs';
 import {
   switchTheme,
   updateSeoMarketing,
@@ -73,7 +75,27 @@ export const AdminDashboard = ({
     // 1. Instant optimistic update
     setCurrentIndustry(ind);
     setCurrentThemeId(thId);
-    showToast(`Tema aktif diubah ke [${thId}]`);
+
+    // If changing industry, load industry preset products and branding
+    const isNewIndustry = ind !== currentIndustry;
+    const preset = getPresetForIndustry(ind);
+
+    const updatedConfig = {
+      ...config,
+      industry: ind,
+      themeId: thId,
+      bottomNavStyle,
+      bottom_nav_variant: config?.bottom_nav_variant || bottomNavStyle,
+      ...(isNewIndustry ? {
+        brandName: preset.brandName,
+        tagline: preset.tagline,
+        heroSlides: preset.heroSlides,
+        items: preset.items
+      } : {})
+    };
+
+    if (onConfigUpdated) onConfigUpdated(updatedConfig);
+    showToast(`Tema aktif diubah ke [${thId}] (${ind})`);
     setLoading(true);
 
     try {
@@ -85,7 +107,12 @@ export const AdminDashboard = ({
         token: adminToken
       });
       if (res && res.success) {
-        if (onConfigUpdated) onConfigUpdated(res.themeConfig);
+        if (onConfigUpdated) {
+          onConfigUpdated({
+            ...updatedConfig,
+            ...(res.themeConfig || {})
+          });
+        }
       }
     } catch {
       showToast('Gagal menyinkronkan tema ke server');
@@ -309,6 +336,7 @@ export const AdminDashboard = ({
 
   const navMenuItems = [
     { id: 'themes', label: 'Tema & Tampilan', icon: Palette, badge: '50' },
+    { id: 'products', label: 'Katalog Produk (CRUD)', icon: Package, badge: (config?.items || []).length || 'Unit' },
     { id: 'seo', label: 'SEO & Performance', icon: TrendingUp, badge: 'Live' },
     { id: 'leads', label: 'Manajemen Pesanan', icon: Users, badge: 'CRUD' },
     { id: 'settings', label: 'Keamanan & Portal', icon: Settings },
@@ -680,6 +708,7 @@ export const AdminDashboard = ({
               </div>
               <h1 className="text-lg font-extrabold text-slate-900 tracking-tight truncate">
                 {activeTab === 'themes' && 'Engine 50 Tema Multi-Industri'}
+                {activeTab === 'products' && 'Manajemen Produk & Unit (CRUD)'}
                 {activeTab === 'seo' && 'SEO & Performance Hub #1'}
                 {activeTab === 'leads' && 'Manajemen Pesanan (Order CRUD)'}
                 {activeTab === 'settings' && 'Pengaturan Keamanan & Slug'}
@@ -785,6 +814,21 @@ export const AdminDashboard = ({
                 showToast={showToast}
               />
             </div>
+          )}
+
+          {/* ========================================================
+           * TAB 2: PRODUCT & UNIT CATALOG MANAGER (FULL PRODUCT CRUD)
+           * ======================================================== */}
+          {activeTab === 'products' && (
+            <ProductCatalogManager
+              items={config?.items || []}
+              currentIndustry={currentIndustry}
+              adminToken={adminToken}
+              onConfigUpdated={(newCfg) => {
+                if (onConfigUpdated) onConfigUpdated(newCfg);
+              }}
+              showToast={showToast}
+            />
           )}
 
           {/* ========================================================

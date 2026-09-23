@@ -98,10 +98,30 @@ export const AppProvider = ({ children }) => {
 
   useEffect(() => {
     loadConfig();
+
+    // Cross-tab reactive synchronization: when admin modifies theme/settings,
+    // any open landing page tab updates immediately without page reload!
+    const handleStorageChange = (e) => {
+      if (e.key === 'cms_active_theme_config' && e.newValue) {
+        try {
+          const parsed = JSON.parse(e.newValue);
+          setConfig(prev => ({ ...prev, ...parsed }));
+        } catch {}
+      }
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+    return () => window.removeEventListener('storage', handleStorageChange);
   }, []);
 
   const updateConfigLocally = (newConfig) => {
-    setConfig(prev => ({ ...prev, ...newConfig }));
+    setConfig(prev => {
+      const merged = { ...prev, ...newConfig };
+      try {
+        localStorage.setItem('cms_active_theme_config', JSON.stringify(merged));
+      } catch {}
+      return merged;
+    });
   };
 
   const handleAdminLogin = (token, slug) => {

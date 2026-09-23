@@ -369,9 +369,9 @@ export const WhatsAppStudio = ({
                     if (actionType === 'popup') setTestModalOpen(true);
                     else window.open(`https://wa.me/${phone.replace(/[^0-9]/g, '')}`, '_blank');
                   }}
-                  className="flex items-center gap-2 px-3 py-2 rounded-full bg-[#25D366] text-white shadow-lg text-xs font-bold transition-transform active:scale-95 cursor-pointer"
+                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-[#25D366] text-white shadow-md text-[10px] font-bold transition-transform active:scale-95 cursor-pointer"
                 >
-                  <MessageCircle className="w-4 h-4 stroke-[2.5]" />
+                  <MessageCircle className="w-3.5 h-3.5 stroke-[2.5]" />
                   <span>Chat WA</span>
                 </button>
               </div>

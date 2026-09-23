@@ -4,13 +4,14 @@ import {
   RefreshCw, Globe, Shield, Smartphone, Layers, Save, AlertCircle,
   Menu, X, ChevronLeft, ChevronRight, ExternalLink, Activity, Sparkles, Check,
   Lock, Key, ShieldCheck, Eye, EyeOff, UserCheck, AlertTriangle, Copy,
-  PanelLeftClose, PanelLeftOpen, Package, MessageCircle
+  PanelLeftClose, PanelLeftOpen, Package, MessageCircle, Sliders
 } from 'lucide-react';
 import OrderManager from '../components/orders/OrderManager';
 import InteractiveSeoDashboard from '../components/seo/InteractiveSeoDashboard';
 import { ThemeShowcase } from '../components/themes/ThemeShowcase';
 import { InteractiveBottomNavSelector } from '../components/themes/InteractiveBottomNavSelector';
 import { ProductCatalogManager } from '../components/products/ProductCatalogManager';
+import { SlideshowManager } from '../components/slideshow/SlideshowManager';
 import { WhatsAppStudio } from '../components/whatsapp/WhatsAppStudio';
 import { getPresetForIndustry } from '../lib/industryCatalogs';
 import {
@@ -340,6 +341,7 @@ export const AdminDashboard = ({
 
   const navMenuItems = [
     { id: 'themes', label: 'Tema & Tampilan', icon: Palette, badge: '50' },
+    { id: 'slideshow', label: 'Slideshow Hero (CRUD)', icon: Sliders, badge: (config?.heroSlides || []).length || 'Slide' },
     { id: 'products', label: 'Katalog Produk (CRUD)', icon: Package, badge: (config?.items || []).length || 'Unit' },
     { id: 'whatsapp', label: 'Floating WhatsApp', icon: MessageCircle, badge: 'Studio' },
     { id: 'seo', label: 'SEO & Performance', icon: TrendingUp, badge: 'Live' },
@@ -713,7 +715,9 @@ export const AdminDashboard = ({
               </div>
               <h1 className="text-lg font-extrabold text-slate-900 tracking-tight truncate">
                 {activeTab === 'themes' && 'Engine 50 Tema Multi-Industri'}
+                {activeTab === 'slideshow' && 'Manajemen Slideshow & Hero Banner (CRUD)'}
                 {activeTab === 'products' && 'Manajemen Produk & Unit (CRUD)'}
+                {activeTab === 'whatsapp' && 'Studio WhatsApp & Floating Contact'}
                 {activeTab === 'seo' && 'SEO & Performance Hub #1'}
                 {activeTab === 'leads' && 'Manajemen Pesanan (Order CRUD)'}
                 {activeTab === 'settings' && 'Pengaturan Keamanan & Slug'}
@@ -819,6 +823,20 @@ export const AdminDashboard = ({
                 showToast={showToast}
               />
             </div>
+          )}
+
+          {/* ========================================================
+           * TAB: SLIDESHOW & HERO BANNER MANAGER (FULL HERO CRUD)
+           * ======================================================== */}
+          {activeTab === 'slideshow' && (
+            <SlideshowManager
+              slides={config?.heroSlides || []}
+              adminToken={adminToken}
+              onConfigUpdated={(newCfg) => {
+                if (onConfigUpdated) onConfigUpdated(newCfg);
+              }}
+              showToast={showToast}
+            />
           )}
 
           {/* ========================================================

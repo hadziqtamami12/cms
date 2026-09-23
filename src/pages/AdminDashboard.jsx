@@ -2,11 +2,18 @@ import React, { useState } from 'react';
 import {
   Palette, TrendingUp, Settings, Users, LogOut, CheckCircle2,
   RefreshCw, Globe, Shield, Smartphone, Layers, Save, AlertCircle,
-  Menu, X, ChevronLeft, ChevronRight, ExternalLink, Activity, Sparkles, Check
+  Menu, X, ChevronLeft, ChevronRight, ExternalLink, Activity, Sparkles, Check,
+  Lock, Key, ShieldCheck, Eye, EyeOff, UserCheck, AlertTriangle
 } from 'lucide-react';
-import SeoScoreChecker from '../components/seo/SeoScoreChecker';
-import ResponsiveTableCard from '../components/common/ResponsiveTableCard';
-import { switchTheme, updateSeoMarketing, updateAdminSlug } from '../lib/api';
+import OrderManager from '../components/orders/OrderManager';
+import InteractiveSeoDashboard from '../components/seo/InteractiveSeoDashboard';
+import {
+  switchTheme,
+  updateSeoMarketing,
+  updateAdminSlug,
+  updateAdminSecurity,
+  revokeAdminSessions
+} from '../lib/api';
 
 export const AdminDashboard = ({
   config,
@@ -29,11 +36,21 @@ export const AdminDashboard = ({
   // Filter state for themes tab
   const [selectedIndustryTab, setSelectedIndustryTab] = useState('all');
 
-  // Local state for SEO & Marketing
-  const [seoState, setSeoState] = useState(config?.seo || {});
-
   // Local state for dynamic slug
   const [newSlug, setNewSlug] = useState(adminSlug || 'admin');
+
+  // Admin Security & Credentials Form State
+  const [securityForm, setSecurityForm] = useState({
+    username: 'admin',
+    email: 'admin@multicms.id',
+    currentPassword: '',
+    newPassword: '',
+    confirmPassword: ''
+  });
+  const [showCurrentPass, setShowCurrentPass] = useState(false);
+  const [showNewPass, setShowNewPass] = useState(false);
+  const [showConfirmPass, setShowConfirmPass] = useState(false);
+  const [securityLoading, setSecurityLoading] = useState(false);
 
   const showToast = (msg) => {
     setToastMessage(msg);
@@ -80,14 +97,13 @@ export const AdminDashboard = ({
     } catch {}
   };
 
-  // Save SEO & Marketing Configuration
-  const handleSaveSeo = async (e) => {
-    e.preventDefault();
+  // Save SEO & Marketing Configuration from InteractiveSeoDashboard
+  const handleSaveSeoData = async (seoData) => {
     setLoading(true);
     try {
-      const res = await updateSeoMarketing(seoState, adminToken);
+      const res = await updateSeoMarketing(seoData, adminToken);
       if (res.success) {
-        showToast('Pengaturan SEO & Integrasi Marketing Berhasil Disimpan');
+        showToast('Pengaturan SEO & Integrasi Google Berhasil Disimpan');
         if (onConfigUpdated) onConfigUpdated({ ...config, seo: res.seo });
       }
     } catch {
@@ -111,6 +127,78 @@ export const AdminDashboard = ({
       showToast('Gagal memperbarui slug admin');
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Password Strength Meter
+  const getPasswordStrength = (pass) => {
+    if (!pass) return { score: 0, label: 'Belum diisi', color: 'bg-slate-200' };
+    if (pass.length < 6) return { score: 1, label: 'Terlalu Lemah (<6 karakter)', color: 'bg-red-500' };
+    let score = 1;
+    if (/[A-Z]/.test(pass)) score++;
+    if (/[0-9]/.test(pass)) score++;
+    if (/[^A-Za-z0-9]/.test(pass)) score++;
+    if (score === 2) return { score: 2, label: 'Cukup', color: 'bg-amber-500' };
+    if (score === 3) return { score: 3, label: 'Kuat', color: 'bg-blue-600' };
+    return { score: 4, label: 'Sangat Kuat & Aman', color: 'bg-emerald-500' };
+  };
+
+  const passStrength = getPasswordStrength(securityForm.newPassword);
+
+  // Save Security & Credentials Handler
+  const handleSaveSecurity = async (e) => {
+    e.preventDefault();
+    if (!securityForm.currentPassword) {
+      showToast('Password saat ini wajib diisi untuk verifikasi keamanan');
+      return;
+    }
+    if (securityForm.newPassword) {
+      if (securityForm.newPassword.length < 6) {
+        showToast('Password baru minimal 6 karakter');
+        return;
+      }
+      if (securityForm.newPassword !== securityForm.confirmPassword) {
+        showToast('Konfirmasi password tidak cocok');
+        return;
+      }
+    }
+
+    setSecurityLoading(true);
+    try {
+      const res = await updateAdminSecurity({
+        currentPassword: securityForm.currentPassword,
+        newUsername: securityForm.username,
+        newEmail: securityForm.email,
+        newPassword: securityForm.newPassword || undefined,
+        confirmPassword: securityForm.confirmPassword || undefined
+      }, adminToken);
+
+      if (res && res.success) {
+        showToast('Kredensial profil & keamanan admin berhasil diperbarui!');
+        setSecurityForm(prev => ({ ...prev, currentPassword: '', newPassword: '', confirmPassword: '' }));
+      } else {
+        showToast(res.error || 'Gagal memperbarui keamanan admin');
+      }
+    } catch {
+      showToast('Gagal terhubung ke server');
+    } finally {
+      setSecurityLoading(false);
+    }
+  };
+
+  // Revoke All Active Sessions ("Logout dari Semua Perangkat")
+  const handleRevokeSessions = async () => {
+    if (!window.confirm('Apakah Anda yakin ingin logout dari semua perangkat? Semua sesi aktif akan dicabut dan Anda harus login kembali.')) {
+      return;
+    }
+    try {
+      const res = await revokeAdminSessions(adminToken);
+      if (res && res.success) {
+        alert('Semua sesi aktif berhasil dicabut. Halaman akan dialihkan ke layar login.');
+        onLogout();
+      }
+    } catch {
+      showToast('Gagal mencabut sesi aktif');
     }
   };
 
@@ -139,15 +227,15 @@ export const AdminDashboard = ({
       icon: '🛍️',
       themes: [
         { id: 'direct-checkout', name: 'Direct Funnel Checkout' },
-        { id: 'flash-sale-modern', name: 'Flash Sale Modern' },
-        { id: 'brand-catalog', name: 'Brand Product Catalog' },
-        { id: 'storytelling-artisan', name: 'Artisan Storytelling' },
-        { id: 'minimal-boutique', name: 'Editorial Minimal Boutique' },
-        { id: 'tech-gadget', name: 'Tech Gadget Specs' },
-        { id: 'organic-grocery', name: 'Fresh Organic Grocery' },
+        { id: 'flash-sale-modern', name: 'Modern Flash Sale Countdown' },
+        { id: 'brand-catalog', name: 'Brand Collection Catalog' },
+        { id: 'storytelling-artisan', name: 'Artisan Storytelling Brand' },
+        { id: 'minimal-boutique', name: 'Minimalist Boutique' },
+        { id: 'tech-gadget', name: 'Tech & Gadget Launch' },
+        { id: 'organic-grocery', name: 'Organic Grocery Market' },
         { id: 'wholesale-b2b', name: 'B2B Wholesale Portal' },
-        { id: 'fashion-lookbook', name: 'Fashion Lookbook Grid' },
-        { id: 'single-product', name: 'Single Product Spotlight' },
+        { id: 'fashion-lookbook', name: 'Fashion Lookbook Studio' },
+        { id: 'single-product', name: 'Single Product Hero Focus' },
       ]
     },
     {
@@ -155,33 +243,33 @@ export const AdminDashboard = ({
       name: 'F&B & Kuliner',
       icon: '🍽️',
       themes: [
-        { id: 'bistro-fine-dining', name: 'Fine Dining & Bistro' },
+        { id: 'bistro-fine-dining', name: 'Bistro Fine Dining' },
         { id: 'coffee-roastery', name: 'Artisan Coffee Roastery' },
-        { id: 'fast-casual', name: 'Fast Casual Burger & Bites' },
-        { id: 'artisan-bakery', name: 'Pastry & Artisan Bakery' },
-        { id: 'cloud-kitchen', name: 'Cloud Kitchen Delivery Hub' },
-        { id: 'japanese-omakase', name: 'Authentic Japanese Omakase' },
-        { id: 'street-food-hub', name: 'Modern Street Food Hub' },
-        { id: 'catering-banquet', name: 'Catering & Banquet Hall' },
-        { id: 'juice-health-bar', name: 'Cold-Pressed Juice Bar' },
-        { id: 'dessert-parlour', name: 'Gelato & Dessert Parlour' },
+        { id: 'fast-casual', name: 'Fast Casual Quick Order' },
+        { id: 'artisan-bakery', name: 'Artisan French Bakery' },
+        { id: 'cloud-kitchen', name: 'Cloud Kitchen Multi-Brand' },
+        { id: 'japanese-omakase', name: 'Japanese Sushi & Omakase' },
+        { id: 'street-food-hub', name: 'Street Food Modern Hub' },
+        { id: 'catering-banquet', name: 'Catering & Banquet Service' },
+        { id: 'juice-health-bar', name: 'Juice & Organic Health Bar' },
+        { id: 'dessert-parlour', name: 'Dessert Parlour & Gelato' },
       ]
     },
     {
       id: 'services',
-      name: 'Jasa & Konsultasi',
+      name: 'Jasa Profesional & Lokal',
       icon: '💼',
       themes: [
-        { id: 'legal-law-firm', name: 'Advocate & Law Firm' },
-        { id: 'tech-consulting', name: 'Enterprise IT Consulting' },
-        { id: 'accounting-tax', name: 'Tax & Accounting Advisory' },
-        { id: 'auto-repair', name: 'Auto Repair & Detailing Lab' },
-        { id: 'beauty-salon-spa', name: 'Aesthetic Clinic & Luxury Spa' },
-        { id: 'medical-dental', name: 'Dental Care & Health Clinic' },
-        { id: 'home-services-hvac', name: 'HVAC & Home Repair Express' },
-        { id: 'creative-agency', name: 'Creative Studio & Branding' },
-        { id: 'security-safety', name: 'Corporate Security & Guard' },
-        { id: 'fitness-personal-trainer', name: 'Gym & Elite Fitness Studio' },
+        { id: 'legal-law-firm', name: 'Corporate Legal & Law Firm' },
+        { id: 'tech-consulting', name: 'Tech Consulting & Cloud' },
+        { id: 'accounting-tax', name: 'Accounting & Tax Advisory' },
+        { id: 'auto-repair', name: 'Auto Repair & Tuning' },
+        { id: 'beauty-salon-spa', name: 'Luxury Salon & Wellness' },
+        { id: 'medical-dental', name: 'Dental Clinic & Specialist' },
+        { id: 'home-services-hvac', name: 'Home Services HVAC & Repair' },
+        { id: 'creative-agency', name: 'Creative Agency Portfolio' },
+        { id: 'security-safety', name: 'Security & Surveillance' },
+        { id: 'fitness-personal-trainer', name: 'Fitness Gym & Trainer' },
       ]
     },
     {
@@ -191,50 +279,23 @@ export const AdminDashboard = ({
       themes: [
         { id: 'luxury-villa-penthouse', name: 'Luxury Villa & Penthouse' },
         { id: 'suburban-housing', name: 'Suburban Housing Cluster' },
-        { id: 'commercial-leasing', name: 'Grade-A Office Leasing' },
-        { id: 'high-rise-apartment', name: 'Metropolitan High-Rise' },
-        { id: 'land-plots', name: 'Land & Investment Plots' },
-        { id: 'co-living-boarding', name: 'Modern Co-Living Residence' },
-        { id: 'modern-minimalist-home', name: 'Scandinavian Minimalist Home' },
-        { id: 'smart-home-residence', name: 'Smart IoT Eco Residences' },
-        { id: 'beachfront-resort', name: 'Tropical Beachfront Resort' },
-        { id: 'industrial-warehouse', name: 'Logistics Warehouse Hub' },
+        { id: 'commercial-leasing', name: 'Commercial Office Leasing' },
+        { id: 'high-rise-apartment', name: 'High-Rise Modern Apartment' },
+        { id: 'land-plots', name: 'Land Plots & Development' },
+        { id: 'co-living-boarding', name: 'Co-Living & Boarding Space' },
+        { id: 'modern-minimalist-home', name: 'Modern Minimalist Living' },
+        { id: 'smart-home-residence', name: 'Smart Home Green Residence' },
+        { id: 'beachfront-resort', name: 'Beachfront Resort Estates' },
+        { id: 'industrial-warehouse', name: 'Industrial Logistics & Warehouse' },
       ]
     }
   ];
 
-  // Sample leads data
-  const sampleLeads = [
-    { id: 'L-101', name: 'Ir. Hendro Kusuma', phone: '081288776655', email: 'hendro@holding.co.id', item: 'Alphard Transformer', status: 'Baru', date: '2026-09-23 10:15' },
-    { id: 'L-102', name: 'Amanda Putri', phone: '081399887711', email: 'amanda@agency.com', item: 'Innova Zenix Hybrid', status: 'Dihubungi', date: '2026-09-23 09:30' },
-    { id: 'L-103', name: 'Budi Santoso', phone: '085711223344', email: 'budi@trans.co.id', item: 'HiAce Premio VIP', status: 'Selesai', date: '2026-09-22 16:45' }
-  ];
-
-  const leadColumns = [
-    { key: 'name', label: 'Nama Klien' },
-    { key: 'phone', label: 'No. WhatsApp/Telepon' },
-    { key: 'item', label: 'Unit / Layanan' },
-    {
-      key: 'status',
-      label: 'Status',
-      render: (val) => (
-        <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${
-          val === 'Baru' ? 'bg-blue-100 text-blue-800' :
-          val === 'Dihubungi' ? 'bg-amber-100 text-amber-800' :
-          'bg-emerald-100 text-emerald-800'
-        }`}>
-          {val}
-        </span>
-      )
-    },
-    { key: 'date', label: 'Waktu Masuk' }
-  ];
-
   const navMenuItems = [
     { id: 'themes', label: 'Tema & Tampilan', icon: Palette, badge: '50 Tema' },
-    { id: 'seo', label: 'SEO & Marketing', icon: TrendingUp, badge: 'Engine #1' },
-    { id: 'leads', label: 'Pesanan & Leads', icon: Users, badge: '3 Baru' },
-    { id: 'settings', label: 'Pengaturan Portal', icon: Settings },
+    { id: 'seo', label: 'SEO & Performance Hub', icon: TrendingUp, badge: 'Live #1' },
+    { id: 'leads', label: 'Manajemen Pesanan', icon: Users, badge: 'Order CRUD' },
+    { id: 'settings', label: 'Keamanan & Portal', icon: Settings },
   ];
 
   const filteredIndustries = selectedIndustryTab === 'all'
@@ -242,7 +303,7 @@ export const AdminDashboard = ({
     : industryCatalog.filter(ind => ind.id === selectedIndustryTab);
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-800 flex flex-col lg:flex-row antialiased">
+    <div className="min-h-screen w-full max-w-full overflow-x-hidden bg-slate-50 text-slate-800 flex flex-col lg:flex-row antialiased min-w-0">
       {/* Toast Notification */}
       {toastMessage && (
         <div className="fixed bottom-6 right-6 z-50 p-4 rounded-2xl bg-slate-900 text-white text-xs font-semibold shadow-2xl flex items-center gap-2.5 animate-bounce-in">
@@ -254,30 +315,30 @@ export const AdminDashboard = ({
       {/* ========================================================
        * MOBILE TOP BAR (Only visible on screens < 1024px)
        * ======================================================== */}
-      <header className="lg:hidden bg-white border-b border-slate-200 sticky top-0 z-40 px-4 py-3.5 flex items-center justify-between shadow-xs">
-        <div className="flex items-center gap-3">
+      <header className="lg:hidden bg-white border-b border-slate-200 sticky top-0 z-40 px-4 py-3.5 flex items-center justify-between shadow-xs w-full max-w-full">
+        <div className="flex items-center gap-3 min-w-0">
           <button
             type="button"
             onClick={() => setMobileSidebarOpen(prev => !prev)}
-            className="px-3 py-2 rounded-xl border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 active:bg-slate-100 focus:outline-none flex items-center gap-2 shadow-xs transition-colors"
+            className="px-3 py-2 rounded-xl border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 active:bg-slate-100 focus:outline-none flex items-center gap-2 shadow-xs transition-colors shrink-0"
             aria-label="Toggle Sidebar Mobile"
             id="mobile-sidebar-toggle"
           >
             <Menu className="w-5 h-5 text-blue-600" />
             <span className="text-xs font-bold text-slate-800">Menu</span>
           </button>
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-xl bg-blue-600 text-white flex items-center justify-center font-black text-sm shadow-sm">
+          <div className="flex items-center gap-2 truncate min-w-0">
+            <div className="w-8 h-8 rounded-xl bg-blue-600 text-white flex items-center justify-center font-black text-sm shadow-sm shrink-0">
               M
             </div>
-            <div>
-              <span className="font-extrabold text-sm text-slate-900 block leading-tight">Admin CMS</span>
-              <span className="text-[10px] text-slate-400 font-mono">/{adminSlug}</span>
+            <div className="truncate">
+              <span className="font-extrabold text-sm text-slate-900 block leading-tight truncate">Admin CMS</span>
+              <span className="text-[10px] text-slate-400 font-mono block truncate">/{adminSlug}</span>
             </div>
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 shrink-0">
           <a
             href="/"
             target="_blank"
@@ -320,18 +381,18 @@ export const AdminDashboard = ({
       >
         {/* Sidebar Brand Header */}
         <div className="p-5 border-b border-slate-100 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-blue-600 text-white flex items-center justify-center font-black shadow-md shadow-blue-600/20">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="w-10 h-10 rounded-2xl bg-blue-600 text-white flex items-center justify-center font-black shadow-md shadow-blue-600/20 shrink-0">
               M
             </div>
-            <div>
-              <span className="font-extrabold text-base text-slate-900 block leading-tight">MultiCMS Engine</span>
-              <span className="text-xs text-blue-600 font-semibold font-mono bg-blue-50 px-1.5 py-0.5 rounded-md mt-0.5 inline-block">
+            <div className="truncate">
+              <span className="font-extrabold text-base text-slate-900 block leading-tight truncate">MultiCMS Engine</span>
+              <span className="text-xs text-blue-600 font-semibold font-mono bg-blue-50 px-1.5 py-0.5 rounded-md mt-0.5 inline-block truncate">
                 /{adminSlug}
               </span>
             </div>
           </div>
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-1 shrink-0">
             {/* Desktop Collapse / Hide Button */}
             <button
               onClick={() => setDesktopSidebarOpen(false)}
@@ -405,21 +466,21 @@ export const AdminDashboard = ({
 
           {/* User Profile & Logout */}
           <div className="pt-2 flex items-center justify-between">
-            <div className="flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center font-bold text-xs">
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div className="w-8 h-8 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center font-bold text-xs shrink-0">
                 SA
               </div>
-              <div>
-                <span className="text-xs font-bold text-slate-900 block leading-tight">Superadmin</span>
+              <div className="truncate">
+                <span className="text-xs font-bold text-slate-900 block leading-tight truncate">Superadmin</span>
                 <span className="text-[10px] text-emerald-600 font-medium flex items-center gap-1">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse shrink-0" />
                   Online
                 </span>
               </div>
             </div>
             <button
               onClick={onLogout}
-              className="p-2 rounded-xl text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors"
+              className="p-2 rounded-xl text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors shrink-0"
               title="Keluar / Logout"
             >
               <LogOut className="w-4 h-4" />
@@ -444,17 +505,17 @@ export const AdminDashboard = ({
       {/* ========================================================
        * MAIN CONTENT AREA (Offset by sidebar on desktop if open)
        * ======================================================== */}
-      <main className={`flex-1 flex flex-col min-w-0 transition-all duration-300 ease-in-out ${
+      <main className={`flex-1 flex flex-col min-w-0 w-full max-w-full overflow-x-hidden transition-all duration-300 ease-in-out ${
         desktopSidebarOpen ? 'lg:pl-72' : 'lg:pl-0'
       }`}>
         {/* Desktop Sticky Header with Toggle Sidebar Button */}
-        <header className="hidden lg:flex bg-white border-b border-slate-200 sticky top-0 z-30 px-8 py-4 items-center justify-between shadow-xs">
-          <div className="flex items-center gap-4">
+        <header className="hidden lg:flex bg-white border-b border-slate-200 sticky top-0 z-30 px-8 py-4 items-center justify-between shadow-xs w-full max-w-full">
+          <div className="flex items-center gap-4 min-w-0">
             {/* Desktop Toggle Button */}
             <button
               type="button"
               onClick={() => setDesktopSidebarOpen(prev => !prev)}
-              className="px-3.5 py-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 active:bg-slate-100 text-slate-700 flex items-center gap-2 shadow-xs transition-colors"
+              className="px-3.5 py-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 active:bg-slate-100 text-slate-700 flex items-center gap-2 shadow-xs transition-colors shrink-0"
               title={desktopSidebarOpen ? "Sembunyikan Sidebar" : "Buka Sidebar"}
               aria-label="Toggle Sidebar Desktop"
               id="desktop-sidebar-toggle"
@@ -465,24 +526,24 @@ export const AdminDashboard = ({
               </span>
             </button>
 
-            <div className="h-6 w-px bg-slate-200" />
+            <div className="h-6 w-px bg-slate-200 shrink-0" />
 
-            <div>
+            <div className="truncate">
               <div className="flex items-center gap-2 text-xs font-medium text-slate-400 mb-0.5">
                 <span>Admin Portal</span>
-                <ChevronRight className="w-3.5 h-3.5" />
+                <ChevronRight className="w-3.5 h-3.5 shrink-0" />
                 <span className="text-blue-600 font-bold capitalize">{activeTab}</span>
               </div>
-              <h1 className="text-xl font-extrabold text-slate-900 tracking-tight">
+              <h1 className="text-xl font-extrabold text-slate-900 tracking-tight truncate">
                 {activeTab === 'themes' && 'Engine 50 Tema Multi-Industri'}
-                {activeTab === 'seo' && 'SEO #1 Audit & Keyword Engine'}
-                {activeTab === 'leads' && 'Data Pesanan & Leads Masuk'}
-                {activeTab === 'settings' && 'Pengaturan Portal & Dynamic Slug'}
+                {activeTab === 'seo' && 'SEO & Performance Hub #1'}
+                {activeTab === 'leads' && 'Manajemen Pesanan & Leads (Order CRUD)'}
+                {activeTab === 'settings' && 'Pengaturan Keamanan & Dynamic Slug'}
               </h1>
             </div>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 shrink-0">
             <div className="px-3.5 py-1.5 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-semibold flex items-center gap-1.5">
               <Activity className="w-3.5 h-3.5 text-emerald-600" />
               <span>Core Web Vitals 98+</span>
@@ -499,100 +560,112 @@ export const AdminDashboard = ({
           </div>
         </header>
 
-        {/* Dashboard Content Container */}
-        <div className="p-4 sm:p-6 lg:p-8 space-y-8 max-w-7xl w-full mx-auto pb-24">
+        {/* Dashboard Content Container (Strict Zero Overflow & Generous Breathing Room) */}
+        <div className="p-4 sm:p-6 lg:p-8 space-y-8 max-w-7xl w-full max-w-full mx-auto pb-24 min-w-0 overflow-x-hidden">
           {/* Quick Metrics Bar */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-            <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-xs space-y-1">
-              <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Tema Aktif</span>
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+            <div className="bg-white rounded-2xl border border-slate-200 p-4 sm:p-5 shadow-xs space-y-1 min-w-0">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 block truncate">Tema Aktif</span>
               <div className="text-base sm:text-lg font-black text-slate-900 capitalize truncate">
                 {currentIndustry}
               </div>
               <div className="text-xs text-blue-600 font-mono truncate">{currentThemeId}</div>
             </div>
 
-            <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-xs space-y-1">
-              <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Status Lisensi</span>
-              <div className="text-base sm:text-lg font-black text-emerald-600 flex items-center gap-1.5">
+            <div className="bg-white rounded-2xl border border-slate-200 p-4 sm:p-5 shadow-xs space-y-1 min-w-0">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 block truncate">Status Lisensi</span>
+              <div className="text-base sm:text-lg font-black text-emerald-600 flex items-center gap-1.5 truncate">
                 <CheckCircle2 className="w-4 h-4 shrink-0" />
                 <span>Aktif Terverifikasi</span>
               </div>
-              <div className="text-xs text-slate-400">Enterprise Cloud Engine</div>
+              <div className="text-xs text-slate-400 truncate">Enterprise Cloud Engine</div>
             </div>
 
-            <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-xs space-y-1">
-              <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Total Leads Masuk</span>
-              <div className="text-base sm:text-lg font-black text-slate-900">{sampleLeads.length} Klien</div>
-              <div className="text-xs text-emerald-600 font-medium">+100% responsif</div>
+            <div className="bg-white rounded-2xl border border-slate-200 p-4 sm:p-5 shadow-xs space-y-1 min-w-0">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 block truncate">Audit PageSpeed</span>
+              <div className="text-base sm:text-lg font-black text-slate-900 flex items-center gap-1 truncate">
+                <span>98</span>
+                <span className="text-xs text-slate-400 font-normal">/100</span>
+              </div>
+              <div className="text-xs text-emerald-600 font-semibold truncate">TTFB &lt; 50ms (Edge Cache)</div>
             </div>
 
-            <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-xs space-y-1">
-              <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Dynamic Slug</span>
-              <div className="text-base sm:text-lg font-mono font-bold text-slate-900 truncate">/{adminSlug}</div>
-              <div className="text-xs text-slate-400">Proteksi Anti-Bot</div>
+            <div className="bg-white rounded-2xl border border-slate-200 p-4 sm:p-5 shadow-xs space-y-1 min-w-0">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 block truncate">Total Varian Tema</span>
+              <div className="text-base sm:text-lg font-black text-slate-900 truncate">
+                50 Varian
+              </div>
+              <div className="text-xs text-blue-600 font-medium truncate">5 Kategori Industri Siap Pakai</div>
             </div>
           </div>
 
           {/* ========================================================
-           * TAB 1: 1-CLICK THEME SWITCHER (50 THEMES)
+           * TAB 1: THEMES SELECTION & NAVIGATION CONFIG
            * ======================================================== */}
           {activeTab === 'themes' && (
-            <div className="space-y-8">
-              {/* Theme Settings & Mobile Nav Bar */}
-              <div className="bg-white rounded-3xl border border-slate-200 p-6 sm:p-8 shadow-xs flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
-                <div className="space-y-2 max-w-xl">
-                  <div className="inline-flex items-center gap-1.5 text-xs font-bold text-blue-600 uppercase tracking-wider">
-                    <Sparkles className="w-4 h-4" />
-                    <span>Instant Switch</span>
+            <div className="space-y-8 min-w-0">
+              {/* Bottom Nav Style Selector */}
+              <div className="bg-white rounded-3xl border border-slate-200 p-6 sm:p-8 shadow-xs space-y-4">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-4">
+                  <div>
+                    <h3 className="font-extrabold text-slate-900 text-lg flex items-center gap-2">
+                      <Smartphone className="w-5 h-5 text-blue-600" />
+                      <span>Gaya Mobile Bottom Navigation</span>
+                    </h3>
+                    <p className="text-xs text-slate-500 mt-0.5">
+                      Pilih dari 4 variasi navigasi bawah untuk perangkat mobile dan aplikasi PWA.
+                    </p>
                   </div>
-                  <h2 className="text-xl font-extrabold text-slate-900">Koleksi 50 Tema & Navigasi Mobile</h2>
-                  <p className="text-xs sm:text-sm text-slate-500 leading-relaxed">
-                    Tema aktif: <strong className="text-blue-600 capitalize font-bold">{currentIndustry} - {currentThemeId}</strong>.
-                    Pilih tema mana pun untuk beralih secara langsung tanpa mengubah konten Anda.
-                  </p>
+                  <span className="text-xs font-bold text-slate-400 font-mono">Aktif: {bottomNavStyle}</span>
                 </div>
 
-                {/* Mobile Bottom Nav Variation Picker */}
-                <div className="w-full md:w-auto shrink-0 bg-slate-50 p-4 rounded-2xl border border-slate-200/80 space-y-2">
-                  <span className="block text-xs font-bold uppercase tracking-wider text-slate-600">
-                    Gaya Navigasi Bawah Smartphone
-                  </span>
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                    {[
-                      { id: 'dock', label: 'Floating Dock' },
-                      { id: 'curved', label: 'Curved Scoop' },
-                      { id: 'bubble', label: 'Floating Bubble' },
-                      { id: 'box', label: 'Modern Box' }
-                    ].map((style) => (
-                      <button
-                        key={style.id}
-                        type="button"
-                        onClick={() => handleSwitchBottomNav(style.id)}
-                        className={`py-2 px-3 rounded-xl text-xs font-bold transition-all ${
-                          bottomNavStyle === style.id
-                            ? 'bg-blue-600 text-white shadow-sm'
-                            : 'bg-white text-slate-600 hover:text-slate-900 border border-slate-200'
-                        }`}
-                      >
-                        {style.label}
-                      </button>
-                    ))}
-                  </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                  {[
+                    { id: 'dock', label: 'Floating Dock Pill', desc: 'Dock melayang modern rounded-full' },
+                    { id: 'curved', label: 'Curved Scoop Solid', desc: 'Dock solid melengkung dinamis' },
+                    { id: 'bubble', label: 'Floating Bubble', desc: 'Lingkaran bubble aktif mengambang' },
+                    { id: 'modern-box', label: 'Modern Box Badge', desc: 'Badge kotak rounded melayang' },
+                  ].map((style) => (
+                    <div
+                      key={style.id}
+                      onClick={() => handleSwitchBottomNav(style.id)}
+                      className={`p-4 rounded-2xl border cursor-pointer transition-all flex flex-col justify-between space-y-2 ${
+                        bottomNavStyle === style.id
+                          ? 'border-blue-600 bg-blue-50/60 shadow-sm ring-2 ring-blue-600'
+                          : 'border-slate-200 bg-white hover:border-slate-300'
+                      }`}
+                    >
+                      <div>
+                        <div className="font-bold text-xs sm:text-sm text-slate-900">{style.label}</div>
+                        <div className="text-[11px] text-slate-500 mt-1">{style.desc}</div>
+                      </div>
+                      <div className="pt-2 flex items-center text-xs font-semibold">
+                        {bottomNavStyle === style.id ? (
+                          <span className="text-blue-600 font-bold flex items-center gap-1">
+                            <Check className="w-3.5 h-3.5 stroke-[3]" /> Terpilih
+                          </span>
+                        ) : (
+                          <span className="text-slate-400 hover:text-slate-600">Pilih Gaya →</span>
+                        )}
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </div>
 
-              {/* Industry Category Filter Pills */}
-              <div className="flex items-center gap-2 overflow-x-auto pb-1">
+              {/* Industry Filter Pills */}
+              <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-none">
                 <button
                   type="button"
                   onClick={() => setSelectedIndustryTab('all')}
-                  className={`px-4 py-2 rounded-xl text-xs sm:text-sm font-bold whitespace-nowrap transition-all ${
+                  className={`px-4 py-2 rounded-xl text-xs sm:text-sm font-bold whitespace-nowrap transition-all flex items-center gap-1.5 ${
                     selectedIndustryTab === 'all'
-                      ? 'bg-slate-900 text-white shadow-sm'
+                      ? 'bg-blue-600 text-white shadow-sm'
                       : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'
                   }`}
                 >
-                  Semua Industri (50)
+                  <Layers className="w-4 h-4" />
+                  <span>Semua Industri (50 Tema)</span>
                 </button>
                 {industryCatalog.map((ind) => (
                   <button
@@ -666,197 +739,232 @@ export const AdminDashboard = ({
           )}
 
           {/* ========================================================
-           * TAB 2: TECHNICAL SEO & MARKETING INTEGRATIONS
+           * TAB 2: TECHNICAL SEO & INTERACTIVE PERFORMANCE DASHBOARD
            * ======================================================== */}
           {activeTab === 'seo' && (
-            <div className="space-y-8">
-              {/* Live SEO Score and Keyword Audit Engine */}
-              <SeoScoreChecker
-                initialKeywords={seoState.targetKeywords || ['sewa mobil jakarta', 'rental alphard', 'mobil lepas kunci']}
-                title={seoState.title || ''}
-                metaDescription={seoState.metaDescription || ''}
-                h1={config?.heroSlides?.[0]?.title || ''}
-                slug={seoState.slug || ''}
-                content={config?.heroSlides?.[0]?.subtitle || ''}
-                onKeywordsChange={(kw) => setSeoState({ ...seoState, targetKeywords: kw })}
-              />
-
-              {/* SEO Form & Marketing Tags Configuration */}
-              <form onSubmit={handleSaveSeo} className="bg-white rounded-3xl border border-slate-200 p-6 sm:p-8 shadow-xs space-y-6">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-100">
-                  <div>
-                    <h3 className="text-lg font-bold text-slate-900">Konfigurasi Tag Meta & Integrasi Analitik Marketing</h3>
-                    <p className="text-xs text-slate-500 mt-0.5">Integrasikan Google Analytics, Search Console, Meta Pixel, dan GTM</p>
-                  </div>
-                  <button
-                    type="submit"
-                    disabled={loading}
-                    className="px-6 py-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs sm:text-sm shadow-sm flex items-center justify-center gap-2 shrink-0 transition-all"
-                  >
-                    <Save className="w-4 h-4" />
-                    <span>Simpan Pengaturan SEO</span>
-                  </button>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-                  <div className="sm:col-span-2 space-y-1.5">
-                    <label className="block text-xs font-bold uppercase tracking-wider text-slate-700">
-                      Meta Title Tag (Google SERP)
-                    </label>
-                    <input
-                      type="text"
-                      value={seoState.title || ''}
-                      onChange={(e) => setSeoState({ ...seoState, title: e.target.value })}
-                      className="w-full px-4 py-3 rounded-xl border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-blue-600"
-                    />
-                  </div>
-
-                  <div className="sm:col-span-2 space-y-1.5">
-                    <label className="block text-xs font-bold uppercase tracking-wider text-slate-700">
-                      Meta Description
-                    </label>
-                    <textarea
-                      rows={3}
-                      value={seoState.metaDescription || ''}
-                      onChange={(e) => setSeoState({ ...seoState, metaDescription: e.target.value })}
-                      className="w-full px-4 py-3 rounded-xl border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-blue-600"
-                    />
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <label className="block text-xs font-bold uppercase tracking-wider text-slate-700">
-                      Google Search Console (HTML Verification Meta)
-                    </label>
-                    <input
-                      type="text"
-                      placeholder="google-site-verification=SAMPLE_TAG..."
-                      value={seoState.gscVerificationTag || ''}
-                      onChange={(e) => setSeoState({ ...seoState, gscVerificationTag: e.target.value })}
-                      className="w-full px-4 py-2.5 rounded-xl border border-slate-300 text-xs font-mono"
-                    />
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <label className="block text-xs font-bold uppercase tracking-wider text-slate-700">
-                      Google Analytics 4 (Measurement ID)
-                    </label>
-                    <input
-                      type="text"
-                      placeholder="G-XXXXXXXXXX"
-                      value={seoState.gaMeasurementId || ''}
-                      onChange={(e) => setSeoState({ ...seoState, gaMeasurementId: e.target.value })}
-                      className="w-full px-4 py-2.5 rounded-xl border border-slate-300 text-xs font-mono"
-                    />
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <label className="block text-xs font-bold uppercase tracking-wider text-slate-700">
-                      Google Tag Manager (GTM ID)
-                    </label>
-                    <input
-                      type="text"
-                      placeholder="GTM-XXXXXXX"
-                      value={seoState.gtmId || ''}
-                      onChange={(e) => setSeoState({ ...seoState, gtmId: e.target.value })}
-                      className="w-full px-4 py-2.5 rounded-xl border border-slate-300 text-xs font-mono"
-                    />
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <label className="block text-xs font-bold uppercase tracking-wider text-slate-700">
-                      Meta / Facebook Pixel ID
-                    </label>
-                    <input
-                      type="text"
-                      placeholder="123456789012345"
-                      value={seoState.metaPixelId || ''}
-                      onChange={(e) => setSeoState({ ...seoState, metaPixelId: e.target.value })}
-                      className="w-full px-4 py-2.5 rounded-xl border border-slate-300 text-xs font-mono"
-                    />
-                  </div>
-
-                  <div className="sm:col-span-2 space-y-1.5">
-                    <label className="block text-xs font-bold uppercase tracking-wider text-slate-700">
-                      Google Bisnisku (GMB Embed Map URL)
-                    </label>
-                    <input
-                      type="text"
-                      placeholder="https://www.google.com/maps/embed?..."
-                      value={seoState.gmbEmbedMapUrl || ''}
-                      onChange={(e) => setSeoState({ ...seoState, gmbEmbedMapUrl: e.target.value })}
-                      className="w-full px-4 py-2.5 rounded-xl border border-slate-300 text-xs font-mono"
-                    />
-                  </div>
-                </div>
-              </form>
-            </div>
+            <InteractiveSeoDashboard
+              seoConfig={config?.seo || {}}
+              adminToken={adminToken}
+              onSaveSeo={handleSaveSeoData}
+              activeThemeName={currentThemeId}
+            />
           )}
 
           {/* ========================================================
-           * TAB 3: LEADS LIST (RESPONSIVE TABLE WITH ZERO HORIZONTAL SCROLL)
+           * TAB 3: ORDER MANAGEMENT ENGINE (FULL ORDER CRUD & WHATSAPP)
            * ======================================================== */}
           {activeTab === 'leads' && (
-            <div className="space-y-6">
-              <div className="bg-white rounded-3xl border border-slate-200 p-6 sm:p-8 shadow-xs">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                  <div>
-                    <h2 className="text-lg font-bold text-slate-900">Daftar Permintaan & Pesanan Klien (Leads)</h2>
-                    <p className="text-xs text-slate-500 mt-1">
-                      Tampilan otomatis berubah menjadi stacked cards vertikal saat dibuka di layar smartphone/tablet (bebas scroll horizontal).
-                    </p>
-                  </div>
-                  <span className="px-3.5 py-1.5 rounded-full bg-blue-50 text-blue-700 text-xs font-bold self-start sm:self-auto">
-                    {sampleLeads.length} Leads Terdaftar
-                  </span>
-                </div>
-              </div>
-
-              <ResponsiveTableCard
-                columns={leadColumns}
-                data={sampleLeads}
-                emptyMessage="Belum ada pesanan masuk."
-              />
-            </div>
+            <OrderManager
+              adminToken={adminToken}
+              activeThemeName={currentThemeId}
+            />
           )}
 
           {/* ========================================================
-           * TAB 4: SETTINGS & DYNAMIC SLUG
+           * TAB 4: SETTINGS, DYNAMIC SLUG & ADMIN SECURITY
            * ======================================================== */}
           {activeTab === 'settings' && (
-            <div className="max-w-2xl bg-white rounded-3xl border border-slate-200 p-6 sm:p-8 shadow-xs space-y-6">
-              <div>
-                <h2 className="text-lg font-bold text-slate-900">Konfigurasi Dynamic Admin Slug</h2>
-                <p className="text-xs text-slate-500 mt-1 leading-relaxed">
-                  Ganti slug URL admin panel Anda untuk melindungi rute masuk dari bot pencari default (<code className="text-blue-600 font-mono">/admin</code>).
-                </p>
+            <div className="space-y-6 max-w-4xl min-w-0">
+              {/* Box 1: Dynamic Admin Slug Configuration */}
+              <div className="bg-white rounded-3xl border border-slate-200 p-6 sm:p-8 shadow-xs space-y-6">
+                <div>
+                  <h3 className="text-lg font-bold text-slate-900">Konfigurasi Dynamic Admin Slug</h3>
+                  <p className="text-xs text-slate-500 mt-1 leading-relaxed">
+                    Ubah URL rute akses portal admin Anda (misal: dari <code className="text-blue-600 font-mono">/admin</code> menjadi <code className="text-blue-600 font-mono">/portal-khusus</code> atau <code className="text-blue-600 font-mono">/sys-panel</code>) untuk mengamankan akses dari bot scanner default.
+                  </p>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-700">
+                    URL Slug Admin Aktif
+                  </label>
+                  <div className="flex items-center">
+                    <span className="px-4 py-3 bg-slate-100 border border-r-0 border-slate-300 rounded-l-2xl text-xs text-slate-500 font-mono shrink-0">
+                      https://domain.com/
+                    </span>
+                    <input
+                      type="text"
+                      value={newSlug}
+                      onChange={(e) => setNewSlug(e.target.value.toLowerCase().replace(/[^a-z0-9_-]/g, ''))}
+                      className="flex-1 px-4 py-3 rounded-r-2xl border border-slate-300 text-xs sm:text-sm font-mono font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-600 min-w-0"
+                    />
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleSaveSlug}
+                  disabled={loading}
+                  className="px-6 py-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs sm:text-sm shadow-sm flex items-center gap-2 transition-all"
+                >
+                  <Save className="w-4 h-4" />
+                  <span>Simpan & Terapkan Slug Baru</span>
+                </button>
               </div>
 
-              <div className="space-y-2">
-                <label className="block text-xs font-bold uppercase tracking-wider text-slate-700">
-                  URL Slug Admin Baru
-                </label>
-                <div className="flex items-center">
-                  <span className="px-4 py-3 bg-slate-100 border border-r-0 border-slate-300 rounded-l-2xl text-xs text-slate-500 font-mono">
-                    https://domain.com/
-                  </span>
-                  <input
-                    type="text"
-                    value={newSlug}
-                    onChange={(e) => setNewSlug(e.target.value.toLowerCase().replace(/[^a-z0-9_-]/g, ''))}
-                    className="flex-1 px-4 py-3 rounded-r-2xl border border-slate-300 text-xs sm:text-sm font-mono font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-600"
-                  />
+              {/* Box 2: Admin Profile & Credentials Management */}
+              <form onSubmit={handleSaveSecurity} className="bg-white rounded-3xl border border-slate-200 p-6 sm:p-8 shadow-xs space-y-6">
+                <div className="border-b border-slate-100 pb-4">
+                  <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+                    <ShieldCheck className="w-5 h-5 text-blue-600" />
+                    <span>Manajemen Profil & Kredensial Keamanan Admin</span>
+                  </h3>
+                  <p className="text-xs text-slate-500 mt-1">
+                    Ubah username, email pemulihan, dan password akun admin dengan verifikasi keamanan ketat.
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
+                      Username Admin *
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={securityForm.username}
+                      onChange={(e) => setSecurityForm({ ...securityForm, username: e.target.value })}
+                      className="w-full px-4 py-2.5 rounded-xl border border-slate-300 text-xs sm:text-sm font-semibold focus:ring-2 focus:ring-blue-600 focus:outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
+                      Email Admin / Notifikasi *
+                    </label>
+                    <input
+                      type="email"
+                      required
+                      value={securityForm.email}
+                      onChange={(e) => setSecurityForm({ ...securityForm, email: e.target.value })}
+                      className="w-full px-4 py-2.5 rounded-xl border border-slate-300 text-xs sm:text-sm font-semibold focus:ring-2 focus:ring-blue-600 focus:outline-none"
+                    />
+                  </div>
+                </div>
+
+                {/* Password Fields */}
+                <div className="space-y-4 pt-2 border-t border-slate-100">
+                  <div>
+                    <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
+                      Password Saat Ini (Verifikasi Keamanan) *
+                    </label>
+                    <div className="relative">
+                      <input
+                        type={showCurrentPass ? 'text' : 'password'}
+                        required
+                        placeholder="Masukkan password admin saat ini"
+                        value={securityForm.currentPassword}
+                        onChange={(e) => setSecurityForm({ ...securityForm, currentPassword: e.target.value })}
+                        className="w-full pl-4 pr-12 py-2.5 rounded-xl border border-slate-300 text-xs sm:text-sm focus:ring-2 focus:ring-blue-600 focus:outline-none"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowCurrentPass(!showCurrentPass)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 p-1.5 focus:outline-none"
+                      >
+                        {showCurrentPass ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
+                        Password Baru (Kosongkan jika tidak diganti)
+                      </label>
+                      <div className="relative">
+                        <input
+                          type={showNewPass ? 'text' : 'password'}
+                          placeholder="Minimal 6 karakter"
+                          value={securityForm.newPassword}
+                          onChange={(e) => setSecurityForm({ ...securityForm, newPassword: e.target.value })}
+                          className="w-full pl-4 pr-12 py-2.5 rounded-xl border border-slate-300 text-xs sm:text-sm focus:ring-2 focus:ring-blue-600 focus:outline-none"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowNewPass(!showNewPass)}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 p-1.5 focus:outline-none"
+                        >
+                          {showNewPass ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                        </button>
+                      </div>
+
+                      {/* Password Strength Indicator */}
+                      {securityForm.newPassword && (
+                        <div className="mt-2 space-y-1">
+                          <div className="flex items-center justify-between text-[10px] font-bold">
+                            <span className="text-slate-500">Kekuatan Password:</span>
+                            <span className={passStrength.score >= 3 ? 'text-emerald-600' : 'text-amber-600'}>
+                              {passStrength.label}
+                            </span>
+                          </div>
+                          <div className="w-full h-1.5 rounded-full bg-slate-100 overflow-hidden">
+                            <div className={`h-full ${passStrength.color}`} style={{ width: `${passStrength.score * 25}%` }} />
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
+                        Konfirmasi Password Baru
+                      </label>
+                      <div className="relative">
+                        <input
+                          type={showConfirmPass ? 'text' : 'password'}
+                          placeholder="Ketik ulang password baru"
+                          value={securityForm.confirmPassword}
+                          onChange={(e) => setSecurityForm({ ...securityForm, confirmPassword: e.target.value })}
+                          className="w-full pl-4 pr-12 py-2.5 rounded-xl border border-slate-300 text-xs sm:text-sm focus:ring-2 focus:ring-blue-600 focus:outline-none"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowConfirmPass(!showConfirmPass)}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 p-1.5 focus:outline-none"
+                        >
+                          {showConfirmPass ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="pt-2 flex justify-end">
+                  <button
+                    type="submit"
+                    disabled={securityLoading}
+                    className="px-6 py-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs sm:text-sm shadow-sm flex items-center gap-2 transition-all"
+                  >
+                    {securityLoading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                    <span>Perbarui Kredensial Admin</span>
+                  </button>
+                </div>
+              </form>
+
+              {/* Box 3: Session Revocation ("Logout dari Semua Perangkat") */}
+              <div className="bg-white rounded-3xl border border-red-200 p-6 sm:p-8 shadow-xs space-y-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-2xl bg-red-100 text-red-600 flex items-center justify-center font-black shrink-0">
+                    <Key className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="text-base font-bold text-slate-900">Cabut Sesi & Logout dari Semua Perangkat</h3>
+                    <p className="text-xs text-slate-500 mt-0.5">
+                      Gunakan fitur ini jika Anda merasa kredensial Anda bocor atau ingin mereset seluruh sesi aktif di browser lain secara instan.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="pt-2">
+                  <button
+                    type="button"
+                    onClick={handleRevokeSessions}
+                    className="px-5 py-2.5 rounded-xl border border-red-300 bg-red-50 hover:bg-red-100 text-red-700 font-bold text-xs flex items-center gap-2 transition-all"
+                  >
+                    <LogOut className="w-4 h-4" />
+                    <span>Logout dari Semua Perangkat Sekarang</span>
+                  </button>
                 </div>
               </div>
-
-              <button
-                type="button"
-                onClick={handleSaveSlug}
-                disabled={loading}
-                className="px-6 py-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs sm:text-sm shadow-sm flex items-center gap-2 transition-all"
-              >
-                <Save className="w-4 h-4" />
-                <span>Simpan Slug Baru</span>
-              </button>
             </div>
           )}
         </div>

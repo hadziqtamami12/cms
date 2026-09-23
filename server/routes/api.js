@@ -3,6 +3,7 @@ import { getActiveThemeConfig } from '../services/themeService.js';
 import { analyzeKeywordDensity, generateJsonLdSchema } from '../services/seoService.js';
 import { getSystemLicenseStatus } from '../services/licenseService.js';
 import { getAdminSlug } from '../middleware/dynamicSlugRouter.js';
+import { createPublicOrder } from './orders.js';
 
 const router = Router();
 
@@ -66,6 +67,37 @@ router.post('/leads', async (req, res) => {
       success: true,
       message: 'Pesanan/Pesan Anda berhasil diterima. Tim kami akan segera menghubungi Anda.',
       leadId: lead.id
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+/**
+ * POST /api/orders
+ * Public checkout and booking creation
+ */
+router.post('/orders', async (req, res) => {
+  try {
+    const { name, phone, email, itemDetails, totalAmount, message } = req.body;
+    if (!name || !phone) {
+      return res.status(400).json({ success: false, error: 'Nama dan nomor WhatsApp wajib diisi' });
+    }
+
+    const order = createPublicOrder({
+      name,
+      phone,
+      email,
+      itemDetails,
+      totalAmount,
+      message
+    });
+
+    res.status(201).json({
+      success: true,
+      message: `Pesanan Anda (${order.id}) berhasil dibuat. Kami akan segera menghubungi Anda via WhatsApp.`,
+      orderId: order.id,
+      order
     });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });

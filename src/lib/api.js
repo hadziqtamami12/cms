@@ -138,6 +138,112 @@ export const updateAdminSlug = async (newSlug, token) => {
   });
 };
 
+/**
+ * ========================================================
+ * ORDERS MANAGEMENT API
+ * ========================================================
+ */
+export const fetchOrders = async (params = {}, token) => {
+  const query = new URLSearchParams();
+  if (params.status && params.status !== 'all') query.append('status', params.status);
+  if (params.search) query.append('search', params.search);
+  if (params.dateFrom) query.append('dateFrom', params.dateFrom);
+  if (params.dateTo) query.append('dateTo', params.dateTo);
+
+  const qs = query.toString() ? `?${query.toString()}` : '';
+  return await safeFetchJson(`${API_BASE}/admin/orders${qs}`, {
+    headers: { 'Authorization': `Bearer ${token}` }
+  });
+};
+
+export const createOrder = async (orderData, token) => {
+  return await safeFetchJson(`${API_BASE}/admin/orders`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`
+    },
+    body: JSON.stringify(orderData)
+  });
+};
+
+export const updateOrder = async (id, orderData, token) => {
+  return await safeFetchJson(`${API_BASE}/admin/orders/${id}`, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`
+    },
+    body: JSON.stringify(orderData)
+  });
+};
+
+export const updateOrderStatus = async (id, status, token) => {
+  return await safeFetchJson(`${API_BASE}/admin/orders/${id}/status`, {
+    method: 'PATCH',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`
+    },
+    body: JSON.stringify({ status })
+  });
+};
+
+export const deleteOrder = async (id, token) => {
+  return await safeFetchJson(`${API_BASE}/admin/orders/${id}`, {
+    method: 'DELETE',
+    headers: { 'Authorization': `Bearer ${token}` }
+  });
+};
+
+/**
+ * ========================================================
+ * ADMIN SECURITY & CREDENTIALS API
+ * ========================================================
+ */
+export const updateAdminSecurity = async (securityData, token) => {
+  return await safeFetchJson(`${API_BASE}/admin/security/credentials`, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`
+    },
+    body: JSON.stringify(securityData)
+  });
+};
+
+export const revokeAdminSessions = async (token) => {
+  return await safeFetchJson(`${API_BASE}/admin/security/revoke-sessions`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`
+    }
+  });
+};
+
+/**
+ * ========================================================
+ * INTERACTIVE SEO & LIVE ANALYTICS API
+ * ========================================================
+ */
+export const fetchSeoAnalytics = async (token) => {
+  return await safeFetchJson(`${API_BASE}/admin/seo-analytics`, {
+    headers: { 'Authorization': `Bearer ${token}` }
+  });
+};
+
+export const verifySeoService = async (serviceType, idValue, token) => {
+  return await safeFetchJson(`${API_BASE}/admin/seo-analytics/verify`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`
+    },
+    body: JSON.stringify({ serviceType, idValue })
+  });
+};
+
 export const testInstallerDb = async (params) => {
   return await safeFetchJson(`${API_BASE}/installer/test-db`, {
     method: 'POST',
@@ -247,6 +353,15 @@ export default {
   switchTheme,
   updateSeoMarketing,
   updateAdminSlug,
+  fetchOrders,
+  createOrder,
+  updateOrder,
+  updateOrderStatus,
+  deleteOrder,
+  updateAdminSecurity,
+  revokeAdminSessions,
+  fetchSeoAnalytics,
+  verifySeoService,
   testInstallerDb,
   completeInstaller,
   programmerKeygenLogin,

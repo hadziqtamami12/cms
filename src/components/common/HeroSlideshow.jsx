@@ -35,7 +35,7 @@ export const HeroSlideshow = ({ slides = [], whatsapp, phone }) => {
   const slide = activeSlides[current];
 
   return (
-    <section className="relative w-full h-screen h-[100dvh] flex items-center justify-center overflow-hidden bg-slate-900">
+    <section className="relative w-full min-h-[100dvh] flex items-center justify-center overflow-hidden bg-slate-950 pt-24 sm:pt-32 pb-16 sm:pb-20">
       {/* Background Slideshow with Smooth Crossfade */}
       {activeSlides.map((item, index) => (
         <div
@@ -50,28 +50,29 @@ export const HeroSlideshow = ({ slides = [], whatsapp, phone }) => {
             className="w-full h-full object-cover object-center"
             loading={index === 0 ? 'eager' : 'lazy'}
           />
-          {/* Subtle Warm Non-AI Contrast Scrim */}
-          <div className="absolute inset-0 w-full h-full bg-gradient-to-r from-slate-950/85 via-slate-900/65 to-slate-900/40" />
+          {/* Dual High-Contrast Scrim for 100% Readability */}
+          <div className="absolute inset-0 w-full h-full bg-gradient-to-r from-slate-950/95 via-slate-950/80 to-slate-900/65" />
+          <div className="absolute inset-0 w-full h-full bg-gradient-to-t from-slate-950/80 via-transparent to-slate-950/60" />
         </div>
       ))}
 
-      {/* Hero Content Container - Vertically & Horizontally centered in exact full viewport */}
-      <div className="relative z-10 w-full max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 pt-16 sm:pt-0 text-center sm:text-left flex flex-col items-center sm:items-start justify-center h-full">
+      {/* Hero Content Container - Offset below desktop top navbar */}
+      <div className="relative z-10 w-full max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 text-center sm:text-left flex flex-col items-center sm:items-start justify-center my-auto">
         {/* Trust Badge */}
         {slide.badge && (
-          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 sm:px-4 sm:py-2 rounded-full bg-blue-600/90 text-white text-xs sm:text-sm font-semibold mb-4 sm:mb-6 shadow-sm shadow-blue-500/30 backdrop-blur-sm">
+          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 sm:px-4 sm:py-2 rounded-full bg-blue-600/90 text-white text-xs sm:text-sm font-semibold mb-4 sm:mb-6 shadow-md shadow-blue-500/30 backdrop-blur-sm">
             <CheckCircle2 className="w-4 h-4 text-blue-200" />
             <span>{slide.badge}</span>
           </div>
         )}
 
         {/* Main H1 Title (SEO #1 Critical) */}
-        <h1 className="text-2xl sm:text-4xl md:text-5xl lg:text-6xl font-extrabold text-white tracking-tight leading-[1.15] mb-4 sm:mb-6 drop-shadow-sm max-w-3xl">
+        <h1 className="text-2xl sm:text-4xl md:text-5xl lg:text-6xl font-extrabold text-white tracking-tight leading-[1.15] mb-4 sm:mb-6 drop-shadow-md max-w-3xl">
           {slide.title}
         </h1>
 
         {/* Subtitle / Value Proposition */}
-        <p className="text-sm sm:text-base lg:text-lg text-slate-200 font-normal leading-relaxed mb-6 sm:mb-8 max-w-2xl">
+        <p className="text-sm sm:text-base lg:text-lg text-slate-100 font-medium leading-relaxed mb-6 sm:mb-8 max-w-2xl drop-shadow-sm">
           {slide.subtitle}
         </p>
 

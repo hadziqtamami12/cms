@@ -19,7 +19,7 @@ const leads = [];
  */
 router.get('/settings/public', async (req, res) => {
   try {
-    const settings = await getPublicSettings();
+    const settings = await getPublicSettings(true);
     const licenseStatus = await getSystemLicenseStatus();
 
     res.set('Cache-Control', 'no-cache, no-store, must-revalidate');

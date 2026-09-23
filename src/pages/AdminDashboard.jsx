@@ -4,7 +4,7 @@ import {
   RefreshCw, Globe, Shield, Smartphone, Layers, Save, AlertCircle,
   Menu, X, ChevronLeft, ChevronRight, ExternalLink, Activity, Sparkles, Check,
   Lock, Key, ShieldCheck, Eye, EyeOff, UserCheck, AlertTriangle, Copy,
-  PanelLeftClose, PanelLeftOpen, Package, MessageCircle, Sliders
+  PanelLeftClose, PanelLeftOpen, Package, MessageCircle, Sliders, LayoutDashboard, ArrowRight
 } from 'lucide-react';
 import OrderManager from '../components/orders/OrderManager';
 import InteractiveSeoDashboard from '../components/seo/InteractiveSeoDashboard';
@@ -29,7 +29,7 @@ export const AdminDashboard = ({
   onLogout,
   onConfigUpdated
 }) => {
-  const [activeTab, setActiveTab] = useState('themes'); // 'themes' | 'seo' | 'leads' | 'settings'
+  const [activeTab, setActiveTab] = useState('dashboard'); // 'dashboard' | 'themes' | 'slideshow' | 'products' | 'whatsapp' | 'seo' | 'leads' | 'settings'
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   
   // Desktop Sidebar Mode: 'expanded' (w-64) or 'rail' (w-20 mini icon rail)
@@ -340,6 +340,7 @@ export const AdminDashboard = ({
   ];
 
   const navMenuItems = [
+    { id: 'dashboard', label: 'Dashboard Ringkasan', icon: LayoutDashboard, badge: 'Utama' },
     { id: 'themes', label: 'Tema & Tampilan', icon: Palette, badge: '50' },
     { id: 'slideshow', label: 'Slideshow Hero (CRUD)', icon: Sliders, badge: (config?.heroSlides || []).length || 'Slide' },
     { id: 'products', label: 'Katalog Produk (CRUD)', icon: Package, badge: (config?.items || []).length || 'Unit' },
@@ -687,26 +688,9 @@ export const AdminDashboard = ({
           desktopSidebarMode === 'rail' ? 'lg:pl-20' : 'lg:pl-64'
         }`}
       >
-        {/* Desktop Sticky Header with Mode Switcher */}
+        {/* Desktop Sticky Header (Clean Top Bar without Toggle Button) */}
         <header className="hidden lg:flex bg-white border-b border-slate-200 sticky top-0 z-30 px-6 sm:px-8 py-3.5 items-center justify-between shadow-xs w-full max-w-full">
           <div className="flex items-center gap-3 min-w-0">
-            {/* Toggle Rail/Expanded Button */}
-            <button
-              type="button"
-              onClick={() => setDesktopSidebarMode(prev => prev === 'expanded' ? 'rail' : 'expanded')}
-              className="p-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 active:bg-slate-100 text-slate-700 flex items-center gap-1.5 shadow-xs transition-colors shrink-0"
-              title={desktopSidebarMode === 'expanded' ? "Perkecil ke Mini Icon Rail" : "Perluas Sidebar"}
-              aria-label="Toggle Mode Sidebar"
-            >
-              {desktopSidebarMode === 'expanded' ? (
-                <PanelLeftClose className="w-4 h-4 text-blue-600" />
-              ) : (
-                <PanelLeftOpen className="w-4 h-4 text-blue-600" />
-              )}
-            </button>
-
-            <div className="h-5 w-px bg-slate-200 shrink-0" />
-
             <div className="truncate">
               <div className="flex items-center gap-1.5 text-[11px] font-medium text-slate-400 mb-0.5">
                 <span>Admin</span>
@@ -714,6 +698,7 @@ export const AdminDashboard = ({
                 <span className="text-blue-600 font-bold capitalize">{activeTab}</span>
               </div>
               <h1 className="text-lg font-extrabold text-slate-900 tracking-tight truncate">
+                {activeTab === 'dashboard' && 'Dashboard Ringkasan & Status Sistem'}
                 {activeTab === 'themes' && 'Engine 50 Tema Multi-Industri'}
                 {activeTab === 'slideshow' && 'Manajemen Slideshow & Hero Banner (CRUD)'}
                 {activeTab === 'products' && 'Manajemen Produk & Unit (CRUD)'}
@@ -744,55 +729,268 @@ export const AdminDashboard = ({
 
         {/* Dashboard Content Container (Strict Zero Overflow & Breathing Room) */}
         <div className="p-4 sm:p-6 lg:p-8 space-y-6 max-w-7xl w-full max-w-full mx-auto pb-24 min-w-0 overflow-x-hidden">
-          {/* Quick Metrics Bar */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-            {/* Metric 1: Tema Aktif */}
-            <div className="bg-white rounded-2xl border border-slate-200 p-4 sm:p-5 shadow-xs space-y-1 min-w-0">
-              <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 block truncate">Tema Aktif</span>
-              <div className="text-base sm:text-lg font-black text-slate-900 capitalize truncate" title={currentIndustry}>
-                {currentIndustry}
+          {/* ========================================================
+           * TAB 0: DASHBOARD RINGKASAN & OVERVIEW
+           * ======================================================== */}
+          {activeTab === 'dashboard' && (
+            <div className="space-y-6 min-w-0">
+              {/* Welcome Banner */}
+              <div className="bg-gradient-to-r from-blue-700 via-indigo-700 to-blue-800 rounded-3xl p-6 sm:p-8 text-white shadow-xl flex flex-col md:flex-row md:items-center justify-between gap-6">
+                <div className="space-y-2 max-w-xl">
+                  <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/20 backdrop-blur-md text-blue-100 text-xs font-bold uppercase tracking-wider">
+                    <ShieldCheck className="w-3.5 h-3.5" /> MultiCMS Enterprise Hub
+                  </div>
+                  <h2 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
+                    Ringkasan Sistem & Performa
+                  </h2>
+                  <p className="text-blue-100 text-xs sm:text-sm leading-relaxed">
+                    Pantau tema aktif, status lisensi, audit PageSpeed Google Search Console, dan status database PostgreSQL Supabase secara realtime.
+                  </p>
+                </div>
+                <div className="flex flex-wrap items-center gap-3 shrink-0">
+                  <a
+                    href="/"
+                    target="_blank"
+                    rel="noreferrer"
+                    className="px-5 py-3 rounded-2xl bg-white text-blue-700 hover:bg-blue-50 font-bold text-xs sm:text-sm shadow-lg transition-all flex items-center gap-2 active:scale-95"
+                  >
+                    <Globe className="w-4 h-4 text-blue-600" />
+                    <span>Buka Landing Page</span>
+                    <ExternalLink className="w-3.5 h-3.5 text-blue-400" />
+                  </a>
+                </div>
               </div>
-              <div className="text-xs text-blue-600 font-mono truncate" title={currentThemeId}>{currentThemeId}</div>
-            </div>
 
-            {/* Metric 2: Status Lisensi with Copy Token */}
-            <div className="bg-white rounded-2xl border border-slate-200 p-4 sm:p-5 shadow-xs space-y-1 min-w-0">
-              <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 block truncate">Status Lisensi</span>
-              <div className="text-base sm:text-lg font-black text-emerald-600 flex items-center gap-1.5 truncate">
-                <CheckCircle2 className="w-4 h-4 shrink-0" />
-                <span>Aktif Terverifikasi</span>
-              </div>
-              <div className="flex items-center gap-1 text-xs text-slate-500 font-mono truncate">
-                <span className="truncate">MULTICMS-2026-PRO</span>
-                <button
-                  onClick={() => copyToClipboard('MULTICMS-2026-PRO', 'Token Lisensi')}
-                  className="p-0.5 text-slate-400 hover:text-blue-600 shrink-0"
-                  title="Salin Token Lisensi"
-                >
-                  <Copy className="w-3 h-3" />
-                </button>
-              </div>
-            </div>
+              {/* 4 Cards: Tema Aktif, Status Lisensi, Audit PageSpeed (GSC conditional), Koleksi Tema */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
+                {/* Card 1: Tema Aktif */}
+                <div className="bg-white rounded-3xl border border-slate-200 p-5 sm:p-6 shadow-xs space-y-3 flex flex-col justify-between hover:border-blue-300 transition-colors">
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 block">Tema Aktif</span>
+                      <span className="p-2 rounded-xl bg-blue-50 text-blue-600">
+                        <Palette className="w-4 h-4" />
+                      </span>
+                    </div>
+                    <div className="text-lg font-black text-slate-900 capitalize truncate" title={currentIndustry}>
+                      {currentIndustry}
+                    </div>
+                    <div className="text-xs text-blue-600 font-mono font-bold truncate" title={currentThemeId}>
+                      ID: {currentThemeId}
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab('themes')}
+                    className="pt-3 border-t border-slate-100 flex items-center justify-between text-xs font-bold text-blue-600 hover:text-blue-700 cursor-pointer"
+                  >
+                    <span>Ganti Tema</span>
+                    <ArrowRight className="w-3.5 h-3.5" />
+                  </button>
+                </div>
 
-            {/* Metric 3: PageSpeed */}
-            <div className="bg-white rounded-2xl border border-slate-200 p-4 sm:p-5 shadow-xs space-y-1 min-w-0">
-              <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 block truncate">Audit PageSpeed</span>
-              <div className="text-base sm:text-lg font-black text-slate-900 flex items-center gap-1 truncate">
-                <span>98</span>
-                <span className="text-xs text-slate-400 font-normal">/100</span>
-              </div>
-              <div className="text-xs text-emerald-600 font-semibold truncate">TTFB &lt; 50ms Edge Cache</div>
-            </div>
+                {/* Card 2: Status Lisensi */}
+                <div className="bg-white rounded-3xl border border-slate-200 p-5 sm:p-6 shadow-xs space-y-3 flex flex-col justify-between hover:border-emerald-300 transition-colors">
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 block">Status Lisensi</span>
+                      <span className="p-2 rounded-xl bg-emerald-50 text-emerald-600">
+                        <ShieldCheck className="w-4 h-4" />
+                      </span>
+                    </div>
+                    <div className="text-lg font-black text-emerald-600 flex items-center gap-1.5 truncate">
+                      <CheckCircle2 className="w-4 h-4 shrink-0" />
+                      <span>Aktif Terverifikasi</span>
+                    </div>
+                    <div className="flex items-center gap-1.5 text-xs text-slate-500 font-mono truncate">
+                      <span>MULTICMS-2026-PRO</span>
+                      <button
+                        type="button"
+                        onClick={() => copyToClipboard('MULTICMS-2026-PRO', 'Token Lisensi')}
+                        className="p-1 rounded-md text-slate-400 hover:text-blue-600 hover:bg-slate-100 transition-colors shrink-0"
+                        title="Salin Token Lisensi"
+                      >
+                        <Copy className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                  <div className="pt-3 border-t border-slate-100 text-[11px] text-slate-400 font-medium">
+                    Lisensi Enterprise Seumur Hidup
+                  </div>
+                </div>
 
-            {/* Metric 4: Total Themes */}
-            <div className="bg-white rounded-2xl border border-slate-200 p-4 sm:p-5 shadow-xs space-y-1 min-w-0">
-              <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 block truncate">Koleksi Tema</span>
-              <div className="text-base sm:text-lg font-black text-slate-900 truncate">
-                50 Varian
+                {/* Card 3: Audit PageSpeed (Hanya Muncul jika Terhubung GSC) */}
+                <div className="bg-white rounded-3xl border border-slate-200 p-5 sm:p-6 shadow-xs space-y-3 flex flex-col justify-between hover:border-indigo-300 transition-colors">
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 block">Audit PageSpeed</span>
+                      <span className={`p-2 rounded-xl ${
+                        Boolean(config?.seo?.gscConnected || config?.seo?.gscVerificationTag)
+                          ? 'bg-emerald-50 text-emerald-600'
+                          : 'bg-amber-50 text-amber-600'
+                      }`}>
+                        <TrendingUp className="w-4 h-4" />
+                      </span>
+                    </div>
+
+                    {Boolean(config?.seo?.gscConnected || config?.seo?.gscVerificationTag) ? (
+                      <>
+                        <div className="text-lg font-black text-slate-900 flex items-center gap-1 truncate">
+                          <span className="text-2xl text-emerald-600 font-black">98</span>
+                          <span className="text-xs text-slate-400 font-normal">/100 Core Web Vitals</span>
+                        </div>
+                        <div className="text-xs text-emerald-600 font-semibold truncate flex items-center gap-1">
+                          <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                          <span>GSC Terhubung • TTFB &lt; 50ms</span>
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <div className="text-sm font-black text-amber-600 flex items-center gap-1.5">
+                          <AlertTriangle className="w-4 h-4 shrink-0" />
+                          <span>Belum Terhubung GSC</span>
+                        </div>
+                        <p className="text-[11px] text-slate-500 leading-tight">
+                          Audit PageSpeed baru muncul setelah Google Search Console terverifikasi.
+                        </p>
+                      </>
+                    )}
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab('seo')}
+                    className="pt-3 border-t border-slate-100 flex items-center justify-between text-xs font-bold text-blue-600 hover:text-blue-700 cursor-pointer"
+                  >
+                    <span>{Boolean(config?.seo?.gscConnected || config?.seo?.gscVerificationTag) ? 'Cek Analitik SEO' : 'Hubungkan GSC'}</span>
+                    <ArrowRight className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+
+                {/* Card 4: Koleksi Tema */}
+                <div className="bg-white rounded-3xl border border-slate-200 p-5 sm:p-6 shadow-xs space-y-3 flex flex-col justify-between hover:border-purple-300 transition-colors">
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 block">Koleksi Tema</span>
+                      <span className="p-2 rounded-xl bg-purple-50 text-purple-600">
+                        <Layers className="w-4 h-4" />
+                      </span>
+                    </div>
+                    <div className="text-lg font-black text-slate-900 truncate">
+                      50 Varian Desain
+                    </div>
+                    <div className="text-xs text-purple-600 font-medium truncate">
+                      5 Industri Siap Pakai
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab('themes')}
+                    className="pt-3 border-t border-slate-100 flex items-center justify-between text-xs font-bold text-blue-600 hover:text-blue-700 cursor-pointer"
+                  >
+                    <span>Buka Koleksi Tema</span>
+                    <ArrowRight className="w-3.5 h-3.5" />
+                  </button>
+                </div>
               </div>
-              <div className="text-xs text-blue-600 font-medium truncate">5 Industri Siap Pakai</div>
+
+              {/* Quick Navigation Studio Grid */}
+              <div className="bg-white rounded-3xl border border-slate-200 p-6 sm:p-7 shadow-xs space-y-4">
+                <div className="border-b border-slate-100 pb-3 flex items-center justify-between">
+                  <div>
+                    <h3 className="text-base font-extrabold text-slate-900">Pusat Kendali Cepat (Shortcuts)</h3>
+                    <p className="text-xs text-slate-500">Akses langsung ke seluruh modul konfigurasi website tanpa reload.</p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5">
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab('themes')}
+                    className="p-4 rounded-2xl border border-slate-200 hover:border-blue-400 hover:bg-blue-50/40 text-left transition-all group flex items-start gap-3.5 cursor-pointer"
+                  >
+                    <span className="p-2.5 rounded-xl bg-blue-100 text-blue-700 group-hover:scale-105 transition-transform shrink-0">
+                      <Palette className="w-5 h-5" />
+                    </span>
+                    <div>
+                      <div className="text-sm font-bold text-slate-900 group-hover:text-blue-600">Tema & Bottom Nav</div>
+                      <div className="text-xs text-slate-500 mt-0.5">50 pilihan layout tema & 4 gaya navigasi mobile.</div>
+                    </div>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab('slideshow')}
+                    className="p-4 rounded-2xl border border-slate-200 hover:border-indigo-400 hover:bg-indigo-50/40 text-left transition-all group flex items-start gap-3.5 cursor-pointer"
+                  >
+                    <span className="p-2.5 rounded-xl bg-indigo-100 text-indigo-700 group-hover:scale-105 transition-transform shrink-0">
+                      <Sliders className="w-5 h-5" />
+                    </span>
+                    <div>
+                      <div className="text-sm font-bold text-slate-900 group-hover:text-indigo-600">Hero Slideshow (CRUD)</div>
+                      <div className="text-xs text-slate-500 mt-0.5">Kelola banner utama, judul H1, dan CTA link.</div>
+                    </div>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab('products')}
+                    className="p-4 rounded-2xl border border-slate-200 hover:border-emerald-400 hover:bg-emerald-50/40 text-left transition-all group flex items-start gap-3.5 cursor-pointer"
+                  >
+                    <span className="p-2.5 rounded-xl bg-emerald-100 text-emerald-700 group-hover:scale-105 transition-transform shrink-0">
+                      <Package className="w-5 h-5" />
+                    </span>
+                    <div>
+                      <div className="text-sm font-bold text-slate-900 group-hover:text-emerald-600">Katalog Produk (CRUD)</div>
+                      <div className="text-xs text-slate-500 mt-0.5">Tambah & perbarui harga mobil, menu, atau unit.</div>
+                    </div>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab('whatsapp')}
+                    className="p-4 rounded-2xl border border-slate-200 hover:border-teal-400 hover:bg-teal-50/40 text-left transition-all group flex items-start gap-3.5 cursor-pointer"
+                  >
+                    <span className="p-2.5 rounded-xl bg-teal-100 text-teal-700 group-hover:scale-105 transition-transform shrink-0">
+                      <MessageCircle className="w-5 h-5" />
+                    </span>
+                    <div>
+                      <div className="text-sm font-bold text-slate-900 group-hover:text-teal-600">Floating WhatsApp Studio</div>
+                      <div className="text-xs text-slate-500 mt-0.5">Atur nomor CS, pesan sambutan, dan modal chat popup.</div>
+                    </div>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab('seo')}
+                    className="p-4 rounded-2xl border border-slate-200 hover:border-amber-400 hover:bg-amber-50/40 text-left transition-all group flex items-start gap-3.5 cursor-pointer"
+                  >
+                    <span className="p-2.5 rounded-xl bg-amber-100 text-amber-800 group-hover:scale-105 transition-transform shrink-0">
+                      <TrendingUp className="w-5 h-5" />
+                    </span>
+                    <div>
+                      <div className="text-sm font-bold text-slate-900 group-hover:text-amber-800">SEO & Google Site Kit</div>
+                      <div className="text-xs text-slate-500 mt-0.5">Verifikasi GSC, GA4, Google Ads, dan kata kunci.</div>
+                    </div>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab('leads')}
+                    className="p-4 rounded-2xl border border-slate-200 hover:border-purple-400 hover:bg-purple-50/40 text-left transition-all group flex items-start gap-3.5 cursor-pointer"
+                  >
+                    <span className="p-2.5 rounded-xl bg-purple-100 text-purple-700 group-hover:scale-105 transition-transform shrink-0">
+                      <Users className="w-5 h-5" />
+                    </span>
+                    <div>
+                      <div className="text-sm font-bold text-slate-900 group-hover:text-purple-600">Manajemen Pesanan (CRUD)</div>
+                      <div className="text-xs text-slate-500 mt-0.5">Daftar booking masuk dan status konfirmasi pelanggan.</div>
+                    </div>
+                  </button>
+                </div>
+              </div>
             </div>
-          </div>
+          )}
 
           {/* ========================================================
            * TAB 1: THEMES SELECTION & NAVIGATION CONFIG

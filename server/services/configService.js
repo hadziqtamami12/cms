@@ -7,6 +7,9 @@
 import { query, getDbType, getMemoryStore } from '../config/db.js';
 import { getCache, setCache, delCache } from '../config/cache.js';
 
+let isDbTableEnsured = false;
+let inMemoryConfig = null;
+
 // Base Default Configuration
 export const DEFAULT_APP_CONFIG = {
   industry: 'automotive',
@@ -334,7 +337,7 @@ export const saveSettingToDb = async (key, value) => {
     if (dbType === 'postgres') {
       await query(`
         INSERT INTO app_settings (key, value, updated_at)
-        VALUES ($1, $2, NOW())
+        VALUES ($1, $2::jsonb, NOW())
         ON CONFLICT (key) DO UPDATE
         SET value = EXCLUDED.value, updated_at = NOW();
       `, [key, jsonVal]);
@@ -342,7 +345,7 @@ export const saveSettingToDb = async (key, value) => {
       // Dual persistence into legacy sys_configs table
       await query(`
         INSERT INTO sys_configs (key, value, updated_at)
-        VALUES ($1, $2, NOW())
+        VALUES ($1, $2::jsonb, NOW())
         ON CONFLICT (key) DO UPDATE
         SET value = EXCLUDED.value, updated_at = NOW();
       `, ['theme_config', jsonVal]).catch(() => {});
@@ -372,10 +375,12 @@ export const saveSettingToDb = async (key, value) => {
  * Returns active public settings directly from database (with Redis / in-memory cache).
  * Single Source of Truth for Landing Page and Admin Studio.
  */
-export const getPublicSettings = async () => {
-  // 1. Check multi-tier cache
-  const cached = await getCache('sys:public_settings');
-  if (cached) return cached;
+export const getPublicSettings = async (forceDb = false) => {
+  // 1. Check multi-tier cache only if not forcing DB read
+  if (!forceDb) {
+    const cached = await getCache('sys:public_settings');
+    if (cached) return cached;
+  }
 
   // 2. Fetch master configuration from database
   let dbConfig = await getSettingFromDb('app_config');
@@ -422,7 +427,7 @@ export const getPublicSettings = async () => {
  * Saves setting updates permanently to the database and invalidates all cache tiers.
  */
 export const saveSettings = async (partialSettings = {}) => {
-  const current = await getPublicSettings();
+  const current = await getPublicSettings(true);
 
   // Normalize variant if bottomNavStyle or bottom_nav_variant is updated
   let targetVariant = current.bottom_nav_variant;

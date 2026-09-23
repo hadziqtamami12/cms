@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { MessageCircle, X } from 'lucide-react';
+import { MessageCircle } from 'lucide-react';
 import WhatsAppChatModal from './WhatsAppChatModal';
 
 /**
@@ -16,7 +16,6 @@ export const FloatingWhatsApp = ({
   enabled = true,
   actionType = 'popup' // 'popup' | 'direct'
 }) => {
-  const [showTooltip, setShowTooltip] = useState(true);
   const [isChatModalOpen, setIsChatModalOpen] = useState(false);
 
   if (!enabled || !whatsapp) return null;
@@ -37,37 +36,9 @@ export const FloatingWhatsApp = ({
     <>
       <div
         className={`fixed right-3 sm:right-6 z-40 transition-all duration-300 ease-in-out flex flex-col items-end pointer-events-auto select-none ${
-          bottomNavVisible ? 'bottom-[76px] sm:bottom-6' : 'bottom-4 sm:bottom-6'
+          bottomNavVisible ? 'bottom-[92px] sm:bottom-6' : 'bottom-5 sm:bottom-6'
         }`}
       >
-        {/* Sleek & Compact Proactive Chat Greeting Tooltip */}
-        {showTooltip && (
-          <div className="relative mb-2 max-w-[185px] sm:max-w-[210px] bg-white/95 backdrop-blur-md text-slate-800 p-2 sm:p-2.5 rounded-xl rounded-br-xs shadow-md border border-slate-200/80 flex items-start gap-1.5 animate-bounce-in">
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-1.5">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse shrink-0" />
-                <span className="font-extrabold text-[10px] sm:text-[11px] text-slate-900 truncate">
-                  {brandName}
-                </span>
-              </div>
-              <p className="text-[9px] sm:text-[10px] text-slate-600 mt-0.5 leading-snug">
-                Ada yang bisa kami bantu? Chat kami via WA.
-              </p>
-            </div>
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                setShowTooltip(false);
-              }}
-              className="text-slate-400 hover:text-slate-600 p-0.5 rounded-md transition-colors shrink-0"
-              title="Tutup pesan"
-            >
-              <X className="w-3 h-3" />
-            </button>
-          </div>
-        )}
-
         {/* Compact Responsive Floating Button */}
         <button
           type="button"

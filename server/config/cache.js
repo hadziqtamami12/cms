@@ -9,15 +9,22 @@ let redisClient = null;
 const memoryCache = new Map();
 const memoryExpiry = new Map();
 
-// Initialize Redis if REDIS_URL or REDIS_HOST is configured
-if (process.env.REDIS_URL || process.env.REDIS_HOST) {
+// Initialize Redis only if REDIS_URL or REDIS_HOST is explicitly configured (non-empty)
+const redisUrl = (process.env.REDIS_URL || '').trim();
+const redisHost = (process.env.REDIS_HOST || '').trim();
+
+if (redisUrl || redisHost) {
   try {
-    redisClient = new Redis(process.env.REDIS_URL || {
-      host: process.env.REDIS_HOST || '127.0.0.1',
+    redisClient = new Redis(redisUrl || {
+      host: redisHost || '127.0.0.1',
       port: Number(process.env.REDIS_PORT) || 6379,
       password: process.env.REDIS_PASSWORD || undefined,
       lazyConnect: true,
-      maxRetriesPerRequest: 1
+      maxRetriesPerRequest: 1,
+      retryStrategy: (times) => {
+        if (times > 2) return null; // Stop retrying after 2 attempts
+        return Math.min(times * 100, 500);
+      }
     });
 
     redisClient.connect().then(() => {
@@ -26,8 +33,13 @@ if (process.env.REDIS_URL || process.env.REDIS_HOST) {
       console.warn('[Cache] Redis connection failed, falling back to in-memory TTL cache:', err.message);
       redisClient = null;
     });
+
+    redisClient.on('error', () => {
+      redisClient = null; // Silently disable on repeated failures
+    });
   } catch (err) {
     console.warn('[Cache] Could not start Redis client, using in-memory cache:', err.message);
+    redisClient = null;
   }
 }
 

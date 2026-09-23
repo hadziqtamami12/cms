@@ -19,11 +19,34 @@ export const AppProvider = ({ children }) => {
   const loadConfig = async () => {
     try {
       setLoading(true);
+
+      // Check local Static DB setup state first (written by client-side installer)
+      let localSetup = null;
+      try {
+        const raw = localStorage.getItem('cms_setup_state');
+        if (raw) localSetup = JSON.parse(raw);
+      } catch {}
+
       const res = await fetchConfig();
       if (res && res.success && res.data) {
         setConfig(res.data);
         if (res.data.adminSlug) setAdminSlug(res.data.adminSlug);
         if (res.data.license) setLicenseStatus(res.data.license);
+      } else if (localSetup && localSetup.isInstalled) {
+        // Backend not available, but installer ran locally — use stored state
+        if (localSetup.adminSlug) setAdminSlug(localSetup.adminSlug);
+        const expiresAt = localSetup.expiresAt ? new Date(localSetup.expiresAt) : null;
+        const daysRemaining = expiresAt
+          ? Math.max(0, Math.floor((expiresAt - Date.now()) / (1000 * 60 * 60 * 24)))
+          : 30;
+        setLicenseStatus({
+          isInstalled: true,
+          isLocked: daysRemaining <= 0,
+          status: daysRemaining > 0 ? 'active' : 'expired',
+          daysRemaining,
+          licenseKey: localSetup.licenseKey,
+          licenseType: localSetup.licenseType || 'trial'
+        });
       }
     } catch (err) {
       console.error('[AppContext] Failed to load configuration:', err);

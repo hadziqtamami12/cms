@@ -25,6 +25,16 @@ export const DEFAULT_APP_CONFIG = {
     messageTemplate: 'Halo Royal Fleet, saya ingin bertanya seputar sewa armada.',
     position: 'right'
   },
+  whatsapp_settings: {
+    enabled: true,
+    displayMode: 'bottom_nav',
+    navPosition: 'center',
+    actionType: 'popup',
+    phone: '6281288990011',
+    brandName: 'Royal Fleet Concierge',
+    messageTemplate: 'Halo Royal Fleet, saya ingin bertanya seputar sewa armada.',
+    welcomeMessage: 'Halo kak! Ada yang bisa kami bantu seputar armada, ketersediaan, atau pemesanan hari ini? Silakan pilih opsi cepat di bawah atau ketik pesan Anda 😊'
+  },
   heroSlides: [
     {
       title: 'Solusi Sewa Mobil Mewah & Armada Bisnis Terlengkap',
@@ -230,8 +240,9 @@ let isDbTableEnsured = false;
  * - 'floating_box' <-> 'modern-box' / 'box'
  */
 export const normalizeBottomNavVariant = (val) => {
-  if (!val) return 'floating_dock';
+  if (!val) return 'detached_floating_bubble';
   const clean = String(val).toLowerCase().trim();
+  if (clean === 'detached_bubble' || clean === 'detached_floating_bubble') return 'detached_floating_bubble';
   if (clean === 'dock' || clean === 'floating_dock') return 'floating_dock';
   if (clean === 'curved' || clean === 'fixed_curved') return 'fixed_curved';
   if (clean === 'bubble' || clean === 'floating_bubble') return 'floating_bubble';
@@ -242,6 +253,7 @@ export const normalizeBottomNavVariant = (val) => {
 export const mapVariantToLegacyStyle = (variant) => {
   const normalized = normalizeBottomNavVariant(variant);
   switch (normalized) {
+    case 'detached_floating_bubble': return 'detached_bubble';
     case 'fixed_curved': return 'curved';
     case 'floating_bubble': return 'bubble';
     case 'floating_box': return 'modern-box';

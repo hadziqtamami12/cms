@@ -4,13 +4,14 @@ import {
   RefreshCw, Globe, Shield, Smartphone, Layers, Save, AlertCircle,
   Menu, X, ChevronLeft, ChevronRight, ExternalLink, Activity, Sparkles, Check,
   Lock, Key, ShieldCheck, Eye, EyeOff, UserCheck, AlertTriangle, Copy,
-  PanelLeftClose, PanelLeftOpen, Package
+  PanelLeftClose, PanelLeftOpen, Package, MessageCircle
 } from 'lucide-react';
 import OrderManager from '../components/orders/OrderManager';
 import InteractiveSeoDashboard from '../components/seo/InteractiveSeoDashboard';
 import { ThemeShowcase } from '../components/themes/ThemeShowcase';
 import { InteractiveBottomNavSelector } from '../components/themes/InteractiveBottomNavSelector';
 import { ProductCatalogManager } from '../components/products/ProductCatalogManager';
+import { WhatsAppStudio } from '../components/whatsapp/WhatsAppStudio';
 import { getPresetForIndustry } from '../lib/industryCatalogs';
 import {
   switchTheme,
@@ -337,6 +338,7 @@ export const AdminDashboard = ({
   const navMenuItems = [
     { id: 'themes', label: 'Tema & Tampilan', icon: Palette, badge: '50' },
     { id: 'products', label: 'Katalog Produk (CRUD)', icon: Package, badge: (config?.items || []).length || 'Unit' },
+    { id: 'whatsapp', label: 'WhatsApp & Floating Nav', icon: MessageCircle, badge: 'Studio' },
     { id: 'seo', label: 'SEO & Performance', icon: TrendingUp, badge: 'Live' },
     { id: 'leads', label: 'Manajemen Pesanan', icon: Users, badge: 'CRUD' },
     { id: 'settings', label: 'Keamanan & Portal', icon: Settings },
@@ -832,7 +834,21 @@ export const AdminDashboard = ({
           )}
 
           {/* ========================================================
-           * TAB 2: TECHNICAL SEO & INTERACTIVE PERFORMANCE DASHBOARD
+           * TAB: WHATSAPP & FLOATING NAV STUDIO
+           * ======================================================== */}
+          {activeTab === 'whatsapp' && (
+            <WhatsAppStudio
+              config={config}
+              adminToken={adminToken}
+              onConfigUpdated={(newCfg) => {
+                if (onConfigUpdated) onConfigUpdated(newCfg);
+              }}
+              showToast={showToast}
+            />
+          )}
+
+          {/* ========================================================
+           * TAB 3: TECHNICAL SEO & INTERACTIVE PERFORMANCE DASHBOARD
            * ======================================================== */}
           {activeTab === 'seo' && (
             <InteractiveSeoDashboard

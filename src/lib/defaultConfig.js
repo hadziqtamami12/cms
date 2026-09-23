@@ -6,11 +6,28 @@
 export const DEFAULT_CONFIG = {
   industry: 'automotive',
   themeId: 'fleet-grid',
+  bottom_nav_variant: 'detached_floating_bubble',
   bottomNavStyle: 'dock',
   brandName: 'CMS Enterprise Portal',
   tagline: 'Inisialisasi Setup & Generator Landing Page Multi-Industri',
   phone: '+62 812-8899-0011',
   whatsapp: '6281288990011',
+  floating_whatsapp: {
+    enabled: true,
+    phone: '6281288990011',
+    messageTemplate: 'Halo, saya ingin bertanya seputar sewa armada.',
+    position: 'right'
+  },
+  whatsapp_settings: {
+    enabled: true,
+    displayMode: 'bottom_nav',
+    navPosition: 'center',
+    actionType: 'popup',
+    phone: '6281288990011',
+    brandName: 'CMS Customer Support',
+    messageTemplate: 'Halo, saya ingin bertanya informasi lebih lanjut.',
+    welcomeMessage: 'Halo kak! Ada yang bisa kami bantu seputar produk, armada, atau reservasi Anda hari ini? Silakan pilih opsi cepat di bawah atau ketik pesan Anda 😊'
+  },
   email: 'concierge@royalfleet.com',
   location: 'Jakarta Selatan & Bali',
   heroSlides: [

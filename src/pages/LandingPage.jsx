@@ -17,6 +17,7 @@ export const LandingPage = ({ config }) => {
     bottomNavStyle = 'dock',
     bottom_nav_variant,
     floating_whatsapp = {},
+    whatsapp_settings = {},
     brandName = 'Royal Fleet',
     tagline = 'Solusi Sewa Mobil Mewah Terpercaya',
     phone = '+62 812-8899-0011',
@@ -27,7 +28,15 @@ export const LandingPage = ({ config }) => {
     seo = {}
   } = config;
 
-  const resolvedNavVariant = bottom_nav_variant || bottomNavStyle || 'floating_dock';
+  const resolvedNavVariant = bottom_nav_variant || bottomNavStyle || 'detached_floating_bubble';
+  const waSettings = whatsapp_settings || {};
+  const resolvedWa = waSettings.phone || floating_whatsapp.phone || whatsapp;
+  const resolvedBrandName = waSettings.brandName || brandName;
+  const resolvedDisplayMode = waSettings.displayMode || (floating_whatsapp.enabled === false ? 'bottom_nav' : 'bottom_nav');
+  const resolvedNavPosition = waSettings.navPosition || 'center';
+  const resolvedActionType = waSettings.actionType || 'popup';
+  const resolvedWelcomeMessage = waSettings.welcomeMessage;
+  const resolvedMessageTemplate = waSettings.messageTemplate || floating_whatsapp.messageTemplate || `Halo ${brandName}, saya ingin bertanya informasi lebih lanjut.`;
 
   return (
     <div className="min-h-screen flex flex-col bg-surface-warm text-slate-800">
@@ -155,18 +164,26 @@ export const LandingPage = ({ config }) => {
 
       {/* High-Conversion Floating WhatsApp Quick Contact Widget */}
       <FloatingWhatsApp
-        whatsapp={floating_whatsapp.phone || whatsapp}
-        brandName={brandName}
-        messageTemplate={floating_whatsapp.messageTemplate || `Halo ${brandName}, saya ingin bertanya informasi lebih lanjut.`}
+        whatsapp={resolvedWa}
+        brandName={resolvedBrandName}
+        messageTemplate={resolvedMessageTemplate}
+        welcomeMessage={resolvedWelcomeMessage}
         bottomNavVisible={isBottomNavVisible}
-        enabled={floating_whatsapp.enabled !== false}
+        enabled={waSettings.enabled !== false && floating_whatsapp.enabled !== false}
+        displayMode={resolvedDisplayMode}
+        actionType={resolvedActionType}
       />
 
-      {/* Dynamic Scroll Mobile Bottom Navigation (4 Variations) */}
+      {/* Dynamic Scroll Mobile Bottom Navigation with Integrated WhatsApp Action */}
       <MobileBottomNav
         styleVariant={resolvedNavVariant}
-        whatsapp={whatsapp}
+        whatsapp={resolvedWa}
         phone={phone}
+        brandName={resolvedBrandName}
+        welcomeMessage={resolvedWelcomeMessage}
+        industry={industry}
+        waPosition={resolvedNavPosition}
+        waAction={resolvedActionType}
         onVisibilityChange={setIsBottomNavVisible}
       />
     </div>

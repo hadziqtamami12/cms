@@ -22,7 +22,9 @@ router.get('/settings/public', async (req, res) => {
     const settings = await getPublicSettings();
     const licenseStatus = await getSystemLicenseStatus();
 
-    res.set('Cache-Control', 'public, s-maxage=10, stale-while-revalidate=59');
+    res.set('Cache-Control', 'no-cache, no-store, must-revalidate');
+    res.set('Pragma', 'no-cache');
+    res.set('Expires', '0');
     res.json({
       success: true,
       data: {

@@ -100,18 +100,21 @@ export const AdminDashboard = ({
     setLoading(true);
 
     try {
-      const res = await switchTheme({
-        industry: ind,
-        themeId: thId,
-        bottomNavStyle,
-        bottom_nav_variant: config?.bottom_nav_variant || bottomNavStyle,
-        token: adminToken
-      });
-      if (res && res.success) {
+      const [resTheme] = await Promise.all([
+        switchTheme({
+          industry: ind,
+          themeId: thId,
+          bottomNavStyle,
+          bottom_nav_variant: config?.bottom_nav_variant || bottomNavStyle,
+          token: adminToken
+        }),
+        updateAppSettings(updatedConfig, adminToken)
+      ]);
+      if (resTheme && resTheme.success) {
         if (onConfigUpdated) {
           onConfigUpdated({
             ...updatedConfig,
-            ...(res.themeConfig || {})
+            ...(resTheme.themeConfig || {})
           });
         }
       }

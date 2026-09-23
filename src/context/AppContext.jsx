@@ -5,8 +5,14 @@ import { DEFAULT_CONFIG } from '../lib/defaultConfig';
 const AppContext = createContext();
 
 export const AppProvider = ({ children }) => {
-  const [config, setConfig] = useState(DEFAULT_CONFIG);
-  const [loading, setLoading] = useState(true); // Start true — wait for loadConfig before rendering routes
+  const [config, setConfig] = useState(() => {
+    try {
+      const saved = localStorage.getItem('cms_active_theme_config');
+      if (saved) return JSON.parse(saved);
+    } catch {}
+    return DEFAULT_CONFIG;
+  });
+  const [loading, setLoading] = useState(false);
 
   const [adminToken, setAdminToken] = useState(() => localStorage.getItem('cms_admin_token') || '');
   const [adminSlug, setAdminSlug] = useState(() => {
@@ -99,19 +105,30 @@ export const AppProvider = ({ children }) => {
   useEffect(() => {
     loadConfig();
 
-    // Cross-tab reactive synchronization: when admin modifies theme/settings,
-    // any open landing page tab updates immediately without page reload!
-    const handleStorageChange = (e) => {
-      if (e.key === 'cms_active_theme_config' && e.newValue) {
-        try {
-          const parsed = JSON.parse(e.newValue);
+    // Cross-tab and local reactive synchronization:
+    // when admin modifies theme/bottom-nav/settings, landing page updates immediately!
+    const syncConfig = () => {
+      try {
+        const raw = localStorage.getItem('cms_active_theme_config');
+        if (raw) {
+          const parsed = JSON.parse(raw);
           setConfig(prev => ({ ...prev, ...parsed }));
-        } catch {}
+        }
+      } catch {}
+    };
+
+    const handleStorageChange = (e) => {
+      if (!e || e.key === 'cms_active_theme_config') {
+        syncConfig();
       }
     };
 
     window.addEventListener('storage', handleStorageChange);
-    return () => window.removeEventListener('storage', handleStorageChange);
+    window.addEventListener('cms-config-updated', syncConfig);
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      window.removeEventListener('cms-config-updated', syncConfig);
+    };
   }, []);
 
   const updateConfigLocally = (newConfig) => {
@@ -119,6 +136,7 @@ export const AppProvider = ({ children }) => {
       const merged = { ...prev, ...newConfig };
       try {
         localStorage.setItem('cms_active_theme_config', JSON.stringify(merged));
+        window.dispatchEvent(new Event('cms-config-updated'));
       } catch {}
       return merged;
     });

@@ -41,9 +41,9 @@ export const InteractiveBottomNavSelector = ({
       id: 'fixed_curved',
       legacyId: 'curved',
       title: 'Fixed Curved Scoop',
-      tagline: 'Varian B - Menempel Solid Curved',
-      desc: 'Menempel penuh di dasar layar, berlatar putih dengan lengkungan halus (curved scoop) di atas tab aktif.',
-      badge: 'Elegan & Dinamis',
+      tagline: 'Varian B - Cekungan Melengkung Bebas Tanpa Sentuh',
+      desc: 'Bar dasar dengan lekukan melengkung halus di kanan, kiri, dan bawah lingkaran menu aktif (melayang bebas di dalam cekungan tanpa bersentuhan).',
+      badge: 'Desain Paling Elegan',
       accentColor: 'from-indigo-500 to-purple-500'
     },
     {
@@ -185,11 +185,13 @@ export const InteractiveBottomNavSelector = ({
                   )}
 
                   {opt.id === 'fixed_curved' && (
-                    <div className="w-full h-5 bg-white border-t border-slate-200 flex items-center justify-around px-2 relative">
-                      <div className="w-2 h-2 rounded-full bg-slate-300" />
-                      <div className="w-4 h-4 rounded-full bg-blue-600 -mt-3 shadow-xs border-2 border-white flex items-center justify-center text-[6px] text-white font-bold" />
-                      <div className="w-2 h-2 rounded-full bg-slate-300" />
-                      <div className="w-2 h-2 rounded-full bg-slate-300" />
+                    <div className="w-full h-6 bg-white relative flex items-center justify-around px-2 border-b border-slate-200">
+                      <svg className="absolute inset-0 w-full h-full pointer-events-none" viewBox="0 0 100 24" preserveAspectRatio="none">
+                        <path d="M 0 6 L 36 6 C 42 6, 42 20, 50 20 C 58 20, 58 6, 64 6 L 100 6" stroke="#CBD5E1" strokeWidth="1" fill="none" />
+                      </svg>
+                      <div className="w-2 h-2 rounded-full bg-slate-300 z-10" />
+                      <div className="w-4 h-4 rounded-full bg-blue-600 -mt-2 shadow-xs border-2 border-white flex items-center justify-center text-[5px] text-white font-bold z-10" />
+                      <div className="w-2 h-2 rounded-full bg-slate-300 z-10" />
                     </div>
                   )}
 

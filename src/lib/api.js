@@ -45,7 +45,9 @@ export const fetchConfig = async () => {
 
 export const fetchPublicSettings = async () => {
   try {
-    const res = await fetch(`${API_BASE}/settings/public`);
+    const res = await fetch(`${API_BASE}/settings/public?_t=${Date.now()}`, {
+      cache: 'no-store'
+    });
     const contentType = res.headers.get('content-type') || '';
     const text = await res.text();
     if (!res.ok || !text || !contentType.includes('application/json')) {

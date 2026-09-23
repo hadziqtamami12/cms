@@ -114,36 +114,80 @@ export const MobileBottomNav = ({
   }
 
   /* -------------------------------------------------------------
-   * Varian B: Fixed Curved Scoop (Menempel Solid di Dasar Layar)
+   * Varian B: Fixed Curved Scoop (Melengkung di Kanan, Kiri, dan Bawah Tanpa Menyentuh Lingkaran Menu Aktif)
    * ------------------------------------------------------------- */
   if (resolvedVariant === 'fixed_curved') {
+    const activeIndex = Math.max(0, navItems.findIndex((item) => item.id === activeTab));
+    // Coordinate calculation in 375-width SVG grid:
+    const tabWidth = 75; // 375 / 5 tabs = 75
+    const cx = activeIndex * tabWidth + 37.5;
+    const curveRadius = 36;
+    const dipDepth = 50;
+    const barTop = 14;
+
+    const scoopPath = `M 0 ${barTop} L ${cx - curveRadius} ${barTop} C ${cx - 20} ${barTop}, ${cx - 20} ${dipDepth}, ${cx} ${dipDepth} C ${cx + 20} ${dipDepth}, ${cx + 20} ${barTop}, ${cx + curveRadius} ${barTop} L 375 ${barTop} L 375 72 L 0 72 Z`;
+    const scoopBorder = `M 0 ${barTop} L ${cx - curveRadius} ${barTop} C ${cx - 20} ${barTop}, ${cx - 20} ${dipDepth}, ${cx} ${dipDepth} C ${cx + 20} ${dipDepth}, ${cx + 20} ${barTop}, ${cx + curveRadius} ${barTop} L 375 ${barTop}`;
+
     return (
-      <aside aria-label="Navigasi Bawah Mobile" className="md:hidden fixed bottom-0 inset-x-0 z-40 bg-white border-t border-slate-200 shadow-xl min-w-0 select-none">
-        <div className="relative flex items-center justify-around py-2 px-2 max-w-md mx-auto">
-          {navItems.map((item) => {
-            const Icon = item.icon;
-            const isActive = activeTab === item.id;
-            return (
-              <a
-                key={item.id}
-                href={item.href}
-                onClick={() => setActiveTab(item.id)}
-                className="relative flex flex-col items-center justify-center flex-1 py-1 text-slate-500 transition-colors"
-              >
-                {isActive && (
-                  <div className="absolute -top-6 w-12 h-12 rounded-full bg-blue-600 text-white flex items-center justify-center shadow-lg border-4 border-white transition-all transform scale-105">
-                    <Icon className="w-5 h-5 stroke-[2.5]" />
+      <aside aria-label="Navigasi Bawah Mobile" className="md:hidden fixed bottom-0 inset-x-0 z-40 min-w-0 select-none pointer-events-none">
+        <div className="relative max-w-md mx-auto h-[68px]">
+          {/* Authentic SVG Scoop Background with smooth curved depression around active circle */}
+          <svg
+            className="absolute bottom-0 inset-x-0 w-full h-[72px] filter drop-shadow-[0_-3px_12px_rgba(0,0,0,0.08)] pointer-events-auto"
+            viewBox="0 0 375 72"
+            preserveAspectRatio="none"
+          >
+            {/* White solid bar with scoop cut-out */}
+            <path d={scoopPath} fill="#FFFFFF" />
+            {/* Top border following the contour of the scoop */}
+            <path d={scoopBorder} stroke="#E2E8F0" strokeWidth="1.5" fill="none" />
+          </svg>
+
+          {/* Floating Detached Active Circle - Suspended with clearance in the curved cutout without touching */}
+          <div
+            className="absolute z-20 pointer-events-auto transition-all duration-300 ease-out"
+            style={{
+              left: `${(activeIndex * 20) + 10}%`,
+              top: '-10px',
+              transform: 'translateX(-50%)'
+            }}
+          >
+            <div className="w-12 h-12 rounded-full bg-blue-600 text-white flex items-center justify-center shadow-xl shadow-blue-600/35 border-3 border-white transform transition-transform active:scale-95">
+              {(() => {
+                const ActiveIcon = navItems[activeIndex]?.icon || Home;
+                return <ActiveIcon className="w-5 h-5 stroke-[2.5]" />;
+              })()}
+            </div>
+          </div>
+
+          {/* Interactive Navigation Tab Links */}
+          <div className="relative z-10 flex items-center justify-around h-full pt-3 px-1 pointer-events-auto">
+            {navItems.map((item, idx) => {
+              const Icon = item.icon;
+              const isActive = activeIndex === idx;
+
+              return (
+                <a
+                  key={item.id}
+                  href={item.href}
+                  onClick={() => setActiveTab(item.id)}
+                  className="flex-1 flex flex-col items-center justify-end pb-2 h-full text-slate-500 transition-colors"
+                >
+                  {/* For inactive items: show icon normally. For active item: leave space for floating circle */}
+                  <div className={`h-5 flex items-center justify-center transition-opacity duration-200 ${isActive ? 'opacity-0' : 'opacity-100'}`}>
+                    <Icon className="w-5 h-5 text-slate-500" />
                   </div>
-                )}
-                <div className={isActive ? 'opacity-0 h-5' : 'flex flex-col items-center'}>
-                  <Icon className="w-5 h-5 text-slate-500" />
-                </div>
-                <span className={`text-[10px] mt-1 transition-colors ${isActive ? 'text-blue-600 font-bold' : 'text-slate-500'}`}>
-                  {item.label}
-                </span>
-              </a>
-            );
-          })}
+                  <span
+                    className={`text-[10px] mt-1 tracking-tight transition-colors duration-200 ${
+                      isActive ? 'text-blue-600 font-extrabold' : 'text-slate-500 font-medium'
+                    }`}
+                  >
+                    {item.label}
+                  </span>
+                </a>
+              );
+            })}
+          </div>
         </div>
       </aside>
     );

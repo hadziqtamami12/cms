@@ -51,7 +51,9 @@ const startDev = async () => {
     }
   }
 
-  console.log('🌟 Menjalankan Backend API Express & Frontend Vite bersamaan...\n');
+  console.log('🌟 Menjalankan Backend API Express & Frontend Vite bersamaan:');
+  console.log('   👉 Frontend Web App:  http://127.0.0.1:3005');
+  console.log('   👉 Backend Serverless: http://127.0.0.1:5005\n');
 
   // 2. Jalankan Backend Server (/server)
   const serverProc = spawn('node', ['server/index.js'], {

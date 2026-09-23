@@ -48,7 +48,7 @@ export const AppProvider = ({ children }) => {
         }
       }
     } catch {}
-    return { isInstalled: false, isLocked: false, status: 'uninstalled', daysRemaining: 30 };
+    return { isInstalled: true, isLocked: false, status: 'active', daysRemaining: 365 };
   });
 
   const loadConfig = async () => {
@@ -93,6 +93,14 @@ export const AppProvider = ({ children }) => {
             licenseKey: serverLicense.licenseKey || localSetup?.licenseKey || 'ENTERPRISE-ACTIVE',
             licenseType: serverLicense.type || localSetup?.licenseType || 'yearly'
           });
+          try {
+            const currentSetup = JSON.parse(localStorage.getItem('cms_setup_state') || '{}');
+            localStorage.setItem('cms_setup_state', JSON.stringify({
+              ...currentSetup,
+              isInstalled: true,
+              adminSlug: res.data.adminSlug || currentSetup.adminSlug || 'admin'
+            }));
+          } catch {}
         } else if (res.data.license) {
           const serverLicense = res.data.license;
           if (serverLicense.isInstalled === false && localSetup?.isInstalled === true) {

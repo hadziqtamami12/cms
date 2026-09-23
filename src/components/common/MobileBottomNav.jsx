@@ -44,15 +44,32 @@ export const MobileBottomNav = ({
   isAlwaysVisible = false, // When used inside admin mobile preview mockup
   onVisibilityChange
 }) => {
-  const [visible, setVisible] = useState(true);
+  const [visible, setVisible] = useState(isAlwaysVisible);
   const [activeTab, setActiveTab] = useState('home');
 
   const resolvedVariant = normalizeVariant(variant || styleVariant);
   const catalogMeta = getIndustryCatalogMeta(industry);
 
   useEffect(() => {
-    if (onVisibilityChange) onVisibilityChange(true);
-  }, [onVisibilityChange]);
+    if (isAlwaysVisible) {
+      setVisible(true);
+      if (onVisibilityChange) onVisibilityChange(true);
+      return;
+    }
+
+    const handleScroll = () => {
+      // Sembunyi saat di paling atas, muncul ketika pengguna mulai scroll ke bawah (> 70px)
+      const isScrolled = window.scrollY > 70;
+      setVisible(isScrolled);
+      if (onVisibilityChange) onVisibilityChange(isScrolled);
+    };
+
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    // Cek posisi awal saat mount
+    handleScroll();
+
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, [isAlwaysVisible, onVisibilityChange]);
 
   if (!visible) return null;
 
@@ -114,7 +131,7 @@ export const MobileBottomNav = ({
     const scoopBorder = `M 0 ${barTop} L ${cx - curveRadius} ${barTop} C ${cx - 20} ${barTop}, ${cx - 20} ${dipDepth}, ${cx} ${dipDepth} C ${cx + 20} ${dipDepth}, ${cx + 20} ${barTop}, ${cx + curveRadius} ${barTop} L 375 ${barTop}`;
 
     return (
-      <aside aria-label="Navigasi Bawah Mobile" className="md:hidden fixed bottom-0 inset-x-0 z-40 min-w-0 select-none pointer-events-none">
+      <aside aria-label="Navigasi Bawah Mobile" className="md:hidden fixed bottom-0 inset-x-0 z-40 min-w-0 select-none pointer-events-none animate-bounce-in">
         <div className="relative max-w-md mx-auto h-[68px]">
           {/* Authentic SVG Scoop Background with smooth curved depression around active circle */}
           <svg
@@ -183,7 +200,7 @@ export const MobileBottomNav = ({
    * ------------------------------------------------------------- */
   if (resolvedVariant === 'floating_bubble') {
     return (
-      <aside aria-label="Navigasi Bawah Mobile" className="md:hidden fixed bottom-3 inset-x-3 max-w-md mx-auto z-40 min-w-0 select-none">
+      <aside aria-label="Navigasi Bawah Mobile" className="md:hidden fixed bottom-3 inset-x-3 max-w-md mx-auto z-40 min-w-0 select-none animate-bounce-in">
         <div className="bg-white/95 backdrop-blur-md rounded-2xl border border-slate-200/90 shadow-xl py-2 px-2 flex items-center justify-around">
           {navItems.map((item) => {
             const Icon = item.icon;
@@ -217,7 +234,7 @@ export const MobileBottomNav = ({
    * Varian D: Floating Modern Box (Badge Kotak Rounded Melayang)
    * ------------------------------------------------------------- */
   return (
-    <aside aria-label="Navigasi Bawah Mobile" className="md:hidden fixed bottom-3 inset-x-3 max-w-md mx-auto z-40 min-w-0 select-none">
+    <aside aria-label="Navigasi Bawah Mobile" className="md:hidden fixed bottom-3 inset-x-3 max-w-md mx-auto z-40 min-w-0 select-none animate-bounce-in">
       <div className="bg-white/95 backdrop-blur-md rounded-2xl border border-slate-200 shadow-xl p-1.5 flex items-center justify-between gap-1">
         {navItems.map((item) => {
           const Icon = item.icon;

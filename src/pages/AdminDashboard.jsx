@@ -338,7 +338,7 @@ export const AdminDashboard = ({
   const navMenuItems = [
     { id: 'themes', label: 'Tema & Tampilan', icon: Palette, badge: '50' },
     { id: 'products', label: 'Katalog Produk (CRUD)', icon: Package, badge: (config?.items || []).length || 'Unit' },
-    { id: 'whatsapp', label: 'WhatsApp & Floating Nav', icon: MessageCircle, badge: 'Studio' },
+    { id: 'whatsapp', label: 'Floating WhatsApp', icon: MessageCircle, badge: 'Studio' },
     { id: 'seo', label: 'SEO & Performance', icon: TrendingUp, badge: 'Live' },
     { id: 'leads', label: 'Manajemen Pesanan', icon: Users, badge: 'CRUD' },
     { id: 'settings', label: 'Keamanan & Portal', icon: Settings },

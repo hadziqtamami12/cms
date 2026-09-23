@@ -25,10 +25,6 @@ export const FloatingWhatsApp = ({
 
   if (!enabled || !whatsapp) return null;
 
-  // If set to bottom_nav only, hide on mobile screens (where bottom nav exists)
-  // but keep visible on desktop (hidden md:flex)
-  const isHiddenOnMobile = displayMode === 'bottom_nav';
-
   const cleanWaNumber = String(whatsapp).replace(/[^0-9]/g, '');
   const waUrl = `https://wa.me/${cleanWaNumber}?text=${encodeURIComponent(messageTemplate)}`;
 
@@ -44,9 +40,9 @@ export const FloatingWhatsApp = ({
   return (
     <>
       <div
-        className={`fixed right-4 z-40 transition-all duration-300 ease-in-out flex-col items-end pointer-events-auto select-none ${
-          isHiddenOnMobile ? 'hidden md:flex' : 'flex'
-        } ${bottomNavVisible ? 'bottom-20 md:bottom-6' : 'bottom-6'}`}
+        className={`fixed right-4 z-40 transition-all duration-300 ease-in-out flex flex-col items-end pointer-events-auto select-none ${
+          bottomNavVisible ? 'bottom-20 md:bottom-6' : 'bottom-6'
+        }`}
       >
         {/* Proactive Chat Greeting Tooltip */}
         {showTooltip && (

@@ -18,10 +18,9 @@ export const InteractiveBottomNavSelector = ({
 }) => {
   const [selectedVariant, setSelectedVariant] = useState(() => {
     const clean = String(currentVariant).toLowerCase();
-    if (clean === 'detached_bubble' || clean === 'detached_floating_bubble') return 'detached_floating_bubble';
     if (clean === 'dock' || clean === 'floating_dock') return 'floating_dock';
     if (clean === 'curved' || clean === 'fixed_curved') return 'fixed_curved';
-    if (clean === 'bubble' || clean === 'floating_bubble') return 'floating_bubble';
+    if (clean === 'bubble' || clean === 'floating_bubble' || clean === 'detached_bubble' || clean === 'detached_floating_bubble') return 'floating_bubble';
     if (clean === 'box' || clean === 'modern-box' || clean === 'floating_box') return 'floating_box';
     return 'floating_dock';
   });
@@ -30,19 +29,10 @@ export const InteractiveBottomNavSelector = ({
 
   const bottomNavOptions = [
     {
-      id: 'detached_floating_bubble',
-      legacyId: 'detached_bubble',
-      title: 'Detached Center WA FAB',
-      tagline: 'Varian A - Bola WA Melayang Bebas (FAB)',
-      desc: 'Tombol WhatsApp hijau resmi melayang bebas di tengah atas bar (detached FAB) terangkat 14-18px dengan bayangan lembut.',
-      badge: 'Rekomendasi Mobile First',
-      accentColor: 'from-emerald-500 to-teal-600'
-    },
-    {
       id: 'floating_dock',
       legacyId: 'dock',
       title: 'Floating Dock Pill',
-      tagline: 'Varian B - Dock Melayang Kapsul',
+      tagline: 'Varian A - Dock Melayang Kapsul',
       desc: 'Dock melayang modern rounded-full, berjarak dari tepi bawah dengan bayangan lembut (shadow-lg).',
       badge: 'Paling Populer',
       accentColor: 'from-blue-500 to-indigo-500'
@@ -51,7 +41,7 @@ export const InteractiveBottomNavSelector = ({
       id: 'fixed_curved',
       legacyId: 'curved',
       title: 'Fixed Curved Scoop',
-      tagline: 'Varian C - Menempel Solid Curved',
+      tagline: 'Varian B - Menempel Solid Curved',
       desc: 'Menempel penuh di dasar layar, berlatar putih dengan lengkungan halus (curved scoop) di atas tab aktif.',
       badge: 'Elegan & Dinamis',
       accentColor: 'from-indigo-500 to-purple-500'
@@ -60,7 +50,7 @@ export const InteractiveBottomNavSelector = ({
       id: 'floating_bubble',
       legacyId: 'bubble',
       title: 'Floating Bubble Indicator',
-      tagline: 'Varian D - Bola Melayang Terangkat',
+      tagline: 'Varian C - Bola Melayang Terangkat',
       desc: 'Bar putih bersih di mana item aktif memiliki indikator lingkaran bola mengambang terangkat ke atas.',
       badge: 'Interaktif 3D',
       accentColor: 'from-cyan-500 to-blue-500'
@@ -69,7 +59,7 @@ export const InteractiveBottomNavSelector = ({
       id: 'floating_box',
       legacyId: 'modern-box',
       title: 'Modern Box Badge',
-      tagline: 'Varian E - Kotak Rounded Melayang',
+      tagline: 'Varian D - Kotak Rounded Melayang',
       desc: 'Bar bawah modern di mana menu aktif ditandai kotak rounded mengambang dengan aksen warna primer.',
       badge: 'Minimalis Modern',
       accentColor: 'from-emerald-500 to-teal-500'
@@ -185,22 +175,12 @@ export const InteractiveBottomNavSelector = ({
                   </div>
 
                   {/* Visual bottom nav representation based on type */}
-                  {opt.id === 'detached_floating_bubble' && (
-                    <div className="w-5/6 mx-auto h-5 rounded-xl bg-white shadow-xs border border-slate-200 flex items-center justify-around px-2 relative">
-                      <div className="w-2 h-2 rounded-full bg-slate-300" />
-                      <div className="w-2 h-2 rounded-full bg-slate-300" />
-                      <div className="w-4 h-4 rounded-full bg-[#25D366] -mt-3.5 shadow-md border-2 border-white flex items-center justify-center text-[7px] text-white font-black" />
-                      <div className="w-2 h-2 rounded-full bg-slate-300" />
-                      <div className="w-2 h-2 rounded-full bg-slate-300" />
-                    </div>
-                  )}
-
                   {opt.id === 'floating_dock' && (
                     <div className="w-4/5 mx-auto h-5 rounded-full bg-white shadow-xs border border-slate-200 flex items-center justify-around px-2">
                       <div className="w-2 h-2 rounded-full bg-slate-300" />
                       <div className="w-2 h-2 rounded-full bg-slate-300" />
                       <div className="w-2.5 h-2.5 rounded-full bg-blue-600 shadow-2xs" />
-                      <div className="w-2 h-2 rounded-full bg-emerald-500" />
+                      <div className="w-2 h-2 rounded-full bg-slate-300" />
                     </div>
                   )}
 
@@ -209,7 +189,7 @@ export const InteractiveBottomNavSelector = ({
                       <div className="w-2 h-2 rounded-full bg-slate-300" />
                       <div className="w-4 h-4 rounded-full bg-blue-600 -mt-3 shadow-xs border-2 border-white flex items-center justify-center text-[6px] text-white font-bold" />
                       <div className="w-2 h-2 rounded-full bg-slate-300" />
-                      <div className="w-2 h-2 rounded-full bg-emerald-500" />
+                      <div className="w-2 h-2 rounded-full bg-slate-300" />
                     </div>
                   )}
 
@@ -218,7 +198,7 @@ export const InteractiveBottomNavSelector = ({
                       <div className="w-2 h-2 rounded-full bg-slate-300" />
                       <div className="w-2 h-2 rounded-full bg-slate-300" />
                       <div className="w-3.5 h-3.5 rounded-full bg-blue-600 -mt-2.5 shadow-xs border-2 border-white" />
-                      <div className="w-2 h-2 rounded-full bg-emerald-500" />
+                      <div className="w-2 h-2 rounded-full bg-slate-300" />
                     </div>
                   )}
 
@@ -227,7 +207,7 @@ export const InteractiveBottomNavSelector = ({
                       <div className="w-3 h-3 rounded-md bg-slate-200" />
                       <div className="w-3 h-3 rounded-md bg-slate-200" />
                       <div className="w-4 h-3.5 rounded-md bg-blue-600 shadow-2xs" />
-                      <div className="w-3 h-3 rounded-md bg-emerald-500" />
+                      <div className="w-3 h-3 rounded-md bg-slate-200" />
                     </div>
                   )}
                 </div>

@@ -170,20 +170,14 @@ export const LandingPage = ({ config }) => {
         welcomeMessage={resolvedWelcomeMessage}
         bottomNavVisible={isBottomNavVisible}
         enabled={waSettings.enabled !== false && floating_whatsapp.enabled !== false}
-        displayMode={resolvedDisplayMode}
         actionType={resolvedActionType}
       />
 
-      {/* Dynamic Scroll Mobile Bottom Navigation with Integrated WhatsApp Action */}
+      {/* Dynamic Scroll Mobile Bottom Navigation (Pure Page Navigation) */}
       <MobileBottomNav
         styleVariant={resolvedNavVariant}
-        whatsapp={resolvedWa}
-        phone={phone}
-        brandName={resolvedBrandName}
-        welcomeMessage={resolvedWelcomeMessage}
         industry={industry}
-        waPosition={resolvedNavPosition}
-        waAction={resolvedActionType}
+        phone={phone}
         onVisibilityChange={setIsBottomNavVisible}
       />
     </div>

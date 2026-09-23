@@ -6,7 +6,7 @@
 export const DEFAULT_CONFIG = {
   industry: 'automotive',
   themeId: 'fleet-grid',
-  bottom_nav_variant: 'detached_floating_bubble',
+  bottom_nav_variant: 'floating_dock',
   bottomNavStyle: 'dock',
   brandName: 'CMS Enterprise Portal',
   tagline: 'Inisialisasi Setup & Generator Landing Page Multi-Industri',

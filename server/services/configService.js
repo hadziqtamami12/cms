@@ -240,12 +240,11 @@ let isDbTableEnsured = false;
  * - 'floating_box' <-> 'modern-box' / 'box'
  */
 export const normalizeBottomNavVariant = (val) => {
-  if (!val) return 'detached_floating_bubble';
+  if (!val) return 'floating_dock';
   const clean = String(val).toLowerCase().trim();
-  if (clean === 'detached_bubble' || clean === 'detached_floating_bubble') return 'detached_floating_bubble';
   if (clean === 'dock' || clean === 'floating_dock') return 'floating_dock';
   if (clean === 'curved' || clean === 'fixed_curved') return 'fixed_curved';
-  if (clean === 'bubble' || clean === 'floating_bubble') return 'floating_bubble';
+  if (clean === 'bubble' || clean === 'floating_bubble' || clean === 'detached_bubble' || clean === 'detached_floating_bubble') return 'floating_bubble';
   if (clean === 'box' || clean === 'modern-box' || clean === 'floating_box') return 'floating_box';
   return 'floating_dock';
 };
@@ -253,7 +252,6 @@ export const normalizeBottomNavVariant = (val) => {
 export const mapVariantToLegacyStyle = (variant) => {
   const normalized = normalizeBottomNavVariant(variant);
   switch (normalized) {
-    case 'detached_floating_bubble': return 'detached_bubble';
     case 'fixed_curved': return 'curved';
     case 'floating_bubble': return 'bubble';
     case 'floating_box': return 'modern-box';

@@ -31,11 +31,11 @@ export const Navbar = ({ brandName, phone, whatsapp, tagline, logoUrl }) => {
           {/* Brand Logo & Name */}
           <a href="#" className="flex items-center gap-3.5 group focus:outline-none">
             {logoUrl ? (
-              <div className="h-11 max-w-[150px] flex items-center justify-center group-hover:scale-105 transition-transform">
+              <div className="h-11 min-w-[44px] max-w-[150px] flex items-center justify-center group-hover:scale-105 transition-transform shrink-0">
                 <img
                   src={logoUrl}
                   alt={brandName || 'Brand Logo'}
-                  className="max-h-full max-w-full object-contain"
+                  className="max-h-full max-w-full object-contain filter drop-shadow-sm"
                   onError={(e) => { e.currentTarget.style.display = 'none'; }}
                 />
               </div>

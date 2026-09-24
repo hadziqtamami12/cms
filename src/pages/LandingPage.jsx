@@ -157,70 +157,108 @@ export const LandingPage = ({ config }) => {
         )}
       </main>
 
-      {/* Clean Enterprise Footer */}
-      <footer id="footer" className="bg-slate-900 text-slate-400 py-16 sm:py-20 pb-32 md:pb-20 border-t border-slate-800">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 grid grid-cols-1 md:grid-cols-4 gap-10 sm:gap-12 lg:gap-16">
-          <div className="space-y-4 md:col-span-2">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-2xl bg-blue-600 flex items-center justify-center text-white font-bold shadow-md">
-                <ShieldCheck className="w-6 h-6" />
-              </div>
-              <span className="font-bold text-xl text-white tracking-tight">{brandName}</span>
-            </div>
-            <p className="text-sm text-slate-300 leading-relaxed max-w-md">
-              {tagline}. Didukung oleh arsitektur Cloud Edge berkecepatan tinggi dengan skor Core Web Vitals {seo?.gscConnected ? '98/100' : '0/100 (Unlinked GSC)'} dan enkripsi enterprise.
-            </p>
-            <div className="pt-2">
-              <a
-                href="/artikel"
-                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-white text-xs font-bold transition-colors"
-              >
-                <span>Baca Artikel & Panduan Wisata</span>
-                <ExternalLink className="w-3.5 h-3.5" />
-              </a>
-            </div>
-          </div>
+      {/* Dynamic Enterprise Footer (Configurable from Admin Settings) */}
+      {(() => {
+        const footerCfg = config.footer || {};
+        const footerAbout = footerCfg.about || `${tagline}. Didukung oleh arsitektur Cloud Edge berkecepatan tinggi dengan enkripsi enterprise.`;
+        const footerButtonText = footerCfg.button_text || 'Baca Artikel & Panduan Wisata';
+        const footerButtonUrl = footerCfg.button_url || '/artikel';
+        const footerShowButton = footerCfg.show_button !== false;
+        const footerContactTitle = footerCfg.contact_title || 'Informasi Kontak';
+        const footerShowPhone = footerCfg.show_phone !== false;
+        const footerShowEmail = footerCfg.show_email !== false;
+        const footerShowAddress = footerCfg.show_address !== false;
+        const footerLegalTitle = footerCfg.legal_title || 'Legalitas & Proteksi';
+        const footerLegalText = footerCfg.legal_text || 'Hak Cipta dilindungi Undang-Undang. Terdaftar dan terverifikasi di Google Business & Cloudflare Enterprise.';
+        const footerStatusText = footerCfg.status_text || 'Status Sistem: Operasional Aktif';
+        const footerShowStatus = footerCfg.show_status !== false;
+        const footerCopyright = footerCfg.copyright
+          ? (footerCfg.copyright.includes('{brand}') ? footerCfg.copyright.replace('{brand}', brandName).replace('{year}', new Date().getFullYear()) : (footerCfg.copyright.startsWith('©') ? footerCfg.copyright : `© ${new Date().getFullYear()} ${brandName}. ${footerCfg.copyright}`))
+          : `© ${new Date().getFullYear()} ${brandName}. All rights reserved. Powered by Enterprise MultiCMS Engine.`;
 
-          <div className="space-y-4">
-            <h4 className="text-white font-bold text-xs uppercase tracking-wider">Informasi Kontak</h4>
-            <div className="space-y-3 text-sm text-slate-300">
-              {phone && (
-                <div className="flex items-center gap-2.5">
-                  <Phone className="w-4 h-4 text-blue-400 shrink-0" />
-                  <span>{phone}</span>
+        return (
+          <footer id="footer" className="bg-slate-900 text-slate-400 py-16 sm:py-20 pb-32 md:pb-20 border-t border-slate-800">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 grid grid-cols-1 md:grid-cols-4 gap-10 sm:gap-12 lg:gap-16">
+              <div className="space-y-4 md:col-span-2">
+                <div className="flex items-center gap-3">
+                  {config.logoUrl ? (
+                    <div className="h-10 w-10 shrink-0 flex items-center justify-center">
+                      <img
+                        src={config.logoUrl}
+                        alt={brandName}
+                        className="max-h-full max-w-full object-contain filter drop-shadow-sm"
+                        onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                      />
+                    </div>
+                  ) : (
+                    <div className="w-10 h-10 rounded-2xl bg-blue-600 flex items-center justify-center text-white font-bold shadow-md">
+                      <ShieldCheck className="w-6 h-6" />
+                    </div>
+                  )}
+                  <span className="font-bold text-xl text-white tracking-tight">{brandName}</span>
                 </div>
-              )}
-              {email && (
-                <div className="flex items-center gap-2.5">
-                  <Mail className="w-4 h-4 text-blue-400 shrink-0" />
-                  <span>{email}</span>
+                <p className="text-sm text-slate-300 leading-relaxed max-w-md">
+                  {footerAbout}
+                </p>
+                {footerShowButton && footerButtonText && (
+                  <div className="pt-2">
+                    <a
+                      href={footerButtonUrl}
+                      className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-white text-xs font-bold transition-colors"
+                    >
+                      <span>{footerButtonText}</span>
+                      <ExternalLink className="w-3.5 h-3.5" />
+                    </a>
+                  </div>
+                )}
+              </div>
+
+              <div className="space-y-4">
+                <h4 className="text-white font-bold text-xs uppercase tracking-wider">{footerContactTitle}</h4>
+                <div className="space-y-3 text-sm text-slate-300">
+                  {footerShowPhone && phone && (
+                    <div className="flex items-center gap-2.5">
+                      <Phone className="w-4 h-4 text-blue-400 shrink-0" />
+                      <span>{phone}</span>
+                    </div>
+                  )}
+                  {footerShowEmail && email && (
+                    <div className="flex items-center gap-2.5">
+                      <Mail className="w-4 h-4 text-blue-400 shrink-0" />
+                      <span>{email}</span>
+                    </div>
+                  )}
+                  {footerShowAddress && (config.google_maps?.address || location) && (
+                    <div className="flex items-center gap-2.5">
+                      <MapPin className="w-4 h-4 text-blue-400 shrink-0" />
+                      <span>{config.google_maps?.address || location}</span>
+                    </div>
+                  )}
                 </div>
-              )}
-              <div className="flex items-center gap-2.5">
-                <MapPin className="w-4 h-4 text-blue-400 shrink-0" />
-                <span>{config.google_maps?.address || location}</span>
+              </div>
+
+              <div className="space-y-4">
+                <h4 className="text-white font-bold text-xs uppercase tracking-wider">{footerLegalTitle}</h4>
+                <p className="text-xs text-slate-400 leading-relaxed">
+                  {footerLegalText}
+                </p>
+                {footerShowStatus && (
+                  <div className="pt-2">
+                    <span className="text-xs text-emerald-400 font-semibold flex items-center gap-2">
+                      <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                      <span>{footerStatusText}</span>
+                    </span>
+                  </div>
+                )}
               </div>
             </div>
-          </div>
 
-          <div className="space-y-4">
-            <h4 className="text-white font-bold text-xs uppercase tracking-wider">Legalitas & Proteksi</h4>
-            <p className="text-xs text-slate-400 leading-relaxed">
-              Hak Cipta dilindungi Undang-Undang. Terdaftar dan terverifikasi di Google Business & Cloudflare Enterprise.
-            </p>
-            <div className="pt-2">
-              <span className="text-xs text-emerald-400 font-semibold flex items-center gap-2">
-                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                <span>Status Sistem: Operasional Aktif</span>
-              </span>
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-14 pt-8 border-t border-slate-800 text-center text-xs text-slate-500">
+              {footerCopyright}
             </div>
-          </div>
-        </div>
-
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-14 pt-8 border-t border-slate-800 text-center text-xs text-slate-500">
-          © {new Date().getFullYear()} {brandName}. All rights reserved. Powered by Enterprise MultiCMS Engine.
-        </div>
-      </footer>
+          </footer>
+        );
+      })()}
 
       {/* High-Conversion Floating WhatsApp Quick Contact Widget */}
       <FloatingWhatsApp

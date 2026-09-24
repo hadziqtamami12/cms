@@ -26,19 +26,34 @@ export const SeoHead = ({
       document.title = title;
     }
 
-    // Dynamic Favicon & Apple Touch Icon from PWA Icon
-    if (pwaIcon) {
-      let iconLink = document.querySelector("link[rel*='icon']");
-      if (iconLink) {
-        iconLink.href = pwaIcon;
+    // Dynamic Favicon & Apple Touch Icon (Transparent Emblem)
+    const activeFavicon = pwaIcon || logoUrl || '/icons/icon-192.svg';
+    if (activeFavicon) {
+      const isSvg = activeFavicon.toLowerCase().endsWith('.svg');
+      const iconLinks = document.querySelectorAll("link[rel*='icon']");
+      if (iconLinks.length > 0) {
+        iconLinks.forEach(link => {
+          if (link.getAttribute('type') === 'image/svg+xml') {
+            link.href = isSvg ? activeFavicon : '/icons/icon-192.svg';
+          } else {
+            link.href = activeFavicon;
+          }
+        });
+      } else {
+        const newIcon = document.createElement('link');
+        newIcon.rel = 'icon';
+        newIcon.type = isSvg ? 'image/svg+xml' : 'image/png';
+        newIcon.href = activeFavicon;
+        document.head.appendChild(newIcon);
       }
+
       let appleIconLink = document.querySelector("link[rel='apple-touch-icon']");
       if (!appleIconLink) {
         appleIconLink = document.createElement('link');
         appleIconLink.rel = 'apple-touch-icon';
         document.head.appendChild(appleIconLink);
       }
-      appleIconLink.href = pwaIcon;
+      appleIconLink.href = activeFavicon;
     }
 
     // 2. Helper to set or create meta tag

@@ -62,11 +62,26 @@ export const SiteIdentityManager = ({
     google_maps_coords: config.google_maps?.coordinates || '',
     google_maps_address: config.google_maps?.address || config.location || '',
     splash_screen_enabled: config.splash_screen?.enabled !== false,
-    splash_screen_duration: config.splash_screen?.duration || 2.5
+    splash_screen_duration: config.splash_screen?.duration || 2.5,
+    // Footer Settings
+    footer_about: config.footer?.about || 'Didukung oleh arsitektur Cloud Edge berkecepatan tinggi dengan enkripsi enterprise.',
+    footer_button_text: config.footer?.button_text || 'Baca Artikel & Panduan Wisata',
+    footer_button_url: config.footer?.button_url || '/artikel',
+    footer_show_button: config.footer?.show_button !== false,
+    footer_contact_title: config.footer?.contact_title || 'Informasi Kontak',
+    footer_show_phone: config.footer?.show_phone !== false,
+    footer_show_email: config.footer?.show_email !== false,
+    footer_show_address: config.footer?.show_address !== false,
+    footer_legal_title: config.footer?.legal_title || 'Legalitas & Proteksi',
+    footer_legal_text: config.footer?.legal_text || 'Hak Cipta dilindungi Undang-Undang. Terdaftar dan terverifikasi di Google Business & Cloudflare Enterprise.',
+    footer_status_text: config.footer?.status_text || 'Status Sistem: Operasional Aktif',
+    footer_show_status: config.footer?.show_status !== false,
+    footer_copyright: config.footer?.copyright || 'All rights reserved. Powered by Enterprise MultiCMS Engine.'
   });
 
   const [saving, setSaving] = useState(false);
   const [savedSuccess, setSavedSuccess] = useState(false);
+  const [generatingLogo, setGeneratingLogo] = useState(false);
 
   // Sync state if external config changes
   useEffect(() => {
@@ -89,10 +104,58 @@ export const SiteIdentityManager = ({
         google_maps_coords: config.google_maps?.coordinates || prev.google_maps_coords,
         google_maps_address: config.google_maps?.address || config.location || prev.google_maps_address,
         splash_screen_enabled: config.splash_screen?.enabled !== false,
-        splash_screen_duration: config.splash_screen?.duration || prev.splash_screen_duration || 2.5
+        splash_screen_duration: config.splash_screen?.duration || prev.splash_screen_duration || 2.5,
+        footer_about: config.footer?.about || prev.footer_about,
+        footer_button_text: config.footer?.button_text || prev.footer_button_text,
+        footer_button_url: config.footer?.button_url || prev.footer_button_url,
+        footer_show_button: config.footer?.show_button !== undefined ? config.footer?.show_button : prev.footer_show_button,
+        footer_contact_title: config.footer?.contact_title || prev.footer_contact_title,
+        footer_show_phone: config.footer?.show_phone !== undefined ? config.footer?.show_phone : prev.footer_show_phone,
+        footer_show_email: config.footer?.show_email !== undefined ? config.footer?.show_email : prev.footer_show_email,
+        footer_show_address: config.footer?.show_address !== undefined ? config.footer?.show_address : prev.footer_show_address,
+        footer_legal_title: config.footer?.legal_title || prev.footer_legal_title,
+        footer_legal_text: config.footer?.legal_text || prev.footer_legal_text,
+        footer_status_text: config.footer?.status_text || prev.footer_status_text,
+        footer_show_status: config.footer?.show_status !== undefined ? config.footer?.show_status : prev.footer_show_status,
+        footer_copyright: config.footer?.copyright || prev.footer_copyright
       }));
     }
   }, [config]);
+
+  const handleAutoGenerateLogo = async () => {
+    try {
+      setGeneratingLogo(true);
+      const res = await fetch('/api/admin/brand/generate-logo', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': adminToken ? `Bearer ${adminToken}` : ''
+        },
+        body: JSON.stringify({
+          appName: formData.brandName,
+          industry: config?.industry || 'automotive'
+        })
+      });
+      const data = await res.json();
+      if (data.success && data.data) {
+        setFormData(prev => ({
+          ...prev,
+          logoUrl: data.data.logoUrl,
+          pwa_icon: data.data.pwaIcon
+        }));
+        showToast?.('Logo & favicon simpel transparan berhasil digenerate!', 'success');
+        if (onConfigUpdated && data.data.settings) {
+          onConfigUpdated(data.data.settings);
+        }
+      } else {
+        showToast?.(data.error || 'Gagal generate logo otomatis', 'error');
+      }
+    } catch (err) {
+      showToast?.('Koneksi gagal saat generate logo', 'error');
+    } finally {
+      setGeneratingLogo(false);
+    }
+  };
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -176,6 +239,21 @@ export const SiteIdentityManager = ({
         ...(config.whatsapp_settings || {}),
         phone: cleanWhatsapp,
         brandName: cleanBrandName
+      },
+      footer: {
+        about: formData.footer_about.trim(),
+        button_text: formData.footer_button_text.trim(),
+        button_url: formData.footer_button_url.trim(),
+        show_button: Boolean(formData.footer_show_button),
+        contact_title: formData.footer_contact_title.trim(),
+        show_phone: Boolean(formData.footer_show_phone),
+        show_email: Boolean(formData.footer_show_email),
+        show_address: Boolean(formData.footer_show_address),
+        legal_title: formData.footer_legal_title.trim(),
+        legal_text: formData.footer_legal_text.trim(),
+        status_text: formData.footer_status_text.trim(),
+        show_status: Boolean(formData.footer_show_status),
+        copyright: formData.footer_copyright.trim()
       }
     };
 
@@ -348,14 +426,61 @@ export const SiteIdentityManager = ({
                 </p>
               </div>
 
+              {/* Generator Logo Otomatis (Simpel & Transparan) */}
+              <div className="p-4 rounded-2xl bg-gradient-to-r from-blue-50/80 via-indigo-50/80 to-purple-50/80 border border-blue-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs">
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <span className="p-1 rounded-lg bg-blue-600 text-white shadow-xs">
+                      <Sparkles className="w-3.5 h-3.5" />
+                    </span>
+                    <span className="text-xs font-black text-slate-900">
+                      Generator Logo & Favicon Otomatis
+                    </span>
+                    <span className="text-[10px] font-bold text-blue-700 bg-blue-100/80 px-2 py-0.5 rounded-full">
+                      Simpel & Transparan
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-slate-600 leading-relaxed max-w-md">
+                    Membuat logo & favicon yang simpel, berkelas, dan 100% transparan secara otomatis berdasarkan nama brand <b>"{formData.brandName}"</b> dan kategori industri.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleAutoGenerateLogo}
+                  disabled={generatingLogo}
+                  className="px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold transition-all shadow-md shadow-blue-600/20 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 shrink-0 active:scale-95"
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 ${generatingLogo ? 'animate-spin' : ''}`} />
+                  <span>{generatingLogo ? 'Mengenerate Logo...' : 'Generate Logo Simpel'}</span>
+                </button>
+              </div>
+
               {/* Logo URL */}
-              <ImageUploadInput
-                label="Logo Website Utama (Navbar & Footer)"
-                value={formData.logoUrl}
-                onChange={(val) => setFormData(prev => ({ ...prev, logoUrl: val }))}
-                placeholder="/images/logo.png atau https://domain.com/logo.png"
-                helperText="Format PNG transparan atau SVG disarankan. Jika kosong, sistem memakai teks brand & ikon standar."
-              />
+              <div className="space-y-2">
+                <ImageUploadInput
+                  label="Logo Website Utama (Navbar & Footer)"
+                  value={formData.logoUrl}
+                  onChange={(val) => setFormData(prev => ({ ...prev, logoUrl: val }))}
+                  placeholder="/images/logo.png atau https://domain.com/logo.png"
+                  helperText="Format PNG transparan atau SVG. Logo dan favicon disarankan sama dan transparan."
+                />
+                <div className="flex items-center justify-between text-[11px] pt-0.5">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setFormData(prev => ({ ...prev, pwa_icon: prev.logoUrl }));
+                      showToast?.('Favicon & Ikon PWA disamakan dengan Logo Utama!', 'success');
+                    }}
+                    className="font-bold text-blue-600 hover:text-blue-700 flex items-center gap-1.5 cursor-pointer hover:underline"
+                  >
+                    <RefreshCw className="w-3.5 h-3.5" />
+                    <span>Samakan Favicon & Ikon PWA dengan Logo ini</span>
+                  </button>
+                  <span className="text-[10px] text-emerald-600 font-semibold bg-emerald-50 px-2 py-0.5 rounded-md">
+                    100% Background Transparan
+                  </span>
+                </div>
+              </div>
 
               {/* PWA App Full Name */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -691,6 +816,217 @@ export const SiteIdentityManager = ({
               </div>
             </div>
 
+            {/* Section 6: Kustomisasi & Pengaturan Footer Website */}
+            <div className="border-t border-slate-100 pt-5 space-y-4">
+              <div className="border-b border-slate-100 pb-3 flex items-center justify-between">
+                <div>
+                  <h3 className="text-base font-extrabold text-slate-900 flex items-center gap-2">
+                    <Layers className="w-4 h-4 text-purple-600" />
+                    <span>6. Kustomisasi & Pengaturan Footer Website</span>
+                  </h3>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    Kelola seluruh konten, link tombol CTA, kontak, legalitas, dan teks hak cipta pada footer landing page.
+                  </p>
+                </div>
+                <span className="text-[10px] font-bold text-purple-600 bg-purple-50 px-2.5 py-1 rounded-full border border-purple-200">
+                  Footer Settings
+                </span>
+              </div>
+
+              <div className="space-y-4 bg-slate-50 p-4 sm:p-5 rounded-2xl border border-slate-200">
+                {/* 1. Footer About / Bio */}
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
+                    Deskripsi / Bio Singkat Footer (Kolom Brand)
+                  </label>
+                  <textarea
+                    name="footer_about"
+                    rows={3}
+                    value={formData.footer_about}
+                    onChange={handleChange}
+                    placeholder="Didukung oleh arsitektur Cloud Edge berkecepatan tinggi..."
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 bg-white text-xs sm:text-sm text-slate-800 focus:ring-2 focus:ring-blue-600 focus:outline-hidden leading-relaxed"
+                  />
+                  <span className="text-[11px] text-slate-400 mt-1 block">
+                    Muncul tepat di bawah logo brand pada footer website.
+                  </span>
+                </div>
+
+                {/* 2. Tombol Aksi / CTA Footer */}
+                <div className="pt-3 border-t border-slate-200/80 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <span className="text-xs font-extrabold text-slate-800 block">Tombol Aksi / CTA Footer</span>
+                      <span className="text-[11px] text-slate-500">Tombol pintas di bawah deskripsi brand footer.</span>
+                    </div>
+                    <label className="relative inline-flex items-center cursor-pointer shrink-0">
+                      <input
+                        type="checkbox"
+                        checked={formData.footer_show_button}
+                        onChange={(e) => setFormData(prev => ({ ...prev, footer_show_button: e.target.checked }))}
+                        className="sr-only peer"
+                      />
+                      <div className="w-11 h-6 bg-slate-200 peer-focus:outline-hidden rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-purple-600"></div>
+                    </label>
+                  </div>
+
+                  {formData.footer_show_button && (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                      <div>
+                        <label className="block text-[11px] font-bold text-slate-600 mb-1">Label / Teks Tombol</label>
+                        <input
+                          type="text"
+                          name="footer_button_text"
+                          value={formData.footer_button_text}
+                          onChange={handleChange}
+                          placeholder="Baca Artikel & Panduan Wisata"
+                          className="w-full px-3 py-2 rounded-xl border border-slate-300 bg-white text-xs font-medium text-slate-800 focus:ring-2 focus:ring-purple-600 focus:outline-hidden"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[11px] font-bold text-slate-600 mb-1">URL / Link Tujuan</label>
+                        <input
+                          type="text"
+                          name="footer_button_url"
+                          value={formData.footer_button_url}
+                          onChange={handleChange}
+                          placeholder="/artikel atau #fleet"
+                          className="w-full px-3 py-2 rounded-xl border border-slate-300 bg-white text-xs font-mono text-slate-800 focus:ring-2 focus:ring-purple-600 focus:outline-hidden"
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* 3. Pengaturan Kolom Informasi Kontak */}
+                <div className="pt-3 border-t border-slate-200/80 space-y-3">
+                  <div>
+                    <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
+                      Judul Kolom Kontak Footer
+                    </label>
+                    <input
+                      type="text"
+                      name="footer_contact_title"
+                      value={formData.footer_contact_title}
+                      onChange={handleChange}
+                      placeholder="Informasi Kontak"
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 bg-white text-xs sm:text-sm font-semibold text-slate-800 focus:ring-2 focus:ring-blue-600 focus:outline-hidden"
+                    />
+                  </div>
+
+                  <div className="bg-white p-3 rounded-xl border border-slate-200 space-y-2">
+                    <span className="text-[11px] font-bold text-slate-500 block">Pilih data kontak yang ditampilkan:</span>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                      <label className="flex items-center gap-2 text-xs font-medium text-slate-700 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={formData.footer_show_phone}
+                          onChange={(e) => setFormData(prev => ({ ...prev, footer_show_phone: e.target.checked }))}
+                          className="rounded text-blue-600 focus:ring-blue-500"
+                        />
+                        <span>Nomor Telepon</span>
+                      </label>
+                      <label className="flex items-center gap-2 text-xs font-medium text-slate-700 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={formData.footer_show_email}
+                          onChange={(e) => setFormData(prev => ({ ...prev, footer_show_email: e.target.checked }))}
+                          className="rounded text-blue-600 focus:ring-blue-500"
+                        />
+                        <span>Email Resmi</span>
+                      </label>
+                      <label className="flex items-center gap-2 text-xs font-medium text-slate-700 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={formData.footer_show_address}
+                          onChange={(e) => setFormData(prev => ({ ...prev, footer_show_address: e.target.checked }))}
+                          className="rounded text-blue-600 focus:ring-blue-500"
+                        />
+                        <span>Alamat Fisik</span>
+                      </label>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 4. Kolom Legalitas & Status Sistem */}
+                <div className="pt-3 border-t border-slate-200/80 space-y-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
+                        Judul Kolom Legalitas
+                      </label>
+                      <input
+                        type="text"
+                        name="footer_legal_title"
+                        value={formData.footer_legal_title}
+                        onChange={handleChange}
+                        placeholder="Legalitas & Proteksi"
+                        className="w-full px-3.5 py-2 rounded-xl border border-slate-300 bg-white text-xs font-semibold text-slate-800 focus:ring-2 focus:ring-blue-600 focus:outline-hidden"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
+                        Teks Badge Status
+                      </label>
+                      <input
+                        type="text"
+                        name="footer_status_text"
+                        value={formData.footer_status_text}
+                        onChange={handleChange}
+                        placeholder="Status Sistem: Operasional Aktif"
+                        className="w-full px-3.5 py-2 rounded-xl border border-slate-300 bg-white text-xs font-medium text-slate-800 focus:ring-2 focus:ring-blue-600 focus:outline-hidden"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
+                      Keterangan Legalitas & Proteksi Hak Cipta
+                    </label>
+                    <textarea
+                      name="footer_legal_text"
+                      rows={2}
+                      value={formData.footer_legal_text}
+                      onChange={handleChange}
+                      placeholder="Hak Cipta dilindungi Undang-Undang..."
+                      className="w-full px-3.5 py-2 rounded-xl border border-slate-300 bg-white text-xs text-slate-800 focus:ring-2 focus:ring-blue-600 focus:outline-hidden leading-relaxed"
+                    />
+                  </div>
+
+                  <div className="flex items-center justify-between pt-1">
+                    <span className="text-xs font-bold text-slate-700">Tampilkan Badge Status Operasional</span>
+                    <label className="relative inline-flex items-center cursor-pointer shrink-0">
+                      <input
+                        type="checkbox"
+                        checked={formData.footer_show_status}
+                        onChange={(e) => setFormData(prev => ({ ...prev, footer_show_status: e.target.checked }))}
+                        className="sr-only peer"
+                      />
+                      <div className="w-11 h-6 bg-slate-200 peer-focus:outline-hidden rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600"></div>
+                    </label>
+                  </div>
+                </div>
+
+                {/* 5. Teks Copyright Bar Paling Bawah */}
+                <div className="pt-3 border-t border-slate-200/80">
+                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
+                    Teks Hak Cipta (Copyright Bar Bawah)
+                  </label>
+                  <input
+                    type="text"
+                    name="footer_copyright"
+                    value={formData.footer_copyright}
+                    onChange={handleChange}
+                    placeholder="All rights reserved. Powered by Enterprise MultiCMS Engine."
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 bg-white text-xs sm:text-sm font-medium text-slate-800 focus:ring-2 focus:ring-blue-600 focus:outline-hidden"
+                  />
+                  <span className="text-[11px] text-slate-400 mt-1 block">
+                    Secara otomatis menyertakan tanda ©, tahun sekarang, dan nama brand Anda di landing page.
+                  </span>
+                </div>
+              </div>
+            </div>
+
             {/* Submit Button */}
             <div className="pt-4 border-t border-slate-100 flex items-center justify-between">
               <span className="text-xs text-slate-400">
@@ -764,11 +1100,11 @@ export const SiteIdentityManager = ({
 
                 {/* THE ACTIVE PWA APP ICON (HIGHLIGHTED) */}
                 <div className="flex flex-col items-center gap-1.5 relative group">
-                  <div className="w-12 h-12 rounded-2xl bg-white p-0.5 shadow-lg shadow-blue-500/30 ring-2 ring-blue-400 group-hover:scale-105 transition-transform overflow-hidden flex items-center justify-center">
+                  <div className="w-12 h-12 rounded-2xl bg-white/10 backdrop-blur-md p-1 shadow-lg shadow-blue-500/20 ring-2 ring-blue-400 group-hover:scale-105 transition-transform overflow-hidden flex items-center justify-center">
                     <img
                       src={formData.pwa_icon}
                       alt="PWA Icon Preview"
-                      className="w-full h-full object-cover rounded-xl"
+                      className="w-full h-full object-contain filter drop-shadow-sm"
                       onError={(e) => { e.currentTarget.src = '/icons/icon-192.svg'; }}
                     />
                   </div>
@@ -814,7 +1150,7 @@ export const SiteIdentityManager = ({
 
             <div className="bg-slate-50/70 p-4 rounded-2xl border border-slate-200/80 space-y-1.5 font-sans">
               <div className="flex items-center gap-2 text-[11px] text-slate-600 truncate">
-                <div className="w-4 h-4 rounded-full bg-blue-600 flex items-center justify-center text-[9px] text-white font-bold overflow-hidden">
+                <div className="w-4 h-4 rounded-full bg-slate-100 border border-slate-200/80 flex items-center justify-center text-[9px] text-slate-700 font-bold overflow-hidden p-0.5">
                   {formData.logoUrl ? (
                     <img src={formData.logoUrl} alt="Favicon" className="w-full h-full object-contain" />
                   ) : (
@@ -873,29 +1209,95 @@ export const SiteIdentityManager = ({
             </div>
           </div>
 
-          {/* Preview 4: Footer Contact Info */}
+          {/* Preview 4: Live Footer Mockup */}
           <div className="bg-white rounded-3xl border border-slate-200 p-6 shadow-xs space-y-4">
-            <div className="border-b border-slate-100 pb-3">
-              <h3 className="font-bold text-sm text-slate-900">Informasi Footer Publik</h3>
-              <p className="text-xs text-slate-500">Otomatis terpasang di bagian bawah landing page.</p>
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <div className="flex items-center gap-2">
+                <Layers className="w-4 h-4 text-purple-600" />
+                <h3 className="font-bold text-sm text-slate-900">Pratinjau Footer Website</h3>
+              </div>
+              <span className="text-[10px] font-bold text-purple-600 bg-purple-50 px-2 py-0.5 rounded-full">
+                Live Footer
+              </span>
             </div>
 
-            <div className="space-y-2 text-xs text-slate-600">
-              <div className="flex items-center gap-2">
-                <Phone className="w-3.5 h-3.5 text-blue-600 shrink-0" />
-                <span className="font-mono text-slate-800">{formData.phone}</span>
+            <div className="bg-slate-900 p-4 rounded-2xl border border-slate-800 text-slate-300 space-y-3.5 shadow-inner text-left font-sans">
+              {/* Brand & Bio */}
+              <div className="space-y-1.5 border-b border-slate-800 pb-3">
+                <div className="flex items-center gap-2">
+                  {formData.logoUrl ? (
+                    <div className="h-6 w-6 shrink-0 flex items-center justify-center">
+                      <img src={formData.logoUrl} alt="Logo" className="max-h-full max-w-full object-contain filter drop-shadow-sm" />
+                    </div>
+                  ) : (
+                    <div className="w-6 h-6 rounded-lg bg-blue-600 flex items-center justify-center text-white text-[10px] font-bold">
+                      <ShieldCheck className="w-3.5 h-3.5" />
+                    </div>
+                  )}
+                  <span className="font-bold text-xs text-white tracking-tight">{formData.brandName}</span>
+                </div>
+                <p className="text-[10px] text-slate-400 line-clamp-2 leading-relaxed">
+                  {formData.footer_about || formData.tagline}
+                </p>
+                {formData.footer_show_button && formData.footer_button_text && (
+                  <div className="pt-0.5">
+                    <span className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-slate-800 text-white text-[9px] font-bold border border-slate-700">
+                      <span>{formData.footer_button_text}</span>
+                      <ExternalLink className="w-2.5 h-2.5" />
+                    </span>
+                  </div>
+                )}
               </div>
-              <div className="flex items-center gap-2">
-                <MessageCircle className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-                <span className="font-mono text-slate-800">+{formData.whatsapp}</span>
+
+              {/* Contact & Legal Grid */}
+              <div className="grid grid-cols-2 gap-3 text-[10px]">
+                <div className="space-y-1.5">
+                  <span className="font-bold text-white uppercase tracking-wider block text-[9px]">
+                    {formData.footer_contact_title}
+                  </span>
+                  <div className="space-y-1 text-slate-400">
+                    {formData.footer_show_phone && formData.phone && (
+                      <div className="flex items-center gap-1.5 truncate">
+                        <Phone className="w-2.5 h-2.5 text-blue-400 shrink-0" />
+                        <span className="truncate">{formData.phone}</span>
+                      </div>
+                    )}
+                    {formData.footer_show_email && formData.email && (
+                      <div className="flex items-center gap-1.5 truncate">
+                        <Mail className="w-2.5 h-2.5 text-blue-400 shrink-0" />
+                        <span className="truncate">{formData.email}</span>
+                      </div>
+                    )}
+                    {formData.footer_show_address && formData.location && (
+                      <div className="flex items-center gap-1.5 truncate">
+                        <MapPin className="w-2.5 h-2.5 text-blue-400 shrink-0" />
+                        <span className="truncate">{formData.location}</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div className="space-y-1.5">
+                  <span className="font-bold text-white uppercase tracking-wider block text-[9px]">
+                    {formData.footer_legal_title}
+                  </span>
+                  <p className="text-[9px] text-slate-400 line-clamp-2 leading-tight">
+                    {formData.footer_legal_text}
+                  </p>
+                  {formData.footer_show_status && (
+                    <div className="pt-0.5">
+                      <span className="text-[9px] text-emerald-400 font-semibold flex items-center gap-1">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                        <span className="truncate">{formData.footer_status_text}</span>
+                      </span>
+                    </div>
+                  )}
+                </div>
               </div>
-              <div className="flex items-center gap-2">
-                <Mail className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
-                <span className="font-mono text-slate-800">{formData.email}</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <MapPin className="w-3.5 h-3.5 text-red-500 shrink-0" />
-                <span className="text-slate-800">{formData.location}</span>
+
+              {/* Bottom Copyright */}
+              <div className="pt-2 border-t border-slate-800 text-center text-[9px] text-slate-500 truncate">
+                © {new Date().getFullYear()} {formData.brandName}. {formData.footer_copyright}
               </div>
             </div>
           </div>

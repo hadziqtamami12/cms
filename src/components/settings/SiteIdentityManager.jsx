@@ -125,32 +125,43 @@ export const SiteIdentityManager = ({
   const handleAutoGenerateLogo = async () => {
     try {
       setGeneratingLogo(true);
-      const res = await fetch('/api/admin/brand/generate-logo', {
+      const token = adminToken || localStorage.getItem('cms_admin_token') || '';
+      const headers = { 'Content-Type': 'application/json' };
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+
+      const res = await fetch('/api/brand/generate-logo', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': adminToken ? `Bearer ${adminToken}` : ''
-        },
+        headers,
         body: JSON.stringify({
-          appName: formData.brandName,
+          appName: formData.brandName || config?.brandName || 'Royal Fleet',
           industry: config?.industry || 'automotive'
         })
       });
       const data = await res.json();
       if (data.success && data.data) {
+        const timestamp = Date.now();
+        const freshLogoUrl = `${data.data.logoUrl}?t=${timestamp}`;
+        const freshPwaIcon = `${data.data.pwaIcon}?t=${timestamp}`;
+
         setFormData(prev => ({
           ...prev,
-          logoUrl: data.data.logoUrl,
-          pwa_icon: data.data.pwaIcon
+          logoUrl: freshLogoUrl,
+          pwa_icon: freshPwaIcon
         }));
-        showToast?.('Logo & favicon simpel transparan berhasil digenerate!', 'success');
+
+        showToast?.(`Logo & Favicon (${data.data.initials}) transparan berhasil digenerate!`, 'success');
         if (onConfigUpdated && data.data.settings) {
-          onConfigUpdated(data.data.settings);
+          onConfigUpdated({
+            ...data.data.settings,
+            logoUrl: freshLogoUrl,
+            pwa_icon: freshPwaIcon
+          });
         }
       } else {
         showToast?.(data.error || 'Gagal generate logo otomatis', 'error');
       }
     } catch (err) {
+      console.error('[Generate Logo Error]', err);
       showToast?.('Koneksi gagal saat generate logo', 'error');
     } finally {
       setGeneratingLogo(false);
@@ -317,7 +328,7 @@ export const SiteIdentityManager = ({
         {/* Left Column: Form Pengaturan (7 Cols) */}
         <div className="lg:col-span-7 space-y-6">
           <form onSubmit={handleSubmit} className="bg-white rounded-3xl border border-slate-200 p-6 sm:p-7 shadow-xs space-y-6">
-            
+
             {/* Section 1: Nama Brand & Judul Website */}
             <div className="border-b border-slate-100 pb-4">
               <h3 className="text-base font-extrabold text-slate-900 flex items-center gap-2">
@@ -436,9 +447,6 @@ export const SiteIdentityManager = ({
                     <span className="text-xs font-black text-slate-900">
                       Generator Logo & Favicon Otomatis
                     </span>
-                    <span className="text-[10px] font-bold text-blue-700 bg-blue-100/80 px-2 py-0.5 rounded-full">
-                      Simpel & Transparan
-                    </span>
                   </div>
                   <p className="text-[11px] text-slate-600 leading-relaxed max-w-md">
                     Membuat logo & favicon yang simpel, berkelas, dan 100% transparan secara otomatis berdasarkan nama brand <b>"{formData.brandName}"</b> dan kategori industri.
@@ -506,7 +514,7 @@ export const SiteIdentityManager = ({
                 <div>
                   <div className="flex items-center justify-between mb-1">
                     <label className="block text-xs font-bold uppercase tracking-wider text-slate-700">
-                      Nama Ikon di Layar HP (Short Name) *
+                      Nama di Layar HP
                     </label>
                     <span className={`text-[10px] font-mono ${formData.pwa_short_name.length > 12 ? 'text-amber-600 font-bold' : 'text-slate-400'}`}>
                       {formData.pwa_short_name.length} / 12 Karakter
@@ -551,11 +559,10 @@ export const SiteIdentityManager = ({
                           key={preset.id}
                           type="button"
                           onClick={() => handleSelectPresetIcon(preset.url)}
-                          className={`p-2 rounded-xl border text-left flex items-center gap-2.5 transition-all cursor-pointer ${
-                            isSelected
-                              ? 'bg-blue-50 border-blue-600 ring-2 ring-blue-600/20'
-                              : 'bg-white border-slate-200 hover:border-slate-300 hover:bg-slate-50'
-                          }`}
+                          className={`p-2 rounded-xl border text-left flex items-center gap-2.5 transition-all cursor-pointer ${isSelected
+                            ? 'bg-blue-50 border-blue-600 ring-2 ring-blue-600/20'
+                            : 'bg-white border-slate-200 hover:border-slate-300 hover:bg-slate-50'
+                            }`}
                         >
                           <img
                             src={preset.url}

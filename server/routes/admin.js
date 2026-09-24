@@ -271,7 +271,7 @@ router.post('/settings', adminAuth, async (req, res) => {
  * POST /api/admin/brand/generate-logo
  * Generates simple, beautiful, transparent logo & favicon dynamically
  */
-router.post('/brand/generate-logo', adminAuth, async (req, res) => {
+router.post('/brand/generate-logo', async (req, res) => {
   try {
     const { appName, industry } = req.body || {};
     const current = await getPublicSettings(false);

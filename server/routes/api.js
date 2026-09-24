@@ -8,6 +8,7 @@ import { getSystemLicenseStatus } from '../services/licenseService.js';
 import { getAdminSlug } from '../middleware/dynamicSlugRouter.js';
 import { adminAuth } from '../middleware/adminAuth.js';
 import { createPublicOrder } from './orders.js';
+import { syncAndSaveBrandAssets } from '../services/logoGeneratorService.js';
 
 const router = Router();
 
@@ -343,6 +344,43 @@ router.post('/upload', async (req, res) => {
   } catch (err) {
     console.error('[Upload API Error]:', err);
     return res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+/**
+ * POST /api/brand/generate-logo
+ * Universally accessible route to generate brand logo & favicon
+ */
+router.post('/brand/generate-logo', async (req, res) => {
+  try {
+    const { appName, industry } = req.body || {};
+    const current = await getPublicSettings(false);
+    const targetAppName = appName || current.brandName || 'Royal Fleet';
+    const targetIndustry = industry || current.industry || 'automotive';
+
+    const result = await syncAndSaveBrandAssets({
+      appName: targetAppName,
+      industry: targetIndustry
+    });
+
+    const updated = await saveSettings({
+      logoUrl: result.logoUrl,
+      pwa_icon: result.pwaIcon
+    });
+
+    res.json({
+      success: true,
+      message: 'Logo dan favicon transparan berhasil digenerate otomatis!',
+      data: {
+        logoUrl: result.logoUrl,
+        pwaIcon: result.pwaIcon,
+        faviconUrl: result.faviconUrl,
+        initials: result.initials,
+        settings: updated
+      }
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
   }
 });
 

@@ -23,8 +23,8 @@ export const FaqAccordion = ({
   return (
     <section id="faq" className="space-y-10 sm:space-y-14">
       <div className="text-center max-w-2xl mx-auto space-y-4">
-        <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200 text-xs font-bold uppercase tracking-wider">
-          <HelpCircle className="w-4 h-4 text-blue-600" />
+        <div className="flex items-center justify-center gap-2 text-blue-600 text-xs font-bold uppercase tracking-wider">
+          <HelpCircle className="w-4 h-4" />
           <span>Pertanyaan Umum (FAQ)</span>
         </div>
         <h2 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold text-slate-900 tracking-tight leading-tight">
@@ -69,8 +69,18 @@ export const FaqAccordion = ({
               </button>
 
               {isOpen && (
-                <div className="px-5 sm:px-6 pb-6 pt-1 text-xs sm:text-sm text-slate-600 leading-relaxed border-t border-slate-50 animate-fade-in">
-                  {faq.a}
+                <div className="px-5 sm:px-6 pb-6 pt-1 text-xs sm:text-sm text-slate-600 leading-relaxed border-t border-slate-50 animate-fade-in space-y-3">
+                  <p>{faq.a}</p>
+                  {faq.image && (
+                    <div className="mt-3 rounded-xl overflow-hidden max-w-md border border-slate-200 shadow-2xs">
+                      <img
+                        src={faq.image}
+                        alt={faq.q}
+                        className="w-full h-auto object-cover max-h-64"
+                        loading="lazy"
+                      />
+                    </div>
+                  )}
                 </div>
               )}
             </div>

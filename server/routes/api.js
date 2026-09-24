@@ -1,4 +1,6 @@
 import { Router } from 'express';
+import fs from 'fs';
+import path from 'path';
 import { getActiveThemeConfig } from '../services/themeService.js';
 import { getPublicSettings, saveSettings } from '../services/configService.js';
 import { analyzeKeywordDensity, generateJsonLdSchema } from '../services/seoService.js';
@@ -216,6 +218,55 @@ router.get('/seo/schema', async (req, res) => {
 });
 
 /**
+ * GET /manifest.json & GET /api/manifest.json
+ * Generates dynamic PWA manifest populated from active site settings / branding
+ */
+router.get(['/manifest.json', '/manifest.webmanifest'], async (req, res) => {
+  try {
+    const settings = await getPublicSettings(false);
+    const pwaName = settings.pwa_name || settings.brandName || "Enterprise Multi-Industry CMS & PWA";
+    const pwaShortName = settings.pwa_short_name || settings.brandName || "MultiCMS";
+    const pwaIcon = settings.pwa_icon || settings.logoUrl || "/icons/icon-192.svg";
+    const themeColor = settings.theme?.primaryColor || "#1d4ed8";
+
+    const isPng = pwaIcon.toLowerCase().endsWith('.png');
+    const isSvg = pwaIcon.toLowerCase().endsWith('.svg');
+    const iconType = isPng ? "image/png" : (isSvg ? "image/svg+xml" : "image/jpeg");
+
+    const manifest = {
+      name: pwaName,
+      short_name: pwaShortName,
+      description: settings.metaDescription || settings.tagline || "High performance mobile-first landing page generator",
+      start_url: "/",
+      display: "standalone",
+      background_color: "#ffffff",
+      theme_color: themeColor,
+      icons: [
+        {
+          src: pwaIcon,
+          sizes: "192x192",
+          type: iconType,
+          purpose: "any maskable"
+        },
+        {
+          src: pwaIcon,
+          sizes: "512x512",
+          type: iconType,
+          purpose: "any maskable"
+        }
+      ]
+    };
+
+    res.setHeader('Content-Type', 'application/manifest+json; charset=utf-8');
+    res.setHeader('Cache-Control', 'public, max-age=60');
+    return res.json(manifest);
+  } catch (err) {
+    console.error('[Manifest] Error generating dynamic manifest:', err);
+    res.status(500).json({ error: 'Failed to generate manifest' });
+  }
+});
+
+/**
  * GET /api/health
  */
 router.get('/health', (req, res) => {
@@ -224,6 +275,75 @@ router.get('/health', (req, res) => {
     timestamp: new Date().toISOString(),
     engine: 'Enterprise-MultiCMS-Serverless'
   });
+});
+
+/**
+ * POST /api/upload
+ * Universal Image & Icon Upload Handler
+ * Accepts: { file: "data:image/...;base64,...", filename: "my-photo.png" }
+ * Saves to public/uploads/ and returns { success: true, url: "/uploads/my-photo-123456.png" }
+ */
+router.post('/upload', async (req, res) => {
+  try {
+    const { file, filename, title } = req.body;
+    if (!file) {
+      return res.status(400).json({ success: false, error: 'File data is required.' });
+    }
+
+    const uploadDir = path.join(process.cwd(), 'public', 'uploads');
+    if (!fs.existsSync(uploadDir)) {
+      fs.mkdirSync(uploadDir, { recursive: true });
+    }
+
+    let buffer;
+    let ext = 'png';
+
+    if (typeof file === 'string' && file.startsWith('data:')) {
+      const matches = file.match(/^data:([A-Za-z-+\/]+);base64,(.+)$/);
+      if (matches && matches.length === 3) {
+        const mimeType = matches[1].toLowerCase();
+        buffer = Buffer.from(matches[2], 'base64');
+        if (mimeType.includes('jpeg') || mimeType.includes('jpg')) ext = 'jpg';
+        else if (mimeType.includes('webp')) ext = 'webp';
+        else if (mimeType.includes('svg')) ext = 'svg';
+        else if (mimeType.includes('png')) ext = 'png';
+        else if (mimeType.includes('gif')) ext = 'gif';
+        else if (mimeType.includes('ico') || mimeType.includes('icon')) ext = 'ico';
+      } else {
+        return res.status(400).json({ success: false, error: 'Format data URL tidak valid.' });
+      }
+    } else if (typeof file === 'string') {
+      buffer = Buffer.from(file, 'base64');
+      if (filename && filename.includes('.')) {
+        ext = filename.split('.').pop().toLowerCase();
+      }
+    } else {
+      return res.status(400).json({ success: false, error: 'Format file tidak didukung.' });
+    }
+
+    const baseName = (filename || title || 'asset')
+      .replace(/\.[^/.]+$/, '')
+      .toLowerCase()
+      .replace(/[^a-z0-9]/g, '-')
+      .replace(/-+/g, '-')
+      .substring(0, 40) || 'asset';
+
+    const safeFilename = `${baseName}-${Date.now()}.${ext}`;
+    const destinationPath = path.join(uploadDir, safeFilename);
+
+    fs.writeFileSync(destinationPath, buffer);
+
+    const publicUrl = `/uploads/${safeFilename}`;
+    return res.json({
+      success: true,
+      message: 'File berhasil diunggah!',
+      url: publicUrl,
+      filename: safeFilename
+    });
+  } catch (err) {
+    console.error('[Upload API Error]:', err);
+    return res.status(500).json({ success: false, error: err.message });
+  }
 });
 
 export const getLeads = () => leads;

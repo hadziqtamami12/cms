@@ -264,8 +264,38 @@ export const AutomotiveThemeRenderer = ({ themeId, config, onSelectItem }) => {
             : 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8'
         }`}>
           {displayedItems.map((item) => {
-            const waBookingUrl = whatsapp
-              ? `https://wa.me/${whatsapp.replace(/[^0-9]/g, '')}?text=Halo%20saya%20mau%20sewa%20${encodeURIComponent(item.title)}`
+            // Multi-Tarif resolution: support pricing_tiers array, custom tier objects, and legacy flat fields
+            const rawTiers = Array.isArray(item.pricing_tiers) && item.pricing_tiers.length > 0
+              ? item.pricing_tiers
+              : [
+                  { label: 'Lepas Kunci', price: item.price_self_drive || item.price, unit: item.period || '/24 jam', is_default: true },
+                  ...(item.price_with_driver
+                    ? [{ label: 'Dengan Sopir', price: item.price_with_driver, unit: '/12 jam', is_default: false }]
+                    : [{ label: 'Dengan Sopir', price: 'Rp 650.000', unit: '/12 jam', is_default: false }])
+                ];
+
+            // Resolve distinct tier 1 (Self Drive / Default) and tier 2 (With Driver / Secondary)
+            let tierSelfDrive = rawTiers.find(t => t.label?.toLowerCase().includes('lepas') || t.label?.toLowerCase().includes('self'));
+            if (!tierSelfDrive) {
+              tierSelfDrive = rawTiers.find(t => t.is_default) || rawTiers[0];
+            }
+
+            let tierWithDriver = rawTiers.find(t => t !== tierSelfDrive && (t.label?.toLowerCase().includes('sopir') || t.label?.toLowerCase().includes('driver')));
+            if (!tierWithDriver && rawTiers.length > 1) {
+              tierWithDriver = rawTiers.find(t => t !== tierSelfDrive) || rawTiers[1];
+            }
+
+            const hasMultipleTiers = rawTiers.length > 1 && !!tierWithDriver && tierWithDriver !== tierSelfDrive;
+
+            const cleanWa = whatsapp ? whatsapp.replace(/[^0-9]/g, '') : '';
+            const waBookingUrl = cleanWa
+              ? `https://wa.me/${cleanWa}?text=Halo%20saya%20mau%20sewa%20${encodeURIComponent(item.title)}`
+              : '#contact';
+            const waBookingSelfDrive = cleanWa
+              ? `https://wa.me/${cleanWa}?text=Halo,%20saya%20tertarik%20sewa%20${encodeURIComponent(item.title)}%20opsi%20${encodeURIComponent(tierSelfDrive?.label || 'Lepas Kunci')}%20(${encodeURIComponent(tierSelfDrive?.price || '')})`
+              : '#contact';
+            const waBookingWithDriver = cleanWa
+              ? `https://wa.me/${cleanWa}?text=Halo,%20saya%20tertarik%20sewa%20${encodeURIComponent(item.title)}%20opsi%20${encodeURIComponent(tierWithDriver?.label || 'Dengan Sopir')}%20(${encodeURIComponent(tierWithDriver?.price || '')})`
               : '#contact';
 
             // 1. LUXURY CHAUFFEUR: VIP Dark Obsidian & Gold Metallic
@@ -283,10 +313,6 @@ export const AutomotiveThemeRenderer = ({ themeId, config, onSelectItem }) => {
                       loading="lazy"
                     />
                     <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-transparent to-black/40" />
-                    <span className="absolute top-4 left-4 px-3.5 py-1.5 rounded-full bg-amber-500 text-slate-950 text-xs font-black uppercase tracking-wider shadow-lg flex items-center gap-1.5">
-                      <Award className="w-3.5 h-3.5" />
-                      <span>{item.badge || 'VIP Chauffeur'}</span>
-                    </span>
                     <span className="absolute bottom-4 right-4 px-3 py-1 rounded-lg bg-black/70 backdrop-blur-md text-amber-200 text-[11px] font-semibold border border-amber-500/20">
                       {item.category}
                     </span>
@@ -312,23 +338,69 @@ export const AutomotiveThemeRenderer = ({ themeId, config, onSelectItem }) => {
                         ))}
                       </div>
                     </div>
-                    <div className="pt-5 border-t border-slate-800 flex items-center justify-between gap-4">
-                      <div>
-                        <span className="text-[11px] text-slate-400 uppercase tracking-wider block">VIP Rate</span>
-                        <div className="text-xl font-black text-amber-400">
-                          {item.price}
-                          <span className="text-xs font-normal text-slate-400 ml-1">{item.period || '/hari'}</span>
+
+                    <div className="pt-4 border-t border-slate-800 space-y-3">
+                      {hasMultipleTiers ? (
+                        <div className="grid grid-cols-2 gap-2 p-2.5 rounded-2xl bg-slate-800/60 border border-slate-700/60">
+                          <div>
+                            <span className="text-[10px] text-slate-400 uppercase tracking-wider block font-semibold">{tierSelfDrive?.label}</span>
+                            <div className="text-base font-black text-amber-400 font-mono">
+                              {tierSelfDrive?.price}
+                              {tierSelfDrive?.unit && <span className="text-[9px] font-normal text-slate-400 block">{tierSelfDrive.unit}</span>}
+                            </div>
+                          </div>
+                          <div className="border-l border-slate-700 pl-2.5">
+                            <span className="text-[10px] text-amber-400/90 uppercase tracking-wider block font-semibold">{tierWithDriver?.label}</span>
+                            <div className="text-base font-black text-amber-300 font-mono">
+                              {tierWithDriver?.price}
+                              {tierWithDriver?.unit && <span className="text-[9px] font-normal text-slate-400 block">{tierWithDriver.unit}</span>}
+                            </div>
+                          </div>
                         </div>
+                      ) : (
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <span className="text-[11px] text-slate-400 uppercase tracking-wider block">VIP Rate</span>
+                            <div className="text-xl font-black text-amber-400">
+                              {item.price}
+                              <span className="text-xs font-normal text-slate-400 ml-1">{item.period || '/hari'}</span>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      <div className="flex gap-2">
+                        {hasMultipleTiers ? (
+                          <>
+                            <a
+                              href={waBookingSelfDrive}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="flex-1 py-2 rounded-xl border border-amber-500/50 hover:bg-amber-500/10 text-amber-400 font-bold text-xs text-center transition-all"
+                            >
+                              {tierSelfDrive?.label || 'Lepas Kunci'}
+                            </a>
+                            <a
+                              href={waBookingWithDriver}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="flex-1 py-2 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-black text-xs text-center shadow-lg shadow-amber-500/20 transition-all"
+                            >
+                              {tierWithDriver?.label || '+ Sopir'}
+                            </a>
+                          </>
+                        ) : (
+                          <a
+                            href={waBookingUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="w-full py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-black text-xs text-center shadow-lg shadow-amber-500/20 transition-all flex items-center justify-center gap-1.5"
+                          >
+                            <span>Book VIP</span>
+                            <ChevronRight className="w-4 h-4" />
+                          </a>
+                        )}
                       </div>
-                      <a
-                        href={waBookingUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-black text-xs sm:text-sm shadow-lg shadow-amber-500/20 transition-all flex items-center gap-1.5"
-                      >
-                        <span>Book VIP</span>
-                        <ChevronRight className="w-4 h-4" />
-                      </a>
                     </div>
                   </div>
                 </div>
@@ -380,23 +452,67 @@ export const AutomotiveThemeRenderer = ({ themeId, config, onSelectItem }) => {
                         ))}
                       </div>
                     </div>
-                    <div className="pt-5 border-t border-slate-800 flex items-center justify-between gap-4">
-                      <div>
-                        <span className="text-[11px] text-teal-400/80 font-mono block">Tarif EV / Hari</span>
-                        <div className="text-xl font-black text-teal-300">
-                          {item.price}
-                          <span className="text-xs font-normal text-slate-400 ml-1">{item.period || '/hari'}</span>
+
+                    <div className="pt-4 border-t border-slate-800 space-y-3">
+                      {hasMultipleTiers ? (
+                        <div className="grid grid-cols-2 gap-2 p-2.5 rounded-xl bg-slate-950/70 border border-teal-500/20">
+                          <div>
+                            <span className="text-[10px] text-slate-400 uppercase tracking-wider block font-mono">{tierSelfDrive?.label || 'Lepas Kunci'}</span>
+                            <div className="text-base font-black text-teal-300 font-mono">
+                              {tierSelfDrive?.price}
+                              {tierSelfDrive?.unit && <span className="text-[9px] font-normal text-slate-400 block">{tierSelfDrive.unit}</span>}
+                            </div>
+                          </div>
+                          <div className="border-l border-teal-900/60 pl-2.5">
+                            <span className="text-[10px] text-teal-400 uppercase tracking-wider block font-mono">{tierWithDriver?.label || '+ Sopir'}</span>
+                            <div className="text-base font-black text-teal-200 font-mono">
+                              {tierWithDriver?.price}
+                              {tierWithDriver?.unit && <span className="text-[9px] font-normal text-slate-400 block">{tierWithDriver.unit}</span>}
+                            </div>
+                          </div>
                         </div>
+                      ) : (
+                        <div>
+                          <span className="text-[11px] text-teal-400/80 font-mono block">Tarif EV / Hari</span>
+                          <div className="text-xl font-black text-teal-300">
+                            {item.price}
+                            <span className="text-xs font-normal text-slate-400 ml-1">{item.period || '/hari'}</span>
+                          </div>
+                        </div>
+                      )}
+
+                      <div className="flex gap-2">
+                        {hasMultipleTiers ? (
+                          <>
+                            <a
+                              href={waBookingSelfDrive}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="flex-1 py-2 rounded-xl border border-teal-500/50 hover:bg-teal-500/10 text-teal-300 font-bold text-xs text-center transition-all"
+                            >
+                              {tierSelfDrive?.label || 'Lepas Kunci'}
+                            </a>
+                            <a
+                              href={waBookingWithDriver}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="flex-1 py-2 rounded-xl bg-teal-400 hover:bg-teal-300 text-slate-950 font-black text-xs text-center transition-all shadow-md shadow-teal-500/20"
+                            >
+                              {tierWithDriver?.label || '+ Sopir'}
+                            </a>
+                          </>
+                        ) : (
+                          <a
+                            href={waBookingUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="w-full py-2.5 rounded-xl bg-teal-400 hover:bg-teal-300 text-slate-950 font-extrabold text-xs text-center transition-all shadow-md shadow-teal-500/20 flex items-center justify-center gap-1.5"
+                          >
+                            <span>Sewa EV</span>
+                            <ArrowRight className="w-4 h-4" />
+                          </a>
+                        )}
                       </div>
-                      <a
-                        href={waBookingUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="px-5 py-2.5 rounded-xl bg-teal-400 hover:bg-teal-300 text-slate-950 font-extrabold text-xs sm:text-sm transition-all shadow-md shadow-teal-500/20 flex items-center gap-1.5"
-                      >
-                        <span>Sewa EV</span>
-                        <ArrowRight className="w-4 h-4" />
-                      </a>
                     </div>
                   </div>
                 </div>
@@ -417,9 +533,6 @@ export const AutomotiveThemeRenderer = ({ themeId, config, onSelectItem }) => {
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                       loading="lazy"
                     />
-                    <span className="absolute top-3 left-3 px-3 py-1 rounded-full bg-purple-700 text-white text-xs font-bold shadow-md">
-                      {item.badge || 'Executive Van'}
-                    </span>
                     <span className="absolute bottom-3 right-3 px-2.5 py-1 rounded-lg bg-slate-950/80 text-white text-[11px] font-semibold">
                       {item.category}
                     </span>
@@ -444,23 +557,67 @@ export const AutomotiveThemeRenderer = ({ themeId, config, onSelectItem }) => {
                         ))}
                       </div>
                     </div>
-                    <div className="pt-4 border-t border-purple-100 flex items-center justify-between gap-4">
-                      <div>
-                        <span className="text-[11px] text-slate-400 font-medium block">Tarif Van / Hari</span>
-                        <div className="text-xl font-black text-purple-700">
-                          {item.price}
-                          <span className="text-xs font-normal text-slate-500 ml-1">{item.period || '/hari'}</span>
+
+                    <div className="pt-4 border-t border-purple-100 space-y-3">
+                      {hasMultipleTiers ? (
+                        <div className="grid grid-cols-2 gap-2 p-2.5 rounded-xl bg-purple-50/60 border border-purple-100">
+                          <div>
+                            <span className="text-[10px] text-slate-500 uppercase tracking-wider block font-semibold">{tierSelfDrive?.label || 'Lepas Kunci'}</span>
+                            <div className="text-base font-black text-purple-700 font-mono">
+                              {tierSelfDrive?.price}
+                              {tierSelfDrive?.unit && <span className="text-[9px] font-normal text-slate-500 block">{tierSelfDrive.unit}</span>}
+                            </div>
+                          </div>
+                          <div className="border-l border-purple-200 pl-2.5">
+                            <span className="text-[10px] text-purple-700 uppercase tracking-wider block font-semibold">{tierWithDriver?.label || '+ Sopir'}</span>
+                            <div className="text-base font-black text-purple-800 font-mono">
+                              {tierWithDriver?.price}
+                              {tierWithDriver?.unit && <span className="text-[9px] font-normal text-slate-500 block">{tierWithDriver.unit}</span>}
+                            </div>
+                          </div>
                         </div>
+                      ) : (
+                        <div>
+                          <span className="text-[11px] text-slate-400 font-medium block">Tarif Van / Hari</span>
+                          <div className="text-xl font-black text-purple-700">
+                            {item.price}
+                            <span className="text-xs font-normal text-slate-500 ml-1">{item.period || '/hari'}</span>
+                          </div>
+                        </div>
+                      )}
+
+                      <div className="flex gap-2">
+                        {hasMultipleTiers ? (
+                          <>
+                            <a
+                              href={waBookingSelfDrive}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="flex-1 py-2 rounded-xl border border-purple-300 hover:bg-purple-50 text-purple-700 font-bold text-xs text-center transition-all"
+                            >
+                              {tierSelfDrive?.label || 'Lepas Kunci'}
+                            </a>
+                            <a
+                              href={waBookingWithDriver}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="flex-1 py-2 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs text-center transition-all shadow-sm"
+                            >
+                              {tierWithDriver?.label || '+ Sopir'}
+                            </a>
+                          </>
+                        ) : (
+                          <a
+                            href={waBookingUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="w-full py-2.5 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs sm:text-sm text-center transition-all shadow-sm flex items-center justify-center gap-1.5"
+                          >
+                            <span>Booking Van</span>
+                            <ArrowRight className="w-4 h-4" />
+                          </a>
+                        )}
                       </div>
-                      <a
-                        href={waBookingUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="px-5 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs sm:text-sm transition-all shadow-sm flex items-center gap-1.5"
-                      >
-                        <span>Booking Van</span>
-                        <ArrowRight className="w-4 h-4" />
-                      </a>
                     </div>
                   </div>
                 </div>
@@ -481,10 +638,6 @@ export const AutomotiveThemeRenderer = ({ themeId, config, onSelectItem }) => {
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                       loading="lazy"
                     />
-                    <span className="absolute top-4 left-4 px-3 py-1.5 rounded-full bg-amber-600 text-stone-950 text-xs font-black uppercase tracking-wider shadow-lg flex items-center gap-1.5">
-                      <Navigation className="w-3.5 h-3.5" />
-                      <span>{item.badge || '4x4 Adventure'}</span>
-                    </span>
                     <span className="absolute bottom-4 right-4 px-3 py-1 rounded-lg bg-stone-950/80 backdrop-blur-md text-amber-300 text-[11px] font-mono border border-stone-700">
                       Terrain Ready
                     </span>
@@ -502,29 +655,73 @@ export const AutomotiveThemeRenderer = ({ themeId, config, onSelectItem }) => {
                             key={sIdx}
                             className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-stone-800 text-stone-200 text-xs border border-stone-700"
                           >
-                            <Check className="w-3 h-3 text-amber-500 shrink-0" />
+                            <Check className="w-3.5 h-3.5 text-amber-500 shrink-0" />
                             <span>{spec}</span>
                           </span>
                         ))}
                       </div>
                     </div>
-                    <div className="pt-5 border-t border-stone-800 flex items-center justify-between gap-4">
-                      <div>
-                        <span className="text-[11px] text-stone-400 uppercase tracking-wider block">Tarif Ekspedisi</span>
-                        <div className="text-xl font-black text-amber-400">
-                          {item.price}
-                          <span className="text-xs font-normal text-stone-400 ml-1">{item.period || '/hari'}</span>
+
+                    <div className="pt-4 border-t border-stone-800 space-y-3">
+                      {hasMultipleTiers ? (
+                        <div className="grid grid-cols-2 gap-2 p-2.5 rounded-xl bg-stone-800/80 border border-stone-700">
+                          <div>
+                            <span className="text-[10px] text-stone-400 uppercase tracking-wider block font-semibold">{tierSelfDrive?.label || 'Lepas Kunci'}</span>
+                            <div className="text-base font-black text-amber-400 font-mono">
+                              {tierSelfDrive?.price}
+                              {tierSelfDrive?.unit && <span className="text-[9px] font-normal text-stone-400 block">{tierSelfDrive.unit}</span>}
+                            </div>
+                          </div>
+                          <div className="border-l border-stone-700 pl-2.5">
+                            <span className="text-[10px] text-amber-500 uppercase tracking-wider block font-semibold">{tierWithDriver?.label || '+ Sopir'}</span>
+                            <div className="text-base font-black text-amber-300 font-mono">
+                              {tierWithDriver?.price}
+                              {tierWithDriver?.unit && <span className="text-[9px] font-normal text-stone-400 block">{tierWithDriver.unit}</span>}
+                            </div>
+                          </div>
                         </div>
+                      ) : (
+                        <div>
+                          <span className="text-[11px] text-stone-400 uppercase tracking-wider block">Tarif Ekspedisi</span>
+                          <div className="text-xl font-black text-amber-400">
+                            {item.price}
+                            <span className="text-xs font-normal text-stone-400 ml-1">{item.period || '/hari'}</span>
+                          </div>
+                        </div>
+                      )}
+
+                      <div className="flex gap-2">
+                        {hasMultipleTiers ? (
+                          <>
+                            <a
+                              href={waBookingSelfDrive}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="flex-1 py-2 rounded-xl border border-amber-600/50 hover:bg-amber-600/10 text-amber-400 font-bold text-xs text-center transition-all"
+                            >
+                              {tierSelfDrive?.label || 'Lepas Kunci'}
+                            </a>
+                            <a
+                              href={waBookingWithDriver}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="flex-1 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-stone-950 font-black text-xs text-center transition-all shadow-md"
+                            >
+                              {tierWithDriver?.label || '+ Sopir'}
+                            </a>
+                          </>
+                        ) : (
+                          <a
+                            href={waBookingUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="w-full py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-stone-950 font-black text-xs sm:text-sm text-center transition-all shadow-md flex items-center justify-center gap-1.5"
+                          >
+                            <span>Sewa 4x4</span>
+                            <ChevronRight className="w-4 h-4" />
+                          </a>
+                        )}
                       </div>
-                      <a
-                        href={waBookingUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="px-5 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-stone-950 font-black text-xs sm:text-sm transition-all shadow-md flex items-center gap-1.5"
-                      >
-                        <span>Sewa 4x4</span>
-                        <ChevronRight className="w-4 h-4" />
-                      </a>
                     </div>
                   </div>
                 </div>
@@ -546,9 +743,6 @@ export const AutomotiveThemeRenderer = ({ themeId, config, onSelectItem }) => {
                         className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                         loading="lazy"
                       />
-                      <span className="absolute top-2.5 left-2.5 px-2.5 py-1 rounded-md bg-slate-950 text-white text-[10px] font-bold tracking-tight">
-                        {item.badge || 'Kilat 10 Menit'}
-                      </span>
                     </div>
                     <div className="text-[11px] font-mono text-slate-400 uppercase tracking-wider">{item.category}</div>
                     <h3 className="font-bold text-slate-900 text-base leading-snug mt-0.5">{item.title}</h3>
@@ -560,19 +754,57 @@ export const AutomotiveThemeRenderer = ({ themeId, config, onSelectItem }) => {
                       ))}
                     </div>
                   </div>
-                  <div className="pt-3 border-t border-slate-100 flex items-center justify-between gap-2">
-                    <div>
-                      <span className="text-[10px] text-slate-400 block">Harga</span>
-                      <span className="font-mono font-bold text-slate-900 text-sm">{item.price}</span>
+
+                  <div className="pt-3 border-t border-slate-100 space-y-2.5">
+                    {hasMultipleTiers ? (
+                      <div className="grid grid-cols-2 gap-2 p-2 rounded-lg bg-slate-50 border border-slate-100">
+                        <div>
+                          <span className="text-[9px] text-slate-400 uppercase font-mono block">{tierSelfDrive?.label || 'Lepas Kunci'}</span>
+                          <span className="font-mono font-bold text-slate-900 text-xs">{tierSelfDrive?.price}</span>
+                        </div>
+                        <div className="border-l border-slate-200 pl-2">
+                          <span className="text-[9px] text-slate-500 uppercase font-mono block">{tierWithDriver?.label || '+ Sopir'}</span>
+                          <span className="font-mono font-bold text-slate-900 text-xs">{tierWithDriver?.price}</span>
+                        </div>
+                      </div>
+                    ) : (
+                      <div>
+                        <span className="text-[10px] text-slate-400 block">Harga</span>
+                        <span className="font-mono font-bold text-slate-900 text-sm">{item.price}</span>
+                      </div>
+                    )}
+
+                    <div className="flex gap-1.5">
+                      {hasMultipleTiers ? (
+                        <>
+                          <a
+                            href={waBookingSelfDrive}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex-1 py-1.5 rounded-lg border border-slate-300 text-slate-700 text-center text-xs font-semibold hover:bg-slate-100 transition-all"
+                          >
+                            {tierSelfDrive?.label || 'Lepas Kunci'}
+                          </a>
+                          <a
+                            href={waBookingWithDriver}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex-1 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-white text-center text-xs font-semibold transition-all"
+                          >
+                            {tierWithDriver?.label || '+ Sopir'}
+                          </a>
+                        </>
+                      ) : (
+                        <a
+                          href={waBookingUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="w-full py-2 rounded-lg bg-slate-900 hover:bg-slate-800 text-white text-center text-xs font-semibold transition-all"
+                        >
+                          Pilih
+                        </a>
+                      )}
                     </div>
-                    <a
-                      href={waBookingUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="px-3.5 py-2 rounded-lg bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold transition-all"
-                    >
-                      Pilih
-                    </a>
                   </div>
                 </div>
               );
@@ -613,23 +845,67 @@ export const AutomotiveThemeRenderer = ({ themeId, config, onSelectItem }) => {
                         ))}
                       </div>
                     </div>
-                    <div className="pt-4 border-t border-rose-100 flex items-center justify-between gap-3">
-                      <div>
-                        <span className="text-[10px] text-slate-400 line-through block">Tarif Normal</span>
-                        <div className="text-lg sm:text-xl font-black text-rose-600">
-                          {item.price}
-                          <span className="text-xs font-normal text-slate-500 ml-0.5">{item.period || '/hari'}</span>
+
+                    <div className="pt-4 border-t border-rose-100 space-y-3">
+                      {hasMultipleTiers ? (
+                        <div className="grid grid-cols-2 gap-2 p-2.5 rounded-xl bg-rose-50/70 border border-rose-100">
+                          <div>
+                            <span className="text-[9px] text-slate-500 uppercase font-bold block">{tierSelfDrive?.label || 'Lepas Kunci'}</span>
+                            <div className="text-base font-black text-rose-600 font-mono">
+                              {tierSelfDrive?.price}
+                              {tierSelfDrive?.unit && <span className="text-[9px] font-normal text-slate-400 block">{tierSelfDrive.unit}</span>}
+                            </div>
+                          </div>
+                          <div className="border-l border-rose-200 pl-2">
+                            <span className="text-[9px] text-rose-700 uppercase font-bold block">{tierWithDriver?.label || '+ Sopir'}</span>
+                            <div className="text-base font-black text-rose-700 font-mono">
+                              {tierWithDriver?.price}
+                              {tierWithDriver?.unit && <span className="text-[9px] font-normal text-slate-400 block">{tierWithDriver.unit}</span>}
+                            </div>
+                          </div>
                         </div>
+                      ) : (
+                        <div>
+                          <span className="text-[10px] text-slate-400 line-through block">Tarif Normal</span>
+                          <div className="text-lg sm:text-xl font-black text-rose-600 font-mono">
+                            {item.price}
+                            <span className="text-xs font-normal text-slate-500 ml-0.5">{item.period || '/hari'}</span>
+                          </div>
+                        </div>
+                      )}
+
+                      <div className="flex gap-2">
+                        {hasMultipleTiers ? (
+                          <>
+                            <a
+                              href={waBookingSelfDrive}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="flex-1 py-2 rounded-xl border border-rose-300 text-rose-700 font-bold text-xs text-center hover:bg-rose-50 transition-all"
+                            >
+                              {tierSelfDrive?.label || 'Lepas Kunci'}
+                            </a>
+                            <a
+                              href={waBookingWithDriver}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="flex-1 py-2 rounded-xl bg-gradient-to-r from-rose-600 to-red-600 hover:from-rose-500 hover:to-red-500 text-white font-bold text-xs text-center shadow-md shadow-rose-600/20 transition-all"
+                            >
+                              {tierWithDriver?.label || '+ Sopir'}
+                            </a>
+                          </>
+                        ) : (
+                          <a
+                            href={waBookingUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="w-full py-2.5 rounded-xl bg-gradient-to-r from-rose-600 to-red-600 hover:from-rose-500 hover:to-red-500 text-white font-bold text-xs text-center shadow-md shadow-rose-600/20 transition-all flex items-center justify-center gap-1.5"
+                          >
+                            <span>Ambil Promo</span>
+                            <ArrowRight className="w-4 h-4" />
+                          </a>
+                        )}
                       </div>
-                      <a
-                        href={waBookingUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-rose-600 to-red-600 hover:from-rose-500 hover:to-red-500 text-white font-bold text-xs sm:text-sm shadow-md shadow-rose-600/20 transition-all flex items-center gap-1.5"
-                      >
-                        <span>Ambil Promo</span>
-                        <ArrowRight className="w-4 h-4" />
-                      </a>
                     </div>
                   </div>
                 </div>
@@ -650,10 +926,6 @@ export const AutomotiveThemeRenderer = ({ themeId, config, onSelectItem }) => {
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                       loading="lazy"
                     />
-                    <span className="absolute top-4 left-4 px-3 py-1.5 rounded-full bg-sky-600 text-white text-xs font-bold shadow-md flex items-center gap-1.5">
-                      <Plane className="w-3.5 h-3.5" />
-                      <span>{item.badge || 'Airport Shuttle'}</span>
-                    </span>
                     <span className="absolute bottom-4 right-4 px-3 py-1 rounded-xl bg-slate-900/80 text-white text-[11px] font-semibold">
                       Terminal 1, 2 & 3
                     </span>
@@ -674,23 +946,67 @@ export const AutomotiveThemeRenderer = ({ themeId, config, onSelectItem }) => {
                         ))}
                       </div>
                     </div>
-                    <div className="pt-4 border-t border-sky-100 flex items-center justify-between gap-4">
-                      <div>
-                        <span className="text-[11px] text-slate-400 font-medium block">Tarif All-In Tol</span>
-                        <div className="text-xl font-black text-sky-700">
-                          {item.price}
-                          <span className="text-xs font-normal text-slate-500 ml-1">{item.period || '/trip'}</span>
+
+                    <div className="pt-4 border-t border-sky-100 space-y-3">
+                      {hasMultipleTiers ? (
+                        <div className="grid grid-cols-2 gap-2 p-2.5 rounded-xl bg-sky-50 border border-sky-100">
+                          <div>
+                            <span className="text-[10px] text-slate-500 uppercase font-semibold block">{tierSelfDrive?.label || 'Lepas Kunci'}</span>
+                            <div className="text-base font-black text-sky-700 font-mono">
+                              {tierSelfDrive?.price}
+                              {tierSelfDrive?.unit && <span className="text-[9px] font-normal text-slate-400 block">{tierSelfDrive.unit}</span>}
+                            </div>
+                          </div>
+                          <div className="border-l border-sky-200 pl-2.5">
+                            <span className="text-[10px] text-sky-700 uppercase font-semibold block">{tierWithDriver?.label || '+ Sopir'}</span>
+                            <div className="text-base font-black text-sky-800 font-mono">
+                              {tierWithDriver?.price}
+                              {tierWithDriver?.unit && <span className="text-[9px] font-normal text-slate-400 block">{tierWithDriver.unit}</span>}
+                            </div>
+                          </div>
                         </div>
+                      ) : (
+                        <div>
+                          <span className="text-[11px] text-slate-400 font-medium block">Tarif All-In Tol</span>
+                          <div className="text-xl font-black text-sky-700 font-mono">
+                            {item.price}
+                            <span className="text-xs font-normal text-slate-500 ml-1">{item.period || '/trip'}</span>
+                          </div>
+                        </div>
+                      )}
+
+                      <div className="flex gap-2">
+                        {hasMultipleTiers ? (
+                          <>
+                            <a
+                              href={waBookingSelfDrive}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="flex-1 py-2 rounded-xl border border-sky-300 text-sky-700 font-bold text-xs text-center hover:bg-sky-50 transition-all"
+                            >
+                              {tierSelfDrive?.label || 'Lepas Kunci'}
+                            </a>
+                            <a
+                              href={waBookingWithDriver}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="flex-1 py-2 rounded-xl bg-sky-600 hover:bg-sky-700 text-white font-bold text-xs text-center transition-all shadow-sm"
+                            >
+                              {tierWithDriver?.label || '+ Sopir'}
+                            </a>
+                          </>
+                        ) : (
+                          <a
+                            href={waBookingUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="w-full py-2.5 rounded-xl bg-sky-600 hover:bg-sky-700 text-white font-bold text-xs sm:text-sm text-center transition-all shadow-sm flex items-center justify-center gap-1.5"
+                          >
+                            <span>Jemput Bandara</span>
+                            <ArrowRight className="w-4 h-4" />
+                          </a>
+                        )}
                       </div>
-                      <a
-                        href={waBookingUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="px-5 py-2.5 rounded-xl bg-sky-600 hover:bg-sky-700 text-white font-bold text-xs sm:text-sm transition-all shadow-sm flex items-center gap-1.5"
-                      >
-                        <span>Jemput Bandara</span>
-                        <ArrowRight className="w-4 h-4" />
-                      </a>
                     </div>
                   </div>
                 </div>
@@ -712,9 +1028,6 @@ export const AutomotiveThemeRenderer = ({ themeId, config, onSelectItem }) => {
                         className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                         loading="lazy"
                       />
-                      <span className="absolute top-2 left-2 px-2.5 py-0.5 rounded-md bg-lime-600 text-white text-[10px] font-black uppercase">
-                        🛵 {item.badge || 'Rental Motor'}
-                      </span>
                     </div>
                     <h3 className="font-black text-slate-900 text-base">{item.title}</h3>
                     <p className="text-[11px] text-slate-500 mt-0.5">Free 2 Helm SNI + Jas Hujan + BBM Penuh</p>
@@ -726,36 +1039,70 @@ export const AutomotiveThemeRenderer = ({ themeId, config, onSelectItem }) => {
                       ))}
                     </div>
                   </div>
-                  <div className="pt-2.5 border-t border-slate-100 flex items-center justify-between gap-2">
-                    <div>
-                      <span className="text-[10px] text-slate-400 block">Tarif Harian</span>
-                      <div className="font-black text-slate-900 text-sm">
-                        {item.price}
-                        <span className="text-[10px] font-normal text-slate-500 ml-0.5">{item.period || '/hari'}</span>
+
+                  <div className="pt-2.5 border-t border-slate-100 space-y-2">
+                    {hasMultipleTiers ? (
+                      <div className="grid grid-cols-2 gap-1.5 p-2 rounded-lg bg-lime-50 border border-lime-100">
+                        <div>
+                          <span className="text-[9px] text-slate-500 uppercase block font-semibold">{tierSelfDrive?.label || 'Harian'}</span>
+                          <div className="font-black text-slate-900 text-xs font-mono">
+                            {tierSelfDrive?.price}
+                          </div>
+                        </div>
+                        <div className="border-l border-lime-200 pl-2">
+                          <span className="text-[9px] text-lime-700 uppercase block font-semibold">{tierWithDriver?.label || 'Mingguan'}</span>
+                          <div className="font-black text-lime-800 text-xs font-mono">
+                            {tierWithDriver?.price}
+                          </div>
+                        </div>
                       </div>
+                    ) : (
+                      <div>
+                        <span className="text-[10px] text-slate-400 block">Tarif Harian</span>
+                        <div className="font-black text-slate-900 text-sm font-mono">
+                          {item.price}
+                          <span className="text-[10px] font-normal text-slate-500 ml-0.5">{item.period || '/hari'}</span>
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="flex gap-1.5">
+                      {hasMultipleTiers ? (
+                        <>
+                          <a
+                            href={waBookingSelfDrive}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex-1 py-1.5 rounded-lg border border-lime-300 text-lime-800 font-bold text-xs text-center hover:bg-lime-100 transition-all"
+                          >
+                            {tierSelfDrive?.label || 'Harian'}
+                          </a>
+                          <a
+                            href={waBookingWithDriver}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex-1 py-1.5 rounded-lg bg-lime-500 hover:bg-lime-600 text-slate-950 font-bold text-xs text-center transition-all shadow-xs"
+                          >
+                            {tierWithDriver?.label || 'Mingguan'}
+                          </a>
+                        </>
+                      ) : (
+                        <a
+                          href={waBookingUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="w-full py-1.5 rounded-lg bg-lime-500 hover:bg-lime-600 text-slate-950 font-bold text-xs text-center transition-all"
+                        >
+                          Sewa
+                        </a>
+                      )}
                     </div>
-                    <a
-                      href={waBookingUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="px-3.5 py-1.5 rounded-lg bg-lime-500 hover:bg-lime-600 text-slate-950 font-bold text-xs transition-all"
-                    >
-                      Sewa
-                    </a>
                   </div>
                 </div>
               );
             }
 
             // 9. BOOKING BAR HERO & 10. FLEET GRID & DEFAULT: Rich Card with Dual Pricing & Dual Action
-            const cleanWa = whatsapp ? whatsapp.replace(/[^0-9]/g, '') : '';
-            const waBookingSelfDrive = cleanWa
-              ? `https://wa.me/${cleanWa}?text=Halo,%20saya%20tertarik%20sewa%20${encodeURIComponent(item.title)}%20opsi%20Lepas%20Kunci`
-              : '#contact';
-            const waBookingWithDriver = cleanWa
-              ? `https://wa.me/${cleanWa}?text=Halo,%20saya%20tertarik%20sewa%20${encodeURIComponent(item.title)}%20opsi%20Dengan%20Sopir`
-              : '#contact';
-
             return (
               <div
                 key={item.id}
@@ -769,11 +1116,6 @@ export const AutomotiveThemeRenderer = ({ themeId, config, onSelectItem }) => {
                     className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                     loading="lazy"
                   />
-                  {item.badge && (
-                    <span className="absolute top-4 left-4 px-3.5 py-1.5 rounded-full bg-blue-600 text-white text-xs font-bold shadow-md">
-                      {item.badge}
-                    </span>
-                  )}
                   <span className="absolute bottom-4 right-4 px-3 py-1.5 rounded-xl bg-slate-900/85 backdrop-blur-md text-white text-[11px] font-semibold">
                     {item.category}
                   </span>
@@ -797,47 +1139,73 @@ export const AutomotiveThemeRenderer = ({ themeId, config, onSelectItem }) => {
 
                   <div className="space-y-4">
                     {/* Dual Pricing Badges */}
-                    <div className="grid grid-cols-2 gap-2 p-3 rounded-2xl bg-slate-50 border border-slate-100">
-                      <div className="flex flex-col">
-                        <span className="text-[10px] text-slate-500 font-semibold flex items-center gap-1">
-                          <KeyRound className="w-3 h-3 text-blue-600 shrink-0" />
-                          Lepas Kunci
-                        </span>
-                        <span className="font-extrabold text-slate-900 text-xs sm:text-sm mt-0.5">
-                          {item.price_self_drive || item.price}
-                        </span>
+                    {hasMultipleTiers ? (
+                      <div className="grid grid-cols-2 gap-2 p-3 rounded-2xl bg-slate-50 border border-slate-100">
+                        <div className="flex flex-col">
+                          <span className="text-[10px] text-slate-500 font-semibold flex items-center gap-1">
+                            <KeyRound className="w-3 h-3 text-blue-600 shrink-0" />
+                            {tierSelfDrive?.label || 'Lepas Kunci'}
+                          </span>
+                          <span className="font-extrabold text-slate-900 text-xs sm:text-sm mt-0.5 font-mono">
+                            {tierSelfDrive?.price}
+                            {tierSelfDrive?.unit && <span className="text-[9px] font-normal text-slate-400 block">{tierSelfDrive.unit}</span>}
+                          </span>
+                        </div>
+                        <div className="flex flex-col border-l border-slate-200 pl-2.5">
+                          <span className="text-[10px] text-slate-500 font-semibold flex items-center gap-1">
+                            <UserCheck className="w-3 h-3 text-emerald-600 shrink-0" />
+                            {tierWithDriver?.label || 'Dengan Sopir'}
+                          </span>
+                          <span className="font-extrabold text-slate-900 text-xs sm:text-sm mt-0.5 font-mono">
+                            {tierWithDriver?.price}
+                            {tierWithDriver?.unit && <span className="text-[9px] font-normal text-slate-400 block">{tierWithDriver.unit}</span>}
+                          </span>
+                        </div>
                       </div>
-                      <div className="flex flex-col border-l border-slate-200 pl-2.5">
-                        <span className="text-[10px] text-slate-500 font-semibold flex items-center gap-1">
-                          <UserCheck className="w-3 h-3 text-emerald-600 shrink-0" />
-                          Dengan Sopir
-                        </span>
-                        <span className="font-extrabold text-slate-900 text-xs sm:text-sm mt-0.5">
-                          {item.price_with_driver || item.price}
-                        </span>
+                    ) : (
+                      <div className="flex items-baseline justify-between p-3 rounded-2xl bg-slate-50 border border-slate-100">
+                        <span className="text-xs text-slate-500 font-semibold">{tierSelfDrive?.label || 'Tarif Sewa'}</span>
+                        <div className="text-lg font-black text-slate-900 font-mono">
+                          {tierSelfDrive?.price || item.price}
+                          <span className="text-xs font-normal text-slate-400 ml-1">{tierSelfDrive?.unit || item.period || '/hari'}</span>
+                        </div>
                       </div>
-                    </div>
+                    )}
 
-                    {/* Dual Booking Buttons */}
-                    <div className="grid grid-cols-2 gap-2 pt-2 border-t border-slate-100">
-                      <a
-                        href={waBookingSelfDrive}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="py-2.5 px-2 sm:px-3 rounded-xl border border-blue-600 text-blue-600 hover:bg-blue-50 text-center text-xs font-bold transition-all flex items-center justify-center gap-1"
-                      >
-                        <KeyRound className="w-3 h-3 shrink-0" />
-                        <span>Lepas Kunci</span>
-                      </a>
-                      <a
-                        href={waBookingWithDriver}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="py-2.5 px-2 sm:px-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-center text-xs font-bold transition-all shadow-sm flex items-center justify-center gap-1"
-                      >
-                        <UserCheck className="w-3 h-3 shrink-0" />
-                        <span>+ Sopir</span>
-                      </a>
+                    {/* Dual / Single Booking Buttons */}
+                    <div className={`pt-2 border-t border-slate-100 ${hasMultipleTiers ? 'grid grid-cols-2 gap-2' : 'flex'}`}>
+                      {hasMultipleTiers ? (
+                        <>
+                          <a
+                            href={waBookingSelfDrive}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="py-2.5 px-2 sm:px-3 rounded-xl border border-blue-600 text-blue-600 hover:bg-blue-50 text-center text-xs font-bold transition-all flex items-center justify-center gap-1"
+                          >
+                            <KeyRound className="w-3 h-3 shrink-0" />
+                            <span>{tierSelfDrive?.label || 'Lepas Kunci'}</span>
+                          </a>
+                          <a
+                            href={waBookingWithDriver}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="py-2.5 px-2 sm:px-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-center text-xs font-bold transition-all shadow-sm flex items-center justify-center gap-1"
+                          >
+                            <UserCheck className="w-3 h-3 shrink-0" />
+                            <span>{tierWithDriver?.label || '+ Sopir'}</span>
+                          </a>
+                        </>
+                      ) : (
+                        <a
+                          href={waBookingUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="w-full py-2.5 px-4 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-center text-xs font-bold transition-all shadow-sm flex items-center justify-center gap-1.5"
+                        >
+                          <span>Pesan Sekarang</span>
+                          <ArrowRight className="w-4 h-4" />
+                        </a>
+                      )}
                     </div>
                   </div>
                 </div>

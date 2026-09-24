@@ -459,29 +459,31 @@ export const OrderManager = ({ adminToken, activeThemeName }) => {
           ) : (
             <div className="space-y-4">
               <DataTable
+                noHorizontalScroll={true}
                 columns={[
                   {
                     key: 'id',
                     label: 'ID & Tanggal',
                     sortable: true,
+                    className: 'w-[16%]',
                     render: (val, order) => {
                       const isCopied = copiedMap[order.id];
                       return (
-                        <div className="font-mono font-semibold text-slate-900 whitespace-nowrap">
-                          <div className="flex items-center gap-1.5">
-                            <span className="text-blue-600 font-bold">{order.id}</span>
+                        <div className="font-mono font-semibold text-slate-900">
+                          <div className="flex items-center gap-1">
+                            <span className="text-blue-600 font-bold truncate">{order.id}</span>
                             <button
                               type="button"
                               onClick={() => copyToClipboard(order.id, order.id, 'ID Pesanan')}
-                              className="p-1 rounded text-slate-400 hover:text-blue-600 transition-colors cursor-pointer"
+                              className="p-0.5 rounded text-slate-400 hover:text-blue-600 transition-colors cursor-pointer shrink-0"
                               title="Salin ID Pesanan"
                             >
-                              {isCopied ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3 h-3" />}
+                              {isCopied ? <Check className="w-3 h-3 text-emerald-600" /> : <Copy className="w-2.5 h-2.5" />}
                             </button>
                           </div>
-                          <span className="text-[10px] text-slate-400 font-sans block">
+                          <span className="text-[10px] text-slate-400 font-sans block truncate">
                             {new Date(order.transactionDate).toLocaleDateString('id-ID', {
-                              day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit'
+                              day: 'numeric', month: 'short', year: 'numeric'
                             })}
                           </span>
                         </div>
@@ -492,27 +494,23 @@ export const OrderManager = ({ adminToken, activeThemeName }) => {
                     key: 'customerName',
                     label: 'Pelanggan',
                     sortable: true,
+                    className: 'w-[24%]',
                     render: (val, order) => (
-                      <div className="min-w-[150px] max-w-[220px]">
-                        <div className="font-bold text-slate-900 text-sm truncate" title={order.customerName}>
+                      <div className="min-w-0 pr-1">
+                        <div className="font-bold text-slate-900 text-xs sm:text-sm truncate" title={order.customerName}>
                           {order.customerName}
                         </div>
                         <div className="text-[11px] text-slate-500 font-mono truncate flex items-center gap-1">
-                          <span>{order.customerPhone}</span>
+                          <span className="truncate">{order.customerPhone}</span>
                           <button
                             type="button"
                             onClick={() => copyToClipboard(order.customerPhone, `wa-${order.id}`, 'No WhatsApp')}
-                            className="p-0.5 text-slate-400 hover:text-slate-700 cursor-pointer"
+                            className="p-0.5 text-slate-400 hover:text-slate-700 cursor-pointer shrink-0"
                             title="Salin Nomor WA"
                           >
-                            {copiedMap[`wa-${order.id}`] ? <Check className="w-3 h-3 text-emerald-600" /> : <Copy className="w-2.5 h-2.5" />}
+                            {copiedMap[`wa-${order.id}`] ? <Check className="w-2.5 h-2.5 text-emerald-600" /> : <Copy className="w-2 h-2" />}
                           </button>
                         </div>
-                        {order.customerEmail && (
-                          <div className="text-[10px] text-slate-400 truncate" title={order.customerEmail}>
-                            {order.customerEmail}
-                          </div>
-                        )}
                       </div>
                     )
                   },
@@ -520,23 +518,19 @@ export const OrderManager = ({ adminToken, activeThemeName }) => {
                     key: 'itemDetails',
                     label: 'Layanan / Item',
                     sortable: true,
+                    className: 'w-[24%]',
                     render: (val, order) => {
                       const itemName = typeof order.itemDetails === 'object' ? (order.itemDetails.name || '-') : String(order.itemDetails);
                       const itemCat = typeof order.itemDetails === 'object' ? order.itemDetails.category : null;
                       return (
-                        <div className="min-w-[180px] max-w-[250px]">
-                          <div className="font-semibold text-slate-800 line-clamp-1 truncate" title={itemName}>
+                        <div className="min-w-0 pr-1">
+                          <div className="font-semibold text-slate-800 text-xs truncate" title={itemName}>
                             {itemName}
                           </div>
                           {itemCat && (
-                            <span className="text-[10px] bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded font-medium mt-0.5 inline-block truncate max-w-full">
+                            <span className="text-[9px] bg-slate-100 text-slate-600 px-1 py-0.5 rounded font-medium mt-0.5 inline-block truncate max-w-full">
                               {itemCat}
                             </span>
-                          )}
-                          {order.notes && (
-                            <p className="text-[11px] text-slate-400 italic line-clamp-1 mt-0.5 truncate" title={order.notes}>
-                              "{order.notes}"
-                            </p>
                           )}
                         </div>
                       );
@@ -546,8 +540,9 @@ export const OrderManager = ({ adminToken, activeThemeName }) => {
                     key: 'totalAmount',
                     label: 'Total',
                     sortable: true,
+                    className: 'w-[14%]',
                     render: (val) => (
-                      <span className="whitespace-nowrap font-bold text-slate-900 font-mono">
+                      <span className="font-bold text-slate-900 font-mono text-xs block truncate">
                         {new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(val || 0)}
                       </span>
                     )
@@ -556,15 +551,16 @@ export const OrderManager = ({ adminToken, activeThemeName }) => {
                     key: 'status',
                     label: 'Status',
                     sortable: true,
+                    className: 'w-[12%]',
                     render: (val, order) => renderStatusBadge(order.status, order.id)
                   },
                   {
                     key: 'actions',
                     label: 'Aksi',
                     sortable: false,
-                    className: 'text-right',
+                    className: 'w-[10%] text-right',
                     render: (_, order) => (
-                      <div className="whitespace-nowrap text-right space-x-1">
+                      <div className="text-right space-x-1 shrink-0">
                         <button
                           type="button"
                           onClick={() => setDetailOrder(order)}

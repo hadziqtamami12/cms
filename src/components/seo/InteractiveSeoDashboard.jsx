@@ -367,8 +367,11 @@ export const InteractiveSeoDashboard = ({
               {seoAudit.isGadsConnected ? 'Conversion Ready' : 'Optional'}
             </div>
           </div>
-          <span className="text-[11px] text-emerald-600 font-medium flex items-center gap-1">
-            <Zap className="w-3 h-3 text-emerald-600" /> Core Web Vitals 99+
+          <span className={`text-[11px] font-medium flex items-center gap-1 ${
+            seoAudit.isGscConnected ? 'text-emerald-600' : 'text-slate-500'
+          }`}>
+            <Zap className={`w-3 h-3 ${seoAudit.isGscConnected ? 'text-emerald-600' : 'text-slate-400'}`} />
+            <span>Core Web Vitals: {seoAudit.isGscConnected ? '98/100' : '0/100 (Unlinked GSC)'}</span>
           </span>
         </div>
       </div>

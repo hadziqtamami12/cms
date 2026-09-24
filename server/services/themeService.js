@@ -48,61 +48,97 @@ let currentThemeConfig = {
       id: 'car-1',
       title: 'Toyota Alphard Transformer Facelift',
       category: 'Luxury MPV',
-      price: 'Rp 2.500.000',
+      price: 'Rp 2.000.000',
+      price_self_drive: 'Rp 2.000.000',
+      price_with_driver: 'Rp 2.500.000',
       period: '/hari',
       badge: 'Favorit VIP',
       specs: ['7 Kursi Captain Seat', 'Matic', 'Bensin', 'Driver + BBM Available'],
-      image: 'https://images.unsplash.com/photo-1549399542-7e3f8b79c341?auto=format&fit=crop&w=800&q=80'
+      image: 'https://images.unsplash.com/photo-1549399542-7e3f8b79c341?auto=format&fit=crop&w=800&q=80',
+      pricing_tiers: [
+        { label: 'Lepas Kunci', price: 'Rp 2.000.000', unit: '/24 jam', is_default: true },
+        { label: 'Dengan Sopir', price: 'Rp 2.500.000', unit: '/12 jam', is_default: false }
+      ]
     },
     {
       id: 'car-2',
       title: 'Toyota Innova Zenix Hybrid',
       category: 'Family Touring',
-      price: 'Rp 850.000',
+      price: 'Rp 650.000',
+      price_self_drive: 'Rp 650.000',
+      price_with_driver: 'Rp 850.000',
       period: '/hari',
       badge: 'Paling Irit',
       specs: ['7 Kursi Nyaman', 'Matic CVT', 'Hybrid Super Irit', 'Sunroof'],
-      image: 'https://images.unsplash.com/photo-1533473359331-0135ef1b58bf?auto=format&fit=crop&w=800&q=80'
+      image: 'https://images.unsplash.com/photo-1533473359331-0135ef1b58bf?auto=format&fit=crop&w=800&q=80',
+      pricing_tiers: [
+        { label: 'Lepas Kunci', price: 'Rp 650.000', unit: '/24 jam', is_default: true },
+        { label: 'Dengan Sopir', price: 'Rp 850.000', unit: '/12 jam', is_default: false }
+      ]
     },
     {
       id: 'car-3',
       title: 'Toyota Fortuner GR Sport 2.8',
       category: 'Premium SUV',
-      price: 'Rp 1.400.000',
+      price: 'Rp 1.100.000',
+      price_self_drive: 'Rp 1.100.000',
+      price_with_driver: 'Rp 1.400.000',
       period: '/hari',
       badge: 'Gagah & Bertenaga',
       specs: ['7 Kursi', 'Matic 4x2', 'Diesel Turbo 2.8L', 'Tangguh Segala Medan'],
-      image: 'https://images.unsplash.com/photo-1519641471654-76ce0107ad1b?auto=format&fit=crop&w=800&q=80'
+      image: 'https://images.unsplash.com/photo-1519641471654-76ce0107ad1b?auto=format&fit=crop&w=800&q=80',
+      pricing_tiers: [
+        { label: 'Lepas Kunci', price: 'Rp 1.100.000', unit: '/24 jam', is_default: true },
+        { label: 'Dengan Sopir', price: 'Rp 1.400.000', unit: '/12 jam', is_default: false }
+      ]
     },
     {
       id: 'car-4',
       title: 'Toyota HiAce Premio Luxury VIP',
       category: 'Executive Van',
-      price: 'Rp 1.800.000',
+      price: 'Rp 1.400.000',
+      price_self_drive: 'Rp 1.400.000',
+      price_with_driver: 'Rp 1.800.000',
       period: '/hari',
       badge: 'Rombongan Elegan',
       specs: ['9 Captain Seats', 'Matic', 'Full Entertainment Audio', 'Karaoke On-Board'],
-      image: 'https://images.unsplash.com/photo-1570125909232-eb263c188f7e?auto=format&fit=crop&w=800&q=80'
+      image: 'https://images.unsplash.com/photo-1570125909232-eb263c188f7e?auto=format&fit=crop&w=800&q=80',
+      pricing_tiers: [
+        { label: 'Lepas Kunci', price: 'Rp 1.400.000', unit: '/24 jam', is_default: true },
+        { label: 'Dengan Sopir', price: 'Rp 1.800.000', unit: '/12 jam', is_default: false }
+      ]
     },
     {
       id: 'car-5',
       title: 'Honda HR-V RS Turbo',
       category: 'Compact Crossover',
-      price: 'Rp 650.000',
+      price: 'Rp 450.000',
+      price_self_drive: 'Rp 450.000',
+      price_with_driver: 'Rp 650.000',
       period: '/hari',
       badge: 'Stylish City',
       specs: ['5 Kursi', 'Matic', 'Bensin Turbo', 'Panoramic Roof'],
-      image: 'https://images.unsplash.com/photo-1542282088-72c9c27ed0cd?auto=format&fit=crop&w=800&q=80'
+      image: 'https://images.unsplash.com/photo-1542282088-72c9c27ed0cd?auto=format&fit=crop&w=800&q=80',
+      pricing_tiers: [
+        { label: 'Lepas Kunci', price: 'Rp 450.000', unit: '/24 jam', is_default: true },
+        { label: 'Dengan Sopir', price: 'Rp 650.000', unit: '/12 jam', is_default: false }
+      ]
     },
     {
       id: 'car-6',
       title: 'Hyundai Ioniq 5 Signature',
       category: 'Electric Vehicle',
-      price: 'Rp 1.600.000',
+      price: 'Rp 1.200.000',
+      price_self_drive: 'Rp 1.200.000',
+      price_with_driver: 'Rp 1.600.000',
       period: '/hari',
       badge: 'Zero Emission',
       specs: ['5 Kursi', 'Full Electric', 'Range 450KM', 'Fast Charging Support'],
-      image: 'https://images.unsplash.com/photo-1563720223185-11003d516935?auto=format&fit=crop&w=800&q=80'
+      image: 'https://images.unsplash.com/photo-1563720223185-11003d516935?auto=format&fit=crop&w=800&q=80',
+      pricing_tiers: [
+        { label: 'Lepas Kunci', price: 'Rp 1.200.000', unit: '/24 jam', is_default: true },
+        { label: 'Dengan Sopir', price: 'Rp 1.600.000', unit: '/12 jam', is_default: false }
+      ]
     }
   ],
   features: [

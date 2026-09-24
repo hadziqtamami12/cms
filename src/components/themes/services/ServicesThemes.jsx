@@ -59,10 +59,20 @@ export const ServicesThemeRenderer = ({ themeId, config }) => {
                 </div>
               </div>
 
-              <div className="p-6 sm:p-7 pt-5 border-t border-slate-100 flex items-center justify-between gap-4 mt-2">
+              <div className="p-6 sm:p-7 pt-5 border-t border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4 mt-2">
                 <div>
                   <span className="text-xs text-slate-400 block font-medium">Estimasi Biaya</span>
-                  <div className="text-lg sm:text-xl font-black text-blue-600">{svc.price}</div>
+                  {Array.isArray(svc.pricing_tiers) && svc.pricing_tiers.length > 1 ? (
+                    <div className="flex flex-wrap gap-1.5 mt-1">
+                      {svc.pricing_tiers.map((t, idx) => (
+                        <span key={idx} className="px-2 py-0.5 rounded-md bg-blue-50 border border-blue-200 text-blue-700 text-xs font-bold">
+                          {t.label}: <span className="font-mono">{t.price}</span>
+                        </span>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-lg sm:text-xl font-black text-blue-600">{svc.price}</div>
+                  )}
                 </div>
 
                 <a

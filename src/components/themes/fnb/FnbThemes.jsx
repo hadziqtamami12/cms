@@ -46,9 +46,19 @@ export const FnbThemeRenderer = ({ themeId, config }) => {
                 </div>
 
                 <div className="p-6 sm:p-7 space-y-3">
-                  <div className="flex items-center justify-between gap-3">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                     <h3 className="text-lg font-bold text-slate-900 leading-snug">{menu.title}</h3>
-                    <span className="font-black text-amber-600 text-lg sm:text-xl shrink-0">{menu.price}</span>
+                    {Array.isArray(menu.pricing_tiers) && menu.pricing_tiers.length > 1 ? (
+                      <div className="flex flex-wrap gap-1">
+                        {menu.pricing_tiers.map((t, idx) => (
+                          <span key={idx} className="px-2 py-0.5 rounded-md bg-amber-50 border border-amber-200 text-amber-800 text-[11px] font-bold">
+                            {t.label}: <span className="font-mono">{t.price}</span>
+                          </span>
+                        ))}
+                      </div>
+                    ) : (
+                      <span className="font-black text-amber-600 text-lg sm:text-xl shrink-0">{menu.price}</span>
+                    )}
                   </div>
                   <p className="text-xs sm:text-sm text-slate-500 leading-relaxed">
                     Kombinasi rasa autentik dengan bumbu rempah pilihan, disajikan hangat dan higienis.

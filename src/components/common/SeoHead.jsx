@@ -8,6 +8,9 @@ export const SeoHead = ({
   ogImage,
   industry = 'automotive',
   brandName,
+  logoUrl,
+  pwaIcon,
+  pwaShortName,
   phone,
   gscVerification,
   gaMeasurementId,
@@ -21,6 +24,21 @@ export const SeoHead = ({
     // 1. Dynamic Document Title
     if (title) {
       document.title = title;
+    }
+
+    // Dynamic Favicon & Apple Touch Icon from PWA Icon
+    if (pwaIcon) {
+      let iconLink = document.querySelector("link[rel*='icon']");
+      if (iconLink) {
+        iconLink.href = pwaIcon;
+      }
+      let appleIconLink = document.querySelector("link[rel='apple-touch-icon']");
+      if (!appleIconLink) {
+        appleIconLink = document.createElement('link');
+        appleIconLink.rel = 'apple-touch-icon';
+        document.head.appendChild(appleIconLink);
+      }
+      appleIconLink.href = pwaIcon;
     }
 
     // 2. Helper to set or create meta tag
@@ -38,6 +56,9 @@ export const SeoHead = ({
 
     // Standard Meta Tags
     setMeta('description', description);
+    if (pwaShortName) {
+      setMeta('apple-mobile-web-app-title', pwaShortName);
+    }
     if (keywords.length > 0) {
       setMeta('keywords', keywords.join(', '));
     }
@@ -78,7 +99,7 @@ export const SeoHead = ({
         '@type': 'Organization',
         name: brandName || 'Enterprise CMS',
         url: currentUrl,
-        logo: `${window.location.origin}/icons/icon-512.svg`,
+        logo: logoUrl || pwaIcon || `${window.location.origin}/icons/icon-512.svg`,
         contactPoint: {
           '@type': 'ContactPoint',
           telephone: phone || '+628123456789',

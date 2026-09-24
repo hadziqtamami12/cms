@@ -8,6 +8,7 @@ import { updateAppSettings } from '../../lib/api';
 import { getPresetForIndustry } from '../../lib/industryCatalogs';
 import ProductMediaGalleryManager from './ProductMediaGalleryManager';
 import DataTable from '../common/DataTable';
+import ImageUploadInput from '../common/ImageUploadInput';
 
 /**
  * Product Catalog Manager (Product Card CRUD Studio)
@@ -19,7 +20,8 @@ export const ProductCatalogManager = ({
   currentIndustry = 'automotive',
   adminToken,
   onConfigUpdated,
-  showToast
+  showToast,
+  onOpenScraper
 }) => {
   const [productList, setProductList] = useState(items);
   const [viewMode, setViewMode] = useState('table'); // 'table' | 'grid'
@@ -376,11 +378,6 @@ export const ProductCatalogManager = ({
           <div className="min-w-0">
             <div className="font-extrabold text-slate-900 text-xs truncate max-w-xs">{val}</div>
             <div className="text-[11px] text-slate-400 flex items-center gap-1.5 mt-0.5">
-              {row.badge && (
-                <span className="px-1.5 py-0.5 rounded bg-blue-50 text-blue-700 font-bold text-[10px] border border-blue-100">
-                  {row.badge}
-                </span>
-              )}
               {Array.isArray(row.images) && row.images.length > 1 && (
                 <span className="text-[10px] text-slate-400 flex items-center gap-0.5">
                   <ImageIcon className="w-2.5 h-2.5" />
@@ -500,9 +497,6 @@ export const ProductCatalogManager = ({
               <h2 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight truncate">
                 Manajemen Armada & Produk
               </h2>
-              <span className="px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-700 text-xs font-bold font-mono">
-                {productList.length} Produk
-              </span>
             </div>
             <p className="text-xs sm:text-sm text-slate-500">
               Kelola katalog unit/produk dengan skema Multi-Tarif fleksibel (Lepas Kunci, Driver, Grosir, Per Pax) dan Galeri Foto SEO.
@@ -547,6 +541,18 @@ export const ProductCatalogManager = ({
               <RefreshCw className="w-3.5 h-3.5 text-slate-400" />
               <span>Reset Preset</span>
             </button>
+
+            {onOpenScraper && (
+              <button
+                type="button"
+                onClick={() => onOpenScraper('products')}
+                className="px-3.5 py-2.5 rounded-xl border border-blue-200 bg-blue-50/80 hover:bg-blue-100 text-blue-700 text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-2xs"
+                title="Scrape data armada dari website kompetitor"
+              >
+                <Sparkles className="w-3.5 h-3.5 text-blue-600" />
+                <span>Scrape Produk</span>
+              </button>
+            )}
 
             <button
               type="button"
@@ -624,11 +630,6 @@ export const ProductCatalogManager = ({
                     className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                     loading="lazy"
                   />
-                  {item.badge && (
-                    <span className="absolute top-3 left-3 px-3 py-1 rounded-full bg-blue-600 text-white text-[11px] font-black uppercase tracking-wider shadow-sm">
-                      {item.badge}
-                    </span>
-                  )}
                   {item.category && (
                     <span className="absolute bottom-3 right-3 px-2.5 py-1 rounded-lg bg-slate-900/80 backdrop-blur-xs text-white text-[10px] font-bold">
                       {item.category}
@@ -650,36 +651,51 @@ export const ProductCatalogManager = ({
                     </h3>
 
                     {/* Multi-Tarif Pricing Tiers Display */}
-                    {Array.isArray(item.pricing_tiers) && item.pricing_tiers.length > 0 ? (
-                      <div className="space-y-1.5 p-2.5 bg-slate-50/80 rounded-2xl border border-slate-100">
-                        <div className="flex items-baseline justify-between">
-                          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Pilihan Tarif:</span>
-                          <span className="text-xs font-bold text-blue-600">
-                            Mulai {item.pricing_tiers.find(t => t.is_default)?.price || item.price}
-                          </span>
+                    {(() => {
+                      const cardTiers = Array.isArray(item.pricing_tiers) && item.pricing_tiers.length > 0
+                        ? item.pricing_tiers
+                        : (item.price_self_drive || item.price_with_driver)
+                        ? [
+                            { label: 'Lepas Kunci', price: item.price_self_drive || item.price, unit: item.period || '/24 jam', is_default: true },
+                            { label: 'Dengan Sopir', price: item.price_with_driver || 'Rp 650.000', unit: '/12 jam', is_default: false }
+                          ]
+                        : null;
+
+                      if (cardTiers && cardTiers.length > 0) {
+                        return (
+                          <div className="space-y-1.5 p-2.5 bg-slate-50/80 rounded-2xl border border-slate-100">
+                            <div className="flex items-baseline justify-between">
+                              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Pilihan Tarif ({cardTiers.length}):</span>
+                              <span className="text-xs font-bold text-blue-600">
+                                Mulai {cardTiers.find(t => t.is_default)?.price || cardTiers[0]?.price || item.price}
+                              </span>
+                            </div>
+                            <div className="flex flex-wrap gap-1.5">
+                              {cardTiers.map((tier, tIdx) => (
+                                <span
+                                  key={tIdx}
+                                  className={`px-2 py-0.5 rounded-md text-[10px] font-medium border ${
+                                    tier.is_default
+                                      ? 'bg-blue-50 text-blue-700 border-blue-200 font-bold'
+                                      : 'bg-white text-slate-600 border-slate-200'
+                                  }`}
+                                >
+                                  {tier.label}: <strong className="font-bold text-slate-800">{tier.price}</strong>
+                                  {tier.unit && <span className="opacity-70 text-[9px]"> {tier.unit}</span>}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        );
+                      }
+
+                      return (
+                        <div className="flex items-baseline gap-1">
+                          <span className="text-lg font-black text-blue-600">{item.price}</span>
+                          <span className="text-xs text-slate-400 font-medium">{item.period}</span>
                         </div>
-                        <div className="flex flex-wrap gap-1.5">
-                          {item.pricing_tiers.map((tier, tIdx) => (
-                            <span
-                              key={tIdx}
-                              className={`px-2 py-0.5 rounded-md text-[10px] font-medium border ${
-                                tier.is_default
-                                  ? 'bg-blue-50 text-blue-700 border-blue-200 font-bold'
-                                  : 'bg-white text-slate-600 border-slate-200'
-                              }`}
-                            >
-                              {tier.label}: <strong className="font-bold text-slate-800">{tier.price}</strong>
-                              {tier.unit && <span className="opacity-70 text-[9px]"> {tier.unit}</span>}
-                            </span>
-                          ))}
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="flex items-baseline gap-1">
-                        <span className="text-lg font-black text-blue-600">{item.price}</span>
-                        <span className="text-xs text-slate-400 font-medium">{item.period}</span>
-                      </div>
-                    )}
+                      );
+                    })()}
 
                     {/* Specs tags */}
                     {Array.isArray(item.specs) && item.specs.length > 0 && (
@@ -849,22 +865,14 @@ export const ProductCatalogManager = ({
                     </div>
                   </div>
 
-                  {/* Main Image URL */}
-                  <div className="space-y-1">
-                    <label className="block text-xs font-bold text-slate-700">URL Gambar Utama</label>
-                    <input
-                      type="url"
-                      value={formData.image}
-                      onChange={(e) => setFormData({ ...formData, image: e.target.value })}
-                      placeholder="https://images.unsplash.com/..."
-                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono text-[11px]"
-                    />
-                    {formData.image && (
-                      <div className="mt-2 h-24 w-full rounded-xl overflow-hidden bg-slate-100 border border-slate-200">
-                        <img src={formData.image} alt="Preview" className="w-full h-full object-cover" />
-                      </div>
-                    )}
-                  </div>
+                  {/* Main Image Upload & URL */}
+                  <ImageUploadInput
+                    label="Foto Utama Unit / Produk"
+                    value={formData.image}
+                    onChange={(val) => setFormData({ ...formData, image: val })}
+                    placeholder="https://images.unsplash.com/... atau /uploads/..."
+                    helperText="Upload foto armada/produk berkualitas tinggi atau tempel link URL"
+                  />
 
                   {/* Specs (Comma separated) */}
                   <div className="space-y-1">

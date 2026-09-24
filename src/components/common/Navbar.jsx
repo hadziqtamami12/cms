@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Phone, MessageSquare, ChevronRight, Menu, X, ShieldCheck } from 'lucide-react';
 
-export const Navbar = ({ brandName, phone, whatsapp, tagline }) => {
+export const Navbar = ({ brandName, phone, whatsapp, tagline, logoUrl }) => {
   const [isScrolled, setIsScrolled] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
@@ -30,9 +30,20 @@ export const Navbar = ({ brandName, phone, whatsapp, tagline }) => {
         <div className="flex items-center justify-between">
           {/* Brand Logo & Name */}
           <a href="#" className="flex items-center gap-3.5 group focus:outline-none">
-            <div className="w-11 h-11 rounded-2xl bg-blue-600 flex items-center justify-center text-white font-bold shadow-md shadow-blue-600/20 group-hover:scale-105 transition-transform">
-              <ShieldCheck className="w-6 h-6 text-white" />
-            </div>
+            {logoUrl ? (
+              <div className="h-11 max-w-[150px] flex items-center justify-center group-hover:scale-105 transition-transform">
+                <img
+                  src={logoUrl}
+                  alt={brandName || 'Brand Logo'}
+                  className="max-h-full max-w-full object-contain"
+                  onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                />
+              </div>
+            ) : (
+              <div className="w-11 h-11 rounded-2xl bg-blue-600 flex items-center justify-center text-white font-bold shadow-md shadow-blue-600/20 group-hover:scale-105 transition-transform">
+                <ShieldCheck className="w-6 h-6 text-white" />
+              </div>
+            )}
             <div>
               <span className={`font-extrabold text-lg sm:text-xl tracking-tight transition-colors ${
                 isScrolled ? 'text-slate-900' : 'text-white drop-shadow-md'

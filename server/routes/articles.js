@@ -23,18 +23,82 @@ function slugify(text) {
 }
 
 /**
- * Public: GET /api/articles
+ * Auto-ensure dynamic columns in database schema
+ */
+async function ensureArticlesSchema() {
+  try {
+    const dbType = getDbType();
+    if (dbType === 'postgres') {
+      await query(`ALTER TABLE articles ADD COLUMN IF NOT EXISTS is_dynamic BOOLEAN DEFAULT FALSE;`);
+      await query(`ALTER TABLE articles ADD COLUMN IF NOT EXISTS dynamic_config JSONB DEFAULT '{}'::jsonb;`);
+    } else if (dbType === 'mysql') {
+      try {
+        await query(`ALTER TABLE articles ADD COLUMN is_dynamic BOOLEAN DEFAULT FALSE;`);
+      } catch (_) {}
+      try {
+        await query(`ALTER TABLE articles ADD COLUMN dynamic_config JSON;`);
+      } catch (_) {}
+    }
+  } catch (err) {
+    console.warn('[Articles Schema Notice]:', err.message);
+  }
+}
+setTimeout(() => {
+  ensureArticlesSchema().catch(() => {});
+}, 1000);
+
+/**
+ * Universal dynamic template string replacer
+ * Replaces {lokasi}, {Lokasi}, {LOKASI}, {keyword}, {Keyword}, {slug}, {nama_web}
+ */
+function resolveDynamicText(text, variables = {}) {
+  if (!text || typeof text !== 'string') return text || '';
+  let result = text;
+  const { lokasi = '', keyword = '', slug = '', brandName = '' } = variables;
+
+  const locRaw = String(lokasi || '').trim();
+  const locLower = locRaw.toLowerCase();
+  const locTitle = locRaw.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ');
+  const locUpper = locRaw.toUpperCase();
+
+  const kwRaw = String(keyword || '').trim();
+  const kwLower = kwRaw.toLowerCase();
+  const kwTitle = kwRaw.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ');
+  const kwUpper = kwRaw.toUpperCase();
+
+  // 1. Lokasi Placeholders
+  result = result.replace(/\{lokasi\}/g, locLower);
+  result = result.replace(/\{Lokasi\}/g, locTitle);
+  result = result.replace(/\{LOKASI\}/g, locUpper);
+
+  // 2. Keyword Placeholders
+  result = result.replace(/\{keyword\}/g, kwLower);
+  result = result.replace(/\{Keyword\}/g, kwTitle);
+  result = result.replace(/\{KEYWORD\}/g, kwUpper);
+
+  // 3. Slug & Brand Placeholders
+  result = result.replace(/\{slug\}/g, slug);
+  result = result.replace(/\{nama_web\}/gi, brandName);
+  result = result.replace(/\{brand\}/gi, brandName);
+
+  return result;
+}
+
+/**
+ * Public: GET /api/articles/public
  * Returns published articles with pagination and filters
  */
 router.get('/public', async (req, res) => {
   try {
     const { category, location, search, limit = 12, offset = 0 } = req.query;
     const dbType = getDbType();
+    const appConfig = await getPublicSettings(false);
+    const brandName = appConfig.brandName || appConfig.pwa_name || 'MultiCMS';
 
-    let sql = `SELECT id, title, slug, excerpt, featured_image, category, location_variable, views_count, created_at, updated_at FROM articles WHERE is_published = TRUE`;
+    let sql = `SELECT id, title, slug, excerpt, featured_image, category, location_variable, is_dynamic, dynamic_config, views_count, created_at, updated_at FROM articles WHERE is_published = TRUE`;
     const params = [];
 
-    if (category) {
+    if (category && category !== 'Semua') {
       params.push(category);
       sql += dbType === 'postgres' ? ` AND category = $${params.length}` : ` AND category = ?`;
     }
@@ -47,9 +111,13 @@ router.get('/public', async (req, res) => {
     if (search) {
       params.push(`%${search}%`);
       sql += dbType === 'postgres' 
-        ? ` AND (title ILIKE $${params.length} OR excerpt ILIKE $${params.length})` 
-        : ` AND (title LIKE ? OR excerpt LIKE ?)`;
-      if (dbType !== 'postgres') params.push(`%${search}%`);
+        ? ` AND (title ILIKE $${params.length} OR excerpt ILIKE $${params.length} OR location_variable ILIKE $${params.length} OR dynamic_config::text ILIKE $${params.length})` 
+        : ` AND (title LIKE ? OR excerpt LIKE ? OR location_variable LIKE ? OR dynamic_config LIKE ?)`;
+      if (dbType !== 'postgres') {
+        params.push(`%${search}%`);
+        params.push(`%${search}%`);
+        params.push(`%${search}%`);
+      }
     }
 
     sql += ` ORDER BY created_at DESC LIMIT ${parseInt(limit, 10) || 12} OFFSET ${parseInt(offset, 10) || 0}`;
@@ -60,14 +128,63 @@ router.get('/public', async (req, res) => {
       rows = Array.isArray(result) ? result : (result?.rows || []);
     } catch (dbErr) {
       console.warn('[Articles API] DB query fallback:', dbErr.message);
-      // Return empty array if table not found or empty
       rows = [];
     }
 
+    // Process dynamic articles for public listing preview
+    const processedRows = rows.map(art => {
+      if (!art.is_dynamic) return art;
+
+      let cfg = art.dynamic_config;
+      if (typeof cfg === 'string') {
+        try { cfg = JSON.parse(cfg); } catch (_) { cfg = {}; }
+      }
+      cfg = cfg || {};
+
+      const locations = Array.isArray(cfg.locations)
+        ? cfg.locations
+        : (typeof cfg.locations === 'string' ? cfg.locations.split(/[\n,]/).map(s => s.trim()).filter(Boolean) : []);
+      const slugPattern = (cfg.slug_pattern || 'sewa-mobil-{lokasi}').trim();
+      const focusKeywordTemplate = (cfg.focus_keyword_template || 'sewa mobil {lokasi}').trim();
+
+      // If user is searching a specific city that matches one of our locations, dynamically tune title & slug
+      let previewLoc = locations[0] || 'Utama';
+      if (search) {
+        const found = locations.find(l => l.toLowerCase().includes(search.toLowerCase()));
+        if (found) previewLoc = found;
+      }
+
+      const previewSlug = slugify(slugPattern.replace(/\{lokasi\}/gi, slugify(previewLoc)));
+      const previewTitle = resolveDynamicText(art.title, {
+        lokasi: previewLoc,
+        keyword: resolveDynamicText(focusKeywordTemplate, { lokasi: previewLoc, brandName }),
+        slug: previewSlug,
+        brandName
+      });
+      const previewExcerpt = resolveDynamicText(art.excerpt, {
+        lokasi: previewLoc,
+        keyword: resolveDynamicText(focusKeywordTemplate, { lokasi: previewLoc, brandName }),
+        slug: previewSlug,
+        brandName
+      });
+
+      return {
+        ...art,
+        title: previewTitle,
+        slug: previewSlug,
+        excerpt: previewExcerpt,
+        location_variable: previewLoc,
+        is_dynamic: true,
+        dynamic_locations_count: locations.length,
+        dynamic_locations: locations.slice(0, 8),
+        dynamic_slug_pattern: slugPattern
+      };
+    });
+
     res.json({
       success: true,
-      data: rows,
-      count: rows.length
+      data: processedRows,
+      count: processedRows.length
     });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
@@ -75,48 +192,201 @@ router.get('/public', async (req, res) => {
 });
 
 /**
- * Public: GET /api/articles/:slug
- * Returns single article by slug and increments views_count
+ * Public: GET /api/articles/public/:slug
+ * Dynamic Multi-Slug Router: Returns article by slug and supports dynamic templating
  */
 router.get('/public/:slug', async (req, res) => {
   try {
     const { slug } = req.params;
     const dbType = getDbType();
+    const appConfig = await getPublicSettings(false);
+    const brandName = appConfig.brandName || appConfig.pwa_name || 'MultiCMS';
 
+    // 1. Direct query by exact slug
     const sql = dbType === 'postgres' 
       ? `SELECT * FROM articles WHERE slug = $1 LIMIT 1` 
       : `SELECT * FROM articles WHERE slug = ? LIMIT 1`;
 
     const result = await query(sql, [slug]);
     const rows = Array.isArray(result) ? result : (result?.rows || []);
-    const article = rows[0];
+    const exactArticle = rows[0];
 
-    if (!article) {
+    // If exact match found and it is NOT dynamic, return standard article
+    if (exactArticle && !exactArticle.is_dynamic) {
+      const incSql = dbType === 'postgres'
+        ? `UPDATE articles SET views_count = views_count + 1 WHERE id = $1`
+        : `UPDATE articles SET views_count = views_count + 1 WHERE id = ?`;
+      query(incSql, [exactArticle.id]).catch(() => {});
+
+      return res.json({
+        success: true,
+        data: exactArticle
+      });
+    }
+
+    // 2. Query all published dynamic articles to find a match for this slug
+    const dynSql = `SELECT * FROM articles WHERE is_dynamic = TRUE AND is_published = TRUE`;
+    let dynArticles = [];
+    try {
+      const dynRes = await query(dynSql);
+      dynArticles = Array.isArray(dynRes) ? dynRes : (dynRes?.rows || []);
+    } catch (_) {}
+
+    // Put exact article first if it was flagged dynamic
+    const candidates = exactArticle && exactArticle.is_dynamic
+      ? [exactArticle, ...dynArticles.filter(a => a.id !== exactArticle.id)]
+      : dynArticles;
+
+    let matchedArticle = null;
+    let resolvedLocation = '';
+    let resolvedKeyword = '';
+    let allRelatedLocations = [];
+
+    for (const cand of candidates) {
+      let cfg = cand.dynamic_config;
+      if (typeof cfg === 'string') {
+        try { cfg = JSON.parse(cfg); } catch (_) { cfg = {}; }
+      }
+      cfg = cfg || {};
+
+      const slugPattern = (cfg.slug_pattern || 'sewa-mobil-{lokasi}').trim();
+      const focusKeywordTemplate = (cfg.focus_keyword_template || 'sewa mobil {lokasi}').trim();
+      const locations = Array.isArray(cfg.locations)
+        ? cfg.locations
+        : (typeof cfg.locations === 'string' ? cfg.locations.split(/[\n,]/).map(s => s.trim()).filter(Boolean) : []);
+      const customSlugs = cfg.custom_slug_mapping || {};
+
+      // A. Check custom slug mapping
+      if (customSlugs[slug]) {
+        matchedArticle = cand;
+        resolvedLocation = customSlugs[slug].lokasi || customSlugs[slug].location || slug;
+        resolvedKeyword = customSlugs[slug].keyword || resolveDynamicText(focusKeywordTemplate, { lokasi: resolvedLocation, brandName });
+        allRelatedLocations = locations.map(l => ({
+          location: l,
+          slug: slugify(slugPattern.replace(/\{lokasi\}/gi, slugify(l)))
+        }));
+        break;
+      }
+
+      // B. Check each location against the slug pattern
+      for (const loc of locations) {
+        const locSlug = slugify(loc);
+        const expectedSlug = slugify(slugPattern.replace(/\{lokasi\}/gi, locSlug));
+
+        if (expectedSlug === slug || locSlug === slug) {
+          matchedArticle = cand;
+          resolvedLocation = loc;
+          resolvedKeyword = resolveDynamicText(focusKeywordTemplate, { lokasi: loc, brandName });
+          allRelatedLocations = locations.map(l => ({
+            location: l,
+            slug: slugify(slugPattern.replace(/\{lokasi\}/gi, slugify(l)))
+          }));
+          break;
+        }
+      }
+
+      if (matchedArticle) break;
+
+      // C. Check Regex pattern matching if slug matches the pattern
+      if (slugPattern.includes('{lokasi}')) {
+        const regexStr = '^' + slugPattern
+          .replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+          .replace('\\{lokasi\\}', '([a-z0-9-]+)') + '$';
+        const match = slug.match(new RegExp(regexStr, 'i'));
+        if (match && match[1]) {
+          const rawLoc = match[1];
+          const autoLoc = rawLoc.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+          matchedArticle = cand;
+          resolvedLocation = autoLoc;
+          resolvedKeyword = resolveDynamicText(focusKeywordTemplate, { lokasi: autoLoc, brandName });
+          allRelatedLocations = locations.map(l => ({
+            location: l,
+            slug: slugify(slugPattern.replace(/\{lokasi\}/gi, slugify(l)))
+          }));
+          break;
+        }
+      }
+    }
+
+    if (!matchedArticle) {
       return res.status(404).json({ success: false, error: 'Artikel tidak ditemukan' });
     }
 
-    // Increment views asynchronously
+    // Resolve dynamic variables
+    const vars = {
+      lokasi: resolvedLocation,
+      keyword: resolvedKeyword,
+      slug,
+      brandName
+    };
+
+    const finalTitle = resolveDynamicText(matchedArticle.title, vars);
+    const finalContent = resolveDynamicText(matchedArticle.content, vars);
+    const rawExcerpt = matchedArticle.excerpt || matchedArticle.content.substring(0, 160).replace(/<[^>]*>?/gm, '').trim();
+    const finalExcerpt = resolveDynamicText(rawExcerpt, vars);
+    const finalMetaTitle = resolveDynamicText(matchedArticle.meta_title || `${finalTitle} | ${brandName}`, vars);
+    const finalMetaDesc = resolveDynamicText(matchedArticle.meta_description || finalExcerpt, vars);
+
+    // Dynamic Schema Markup
+    const dynamicSchema = {
+      "@context": "https://schema.org",
+      "@type": "NewsArticle",
+      "headline": finalTitle,
+      "description": finalMetaDesc,
+      "image": [matchedArticle.featured_image],
+      "datePublished": matchedArticle.created_at,
+      "dateModified": matchedArticle.updated_at || matchedArticle.created_at,
+      "author": [{
+        "@type": "Organization",
+        "name": brandName
+      }],
+      "publisher": {
+        "@type": "Organization",
+        "name": brandName
+      },
+      "mainEntityOfPage": {
+        "@type": "WebPage",
+        "@id": `/artikel/${slug}`
+      }
+    };
+
+    // Increment views on master article
     const incSql = dbType === 'postgres'
       ? `UPDATE articles SET views_count = views_count + 1 WHERE id = $1`
       : `UPDATE articles SET views_count = views_count + 1 WHERE id = ?`;
-    query(incSql, [article.id]).catch(() => {});
+    query(incSql, [matchedArticle.id]).catch(() => {});
 
-    res.json({
+    return res.json({
       success: true,
-      data: article
+      data: {
+        ...matchedArticle,
+        title: finalTitle,
+        content: finalContent,
+        excerpt: finalExcerpt,
+        meta_title: finalMetaTitle,
+        meta_description: finalMetaDesc,
+        slug,
+        location_variable: resolvedLocation,
+        focus_keyword: resolvedKeyword,
+        canonical_url: `/artikel/${slug}`,
+        schema_markup: dynamicSchema,
+        is_dynamic: true,
+        related_locations: allRelatedLocations.filter(item => item.slug !== slug)
+      }
     });
   } catch (err) {
+    console.error('[Articles Detail Dynamic Error]:', err);
     res.status(500).json({ success: false, error: err.message });
   }
 });
 
 /**
- * Admin: GET /api/admin/articles
+ * Admin: GET /api/admin/articles/manage
  * Lists all articles for dashboard management
  */
 router.get('/manage', adminAuth, async (req, res) => {
   try {
-    const sql = `SELECT id, title, slug, excerpt, featured_image, category, location_variable, is_published, views_count, created_at, updated_at FROM articles ORDER BY created_at DESC`;
+    const sql = `SELECT id, title, slug, excerpt, featured_image, category, location_variable, is_dynamic, dynamic_config, is_published, views_count, created_at, updated_at FROM articles ORDER BY created_at DESC`;
     let rows = [];
     try {
       const result = await query(sql);
@@ -135,8 +405,8 @@ router.get('/manage', adminAuth, async (req, res) => {
 });
 
 /**
- * Admin: POST /api/admin/articles
- * Creates a single new article
+ * Admin: POST /api/admin/articles/manage
+ * Creates a single new article (Standard or Dynamic Article)
  */
 router.post('/manage', adminAuth, async (req, res) => {
   try {
@@ -152,7 +422,9 @@ router.post('/manage', adminAuth, async (req, res) => {
       meta_description,
       canonical_url,
       schema_markup,
-      is_published = true
+      is_published = true,
+      is_dynamic = false,
+      dynamic_config = {}
     } = req.body;
 
     if (!title || !content) {
@@ -165,11 +437,11 @@ router.post('/manage', adminAuth, async (req, res) => {
     const dbType = getDbType();
 
     const insertSql = dbType === 'postgres'
-      ? `INSERT INTO articles (id, title, slug, content, excerpt, featured_image, category, location_variable, meta_title, meta_description, canonical_url, schema_markup, is_published)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+      ? `INSERT INTO articles (id, title, slug, content, excerpt, featured_image, category, location_variable, meta_title, meta_description, canonical_url, schema_markup, is_published, is_dynamic, dynamic_config)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
          RETURNING *`
-      : `INSERT INTO articles (\`id\`, \`title\`, \`slug\`, \`content\`, \`excerpt\`, \`featured_image\`, \`category\`, \`location_variable\`, \`meta_title\`, \`meta_description\`, \`canonical_url\`, \`schema_markup\`, \`is_published\`)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+      : `INSERT INTO articles (\`id\`, \`title\`, \`slug\`, \`content\`, \`excerpt\`, \`featured_image\`, \`category\`, \`location_variable\`, \`meta_title\`, \`meta_description\`, \`canonical_url\`, \`schema_markup\`, \`is_published\`, \`is_dynamic\`, \`dynamic_config\`)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
 
     const params = [
       id,
@@ -184,15 +456,17 @@ router.post('/manage', adminAuth, async (req, res) => {
       meta_description || computedExcerpt,
       canonical_url || `/artikel/${slug}`,
       JSON.stringify(schema_markup || {}),
-      is_published
+      Boolean(is_published),
+      Boolean(is_dynamic),
+      typeof dynamic_config === 'object' ? JSON.stringify(dynamic_config) : (dynamic_config || '{}')
     ];
 
     await query(insertSql, params);
 
     res.status(201).json({
       success: true,
-      message: 'Artikel berhasil disimpan',
-      data: { id, title, slug }
+      message: is_dynamic ? 'Dynamic Article multi-slug berhasil disimpan!' : 'Artikel berhasil disimpan',
+      data: { id, title, slug, is_dynamic }
     });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
@@ -200,7 +474,7 @@ router.post('/manage', adminAuth, async (req, res) => {
 });
 
 /**
- * Admin: PUT /api/admin/articles/:id
+ * Admin: PUT /api/admin/articles/manage/:id
  * Updates an existing article
  */
 router.put('/manage/:id', adminAuth, async (req, res) => {
@@ -218,12 +492,19 @@ router.put('/manage/:id', adminAuth, async (req, res) => {
       meta_description,
       canonical_url,
       schema_markup,
-      is_published
+      is_published,
+      is_dynamic,
+      dynamic_config
     } = req.body;
 
     const dbType = getDbType();
     const slug = slugify(customSlug || title);
     const computedExcerpt = excerpt || (content ? content.substring(0, 160).replace(/<[^>]*>?/gm, '').trim() : '');
+
+    const isDynamicVal = typeof is_dynamic === 'boolean' ? is_dynamic : null;
+    const dynamicConfigVal = dynamic_config !== undefined
+      ? (typeof dynamic_config === 'object' ? JSON.stringify(dynamic_config) : String(dynamic_config))
+      : null;
 
     const updateSql = dbType === 'postgres'
       ? `UPDATE articles SET
@@ -239,8 +520,10 @@ router.put('/manage/:id', adminAuth, async (req, res) => {
           canonical_url = COALESCE($10, canonical_url),
           schema_markup = COALESCE($11, schema_markup),
           is_published = COALESCE($12, is_published),
+          is_dynamic = COALESCE($13, is_dynamic),
+          dynamic_config = COALESCE($14, dynamic_config),
           updated_at = CURRENT_TIMESTAMP
-         WHERE id = $13 RETURNING *`
+         WHERE id = $15 RETURNING *`
       : `UPDATE articles SET
           \`title\` = COALESCE(?, \`title\`),
           \`slug\` = COALESCE(?, \`slug\`),
@@ -253,7 +536,9 @@ router.put('/manage/:id', adminAuth, async (req, res) => {
           \`meta_description\` = COALESCE(?, \`meta_description\`),
           \`canonical_url\` = COALESCE(?, \`canonical_url\`),
           \`schema_markup\` = COALESCE(?, \`schema_markup\`),
-          \`is_published\` = COALESCE(?, \`is_published\`)
+          \`is_published\` = COALESCE(?, \`is_published\`),
+          \`is_dynamic\` = COALESCE(?, \`is_dynamic\`),
+          \`dynamic_config\` = COALESCE(?, \`dynamic_config\`)
          WHERE \`id\` = ?`;
 
     const params = [
@@ -268,7 +553,9 @@ router.put('/manage/:id', adminAuth, async (req, res) => {
       meta_description,
       canonical_url,
       schema_markup ? JSON.stringify(schema_markup) : null,
-      is_published,
+      typeof is_published === 'boolean' ? is_published : null,
+      isDynamicVal,
+      dynamicConfigVal,
       id
     ];
 

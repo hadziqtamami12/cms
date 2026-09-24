@@ -4,6 +4,8 @@ import { activateLicense, getSystemLicenseStatus, verifyLicenseKey, setInitialIn
 import { setAdminSlug } from '../middleware/dynamicSlugRouter.js';
 import { setAdminCredentials } from './admin.js';
 import { switchThemeVariant } from '../services/themeService.js';
+import { syncAndSaveBrandAssets } from '../services/logoGeneratorService.js';
+import { saveSettings } from '../services/configService.js';
 
 const router = Router();
 
@@ -105,13 +107,27 @@ router.post('/complete', async (req, res) => {
       return res.status(400).json({ success: false, error: activation.error });
     }
 
-    // 4. Set Initial Industry & Theme
+    // 4. Set Initial Industry, Theme & Brand Assets
     if (selectedIndustry) {
       await switchThemeVariant({
         industry: selectedIndustry,
         themeId: selectedThemeId || 'fleet-grid',
         bottomNavStyle: bottomNavStyle || 'dock'
       });
+
+      const logoRes = await syncAndSaveBrandAssets({
+        appName: clientName || 'Enterprise CMS',
+        industry: selectedIndustry
+      }).catch(() => null);
+
+      if (logoRes) {
+        await saveSettings({
+          brandName: clientName || 'Enterprise CMS',
+          industry: selectedIndustry,
+          logoUrl: logoRes.logoUrl,
+          pwa_icon: logoRes.pwaIcon
+        }).catch(() => {});
+      }
     }
 
     setInitialInstalledState(true);

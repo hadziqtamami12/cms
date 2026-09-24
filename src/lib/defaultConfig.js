@@ -10,6 +10,10 @@ export const DEFAULT_CONFIG = {
   bottomNavStyle: 'dock',
   brandName: 'Royal Fleet Premiere',
   tagline: 'Sewa Mobil & Armada Premium Terpercaya No. 1',
+  logoUrl: '/images/logo.png',
+  pwa_icon: '/icons/icon-192.png',
+  pwa_name: 'Royal Fleet Rental Mobil & Wisata',
+  pwa_short_name: 'RoyalFleet',
   phone: '+62 812-8899-0011',
   whatsapp: '6281288990011',
   floating_whatsapp: {
@@ -33,6 +37,21 @@ export const DEFAULT_CONFIG = {
   splash_screen: {
     enabled: true,
     duration: 2.5
+  },
+  footer: {
+    about: 'Didukung oleh arsitektur Cloud Edge berkecepatan tinggi dengan skor Core Web Vitals optimal dan enkripsi enterprise.',
+    button_text: 'Baca Artikel & Panduan Wisata',
+    button_url: '/artikel',
+    show_button: true,
+    contact_title: 'Informasi Kontak',
+    show_phone: true,
+    show_email: true,
+    show_address: true,
+    legal_title: 'Legalitas & Proteksi',
+    legal_text: 'Hak Cipta dilindungi Undang-Undang. Terdaftar dan terverifikasi di Google Business & Cloudflare Enterprise.',
+    status_text: 'Status Sistem: Operasional Aktif',
+    show_status: true,
+    copyright: 'All rights reserved. Powered by Enterprise MultiCMS Engine.'
   },
   heroSlides: [
     {

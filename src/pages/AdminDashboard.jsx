@@ -586,8 +586,8 @@ export const AdminDashboard = ({
                   setMobileSidebarOpen(false);
                 }}
                 className={`w-full flex items-center justify-between px-3.5 py-3 rounded-2xl text-xs sm:text-sm font-semibold transition-all ${isActive
-                    ? 'bg-blue-600 text-white shadow-sm font-bold'
-                    : 'text-slate-600 hover:bg-slate-100/70 hover:text-slate-900'
+                  ? 'bg-blue-600 text-white shadow-sm font-bold'
+                  : 'text-slate-600 hover:bg-slate-100/70 hover:text-slate-900'
                   }`}
               >
                 <div className="flex items-center gap-3 min-w-0">
@@ -688,8 +688,8 @@ export const AdminDashboard = ({
                   <button
                     onClick={() => setActiveTab(item.id)}
                     className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-all shrink-0 cursor-pointer ${isActive
-                        ? 'bg-blue-600 text-white shadow-md shadow-blue-600/30'
-                        : 'text-slate-500 hover:bg-slate-100 hover:text-slate-900'
+                      ? 'bg-blue-600 text-white shadow-md shadow-blue-600/30'
+                      : 'text-slate-500 hover:bg-slate-100 hover:text-slate-900'
                       }`}
                     title={item.label}
                     aria-label={item.label}
@@ -705,8 +705,8 @@ export const AdminDashboard = ({
                 key={item.id}
                 onClick={() => setActiveTab(item.id)}
                 className={`w-full flex items-center justify-between px-3.5 py-3 rounded-2xl text-xs sm:text-sm font-semibold transition-all cursor-pointer ${isActive
-                    ? 'bg-blue-600 text-white shadow-sm font-bold'
-                    : 'text-slate-600 hover:bg-slate-100/70 hover:text-slate-900'
+                  ? 'bg-blue-600 text-white shadow-sm font-bold'
+                  : 'text-slate-600 hover:bg-slate-100/70 hover:text-slate-900'
                   }`}
               >
                 <div className="flex items-center gap-3 min-w-0">
@@ -800,11 +800,10 @@ export const AdminDashboard = ({
               <Download className="w-3.5 h-3.5" />
               <span>Scraper Eksternal</span>
             </button>
-            <div className={`px-3 py-1 rounded-full border text-xs font-semibold flex items-center gap-1.5 ${
-              seoHealth.isGscConnected
+            <div className={`px-3 py-1 rounded-full border text-xs font-semibold flex items-center gap-1.5 ${seoHealth.isGscConnected
                 ? 'bg-emerald-50 border-emerald-200 text-emerald-700'
                 : 'bg-slate-100 border-slate-200 text-slate-500'
-            }`}>
+              }`}>
               <Activity className={`w-3.5 h-3.5 ${seoHealth.isGscConnected ? 'text-emerald-600' : 'text-slate-400'}`} />
               <span>Core Web Vitals {seoHealth.isGscConnected ? '98/100' : '0/100'}</span>
             </div>

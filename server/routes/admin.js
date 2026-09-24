@@ -7,6 +7,7 @@ import { getPublicSettings, saveSettings } from '../services/configService.js';
 import { getAdminSlug, setAdminSlug } from '../middleware/dynamicSlugRouter.js';
 import { getUploadPresignedUrl } from '../config/storage.js';
 import { getSystemLicenseStatus } from '../services/licenseService.js';
+import { syncAndSaveBrandAssets } from '../services/logoGeneratorService.js';
 import { getLeads } from './api.js';
 import ordersRouter from './orders.js';
 
@@ -261,6 +262,72 @@ router.post('/settings', adminAuth, async (req, res) => {
       message: 'Pengaturan berhasil disimpan ke database',
       data: updated
     });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+/**
+ * POST /api/admin/brand/generate-logo
+ * Generates simple, beautiful, transparent logo & favicon dynamically
+ */
+router.post('/brand/generate-logo', async (req, res) => {
+  try {
+    const { appName, industry } = req.body || {};
+    const current = await getPublicSettings(false);
+    const targetAppName = appName || current.brandName || 'Royal Fleet';
+    const targetIndustry = industry || current.industry || 'automotive';
+
+    const result = await syncAndSaveBrandAssets({
+      appName: targetAppName,
+      industry: targetIndustry
+    });
+
+    const updated = await saveSettings({
+      logoUrl: result.logoUrl,
+      pwa_icon: result.pwaIcon
+    });
+
+    res.json({
+      success: true,
+      message: 'Logo dan favicon transparan berhasil digenerate otomatis!',
+      data: {
+        logoUrl: result.logoUrl,
+        pwaIcon: result.pwaIcon,
+        faviconUrl: result.faviconUrl,
+        initials: result.initials,
+        settings: updated
+      }
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+/**
+ * POST /api/admin/brand/save-raster-icons
+ * Writes client-rasterized transparent PNGs to public icons
+ */
+router.post('/brand/save-raster-icons', async (req, res) => {
+  try {
+    const { icon192Base64, icon512Base64 } = req.body || {};
+    const publicDir = path.join(process.cwd(), 'public');
+
+    if (icon192Base64) {
+      const data192 = icon192Base64.replace(/^data:image\/\w+;base64,/, '');
+      const buf192 = Buffer.from(data192, 'base64');
+      fs.writeFileSync(path.join(publicDir, 'icons', 'icon-192.png'), buf192);
+      fs.writeFileSync(path.join(publicDir, 'favicon.png'), buf192);
+      fs.writeFileSync(path.join(publicDir, 'images', 'logo.png'), buf192);
+    }
+
+    if (icon512Base64) {
+      const data512 = icon512Base64.replace(/^data:image\/\w+;base64,/, '');
+      const buf512 = Buffer.from(data512, 'base64');
+      fs.writeFileSync(path.join(publicDir, 'icons', 'icon-512.png'), buf512);
+    }
+
+    res.json({ success: true, message: 'Raster PNG icons updated successfully' });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }

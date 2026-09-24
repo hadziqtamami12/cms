@@ -7,6 +7,7 @@ import { activateLicense, getSystemLicenseStatus, verifyLicenseKey, setInitialIn
 import { getAdminSlug, setAdminSlug } from '../middleware/dynamicSlugRouter.js';
 import { setAdminCredentials } from './admin.js';
 import { switchThemeVariant } from '../services/themeService.js';
+import { syncAndSaveBrandAssets } from '../services/logoGeneratorService.js';
 
 const router = Router();
 
@@ -314,10 +315,23 @@ router.post('/initialize', async (req, res) => {
       realestate: 'luxury-residence'
     };
 
+    // Auto-generate simple & beautiful transparent brand logo & favicon based on app name and category
+    const logoResult = await syncAndSaveBrandAssets({
+      appName: cleanAppName,
+      industry: default_industry
+    }).catch(err => {
+      console.warn('[Setup] Auto logo generation notice:', err.message);
+      return { logoUrl: '/icons/icon-192.svg', pwaIcon: '/icons/icon-192.svg' };
+    });
+
     const initialSettings = {
       ...DEFAULT_APP_CONFIG,
       brandName: cleanAppName,
       tagline: cleanTagline,
+      logoUrl: logoResult?.logoUrl || '/icons/icon-192.svg',
+      pwa_icon: logoResult?.pwaIcon || '/icons/icon-192.svg',
+      pwa_name: `${cleanAppName} PWA`,
+      pwa_short_name: cleanAppName.slice(0, 12),
       industry: default_industry,
       themeId: starterThemes[default_industry] || 'fleet-grid',
       adminSlug: cleanSlug,

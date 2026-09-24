@@ -1,15 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import {
   Compass, Plus, Edit2, Trash2, Check, X, RefreshCw, Star, Clock,
-  Image as ImageIcon, MapPin, LayoutGrid, Table, CheckCircle2, AlertCircle
+  Image as ImageIcon, MapPin, LayoutGrid, Table, CheckCircle2, AlertCircle, Sparkles
 } from 'lucide-react';
 import DataTable from '../common/DataTable';
+import ImageUploadInput from '../common/ImageUploadInput';
 
 /**
  * Travel Trip Manager for Admin Dashboard
  * Manages tour packages and travel trips in the database with modern DataTable
  */
-export const TravelTripManager = ({ adminToken, showToast }) => {
+export const TravelTripManager = ({ adminToken, showToast, onOpenScraper }) => {
   const [trips, setTrips] = useState([]);
   const [loading, setLoading] = useState(true);
   const [viewMode, setViewMode] = useState('table'); // 'table' | 'grid'
@@ -293,9 +294,6 @@ export const TravelTripManager = ({ adminToken, showToast }) => {
               <h2 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
                 Manajemen Paket Wisata & Tour
               </h2>
-              <span className="px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-700 text-xs font-bold font-mono">
-                {trips.length} Paket
-              </span>
             </div>
             <p className="text-xs sm:text-sm text-slate-500">
               Kelola daftar paket tour wisata, rincian itinerary harian, dan tarif per pax / group.
@@ -330,6 +328,18 @@ export const TravelTripManager = ({ adminToken, showToast }) => {
                 <LayoutGrid className="w-4 h-4" />
               </button>
             </div>
+
+            {onOpenScraper && (
+              <button
+                type="button"
+                onClick={() => onOpenScraper('travel')}
+                className="px-4 py-2.5 rounded-xl border border-emerald-300 bg-emerald-50/80 hover:bg-emerald-100 text-emerald-800 text-xs sm:text-sm font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-xs"
+                title="Scrape paket tour & destinasi wisata dari website kompetitor"
+              >
+                <Sparkles className="w-4 h-4 text-emerald-600" />
+                <span>Scrape Paket Wisata</span>
+              </button>
+            )}
 
             <button
               type="button"
@@ -373,11 +383,6 @@ export const TravelTripManager = ({ adminToken, showToast }) => {
                     alt={trip.title}
                     className="w-full h-full object-cover"
                   />
-                  {trip.badge && (
-                    <span className="absolute top-3 left-3 px-2.5 py-1 rounded-md bg-emerald-600 text-white text-[11px] font-bold">
-                      {trip.badge}
-                    </span>
-                  )}
                   {trip.duration && (
                     <span className="absolute bottom-3 right-3 px-2 py-0.5 rounded bg-black/70 text-white text-[10px]">
                       {trip.duration}
@@ -500,16 +505,13 @@ export const TravelTripManager = ({ adminToken, showToast }) => {
                 />
               </div>
 
-              <div className="space-y-1">
-                <label className="block text-xs font-bold text-slate-700">URL Foto Objek Wisata</label>
-                <input
-                  type="url"
-                  value={formData.image}
-                  onChange={(e) => setFormData({ ...formData, image: e.target.value })}
-                  placeholder="https://images.unsplash.com/..."
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-600 font-mono text-[11px]"
-                />
-              </div>
+              <ImageUploadInput
+                label="Foto Objek Wisata / Paket Tour"
+                value={formData.image}
+                onChange={(val) => setFormData({ ...formData, image: val })}
+                placeholder="https://images.unsplash.com/... atau /uploads/..."
+                helperText="Upload foto destinasi wisata beresolusi tinggi atau tempel link URL"
+              />
 
               <div className="space-y-1">
                 <label className="block text-xs font-bold text-slate-700">Highlights (Pisahkan dengan koma)</label>

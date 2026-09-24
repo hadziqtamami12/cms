@@ -8,6 +8,7 @@ import ThemeRegistry from '../components/themes/ThemeRegistry.jsx';
 import TravelTripsSection from '../components/travel/TravelTripsSection';
 import SpecialMomentsSection from '../components/travel/SpecialMomentsSection';
 import FaqAccordion from '../components/common/FaqAccordion';
+import LandingArticlesSection from '../components/articles/LandingArticlesSection';
 import { ShieldCheck, Phone, Mail, MapPin, ExternalLink } from 'lucide-react';
 
 export const LandingPage = ({ config }) => {
@@ -59,6 +60,9 @@ export const LandingPage = ({ config }) => {
         ogImage={heroSlides[0]?.image}
         industry={industry}
         brandName={brandName}
+        logoUrl={config.logoUrl || '/images/logo.png'}
+        pwaIcon={config.pwa_icon || '/icons/icon-192.png'}
+        pwaShortName={config.pwa_short_name}
         phone={phone}
         gscVerification={seo.gscVerificationTag}
         gaMeasurementId={seo.gaMeasurementId}
@@ -73,6 +77,7 @@ export const LandingPage = ({ config }) => {
       <Navbar
         brandName={brandName}
         tagline={tagline}
+        logoUrl={config.logoUrl || '/images/logo.png'}
         phone={phone}
         whatsapp={whatsapp}
       />
@@ -123,6 +128,9 @@ export const LandingPage = ({ config }) => {
           </>
         )}
 
+        {/* Articles Preview Section (Right Before Maps) */}
+        <LandingArticlesSection brandName={brandName} />
+
         {/* Google Maps / Local Business Embed Section */}
         {(config.google_maps?.embed_url || seo.gmbEmbedMapUrl) && (
           <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 sm:py-16">
@@ -132,11 +140,6 @@ export const LandingPage = ({ config }) => {
                   <MapPin className="w-5 h-5 text-blue-600 shrink-0" />
                   <h3>Lokasi Kantor & Titik Penjemputan Utama</h3>
                 </div>
-                {config.google_maps?.coordinates && (
-                  <span className="text-xs font-mono text-slate-400">
-                    GPS: {config.google_maps.coordinates}
-                  </span>
-                )}
               </div>
               <div className="w-full h-80 sm:h-96 rounded-2xl overflow-hidden bg-slate-100">
                 <iframe
@@ -165,7 +168,7 @@ export const LandingPage = ({ config }) => {
               <span className="font-bold text-xl text-white tracking-tight">{brandName}</span>
             </div>
             <p className="text-sm text-slate-300 leading-relaxed max-w-md">
-              {tagline}. Didukung oleh arsitektur Cloud Edge berkecepatan tinggi dengan skor Core Web Vitals 98+ dan enkripsi enterprise.
+              {tagline}. Didukung oleh arsitektur Cloud Edge berkecepatan tinggi dengan skor Core Web Vitals {seo?.gscConnected ? '98/100' : '0/100 (Unlinked GSC)'} dan enkripsi enterprise.
             </p>
             <div className="pt-2">
               <a

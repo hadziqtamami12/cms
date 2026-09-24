@@ -84,9 +84,28 @@ export const EcommerceThemeRenderer = ({ themeId, config, onSelectItem }) => {
                     ))}
                     <span className="text-slate-500 ml-2 font-medium">(4.9/5)</span>
                   </div>
-                  <div className="text-xl sm:text-2xl font-black text-slate-900 pt-1">
-                    {prod.price}
-                  </div>
+                  {Array.isArray(prod.pricing_tiers) && prod.pricing_tiers.length > 1 ? (
+                    <div className="space-y-2 pt-1">
+                      <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Pilihan Tarif:</div>
+                      <div className="flex flex-wrap gap-1.5">
+                        {prod.pricing_tiers.map((t, idx) => (
+                          <span
+                            key={idx}
+                            className={`px-2.5 py-1 rounded-lg text-xs font-bold border ${
+                              t.is_default ? 'bg-blue-50 text-blue-700 border-blue-200' : 'bg-slate-50 text-slate-700 border-slate-200'
+                            }`}
+                          >
+                            {t.label}: <span className="font-mono">{t.price}</span>
+                            {t.unit && <span className="text-[10px] font-normal opacity-70"> {t.unit}</span>}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="text-xl sm:text-2xl font-black text-slate-900 pt-1">
+                      {prod.price}
+                    </div>
+                  )}
                 </div>
               </div>
 

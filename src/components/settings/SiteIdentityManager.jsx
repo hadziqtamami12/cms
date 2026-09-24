@@ -13,14 +13,24 @@ import {
   FileText,
   Search,
   ExternalLink,
-  ShieldCheck
+  ShieldCheck,
+  Smartphone,
+  Image as ImageIcon,
+  Layers,
+  UploadCloud,
+  Check
 } from 'lucide-react';
 import { updateAppSettings } from '../../lib/api';
+import ImageUploadInput from '../common/ImageUploadInput';
 
 /**
  * SiteIdentityManager
  * Panel pengelolaan Identitas Aplikasi & Situs Web:
  * - Nama Aplikasi / Brand (brandName)
+ * - Logo Website Utama (logoUrl)
+ * - PWA App Full Name (pwa_name)
+ * - PWA App Short Name (pwa_short_name)
+ * - PWA App Icon (pwa_icon)
  * - Judul Website / H1 (title & seo.title)
  * - Slogan / Tagline (tagline)
  * - Deskripsi Meta SEO (metaDescription)
@@ -37,6 +47,10 @@ export const SiteIdentityManager = ({
 }) => {
   const [formData, setFormData] = useState({
     brandName: config.brandName || 'Royal Fleet',
+    logoUrl: config.logoUrl || '/images/logo.png',
+    pwa_name: config.pwa_name || config.brandName || 'Royal Fleet Rental Mobil & Wisata',
+    pwa_short_name: config.pwa_short_name || config.brandName || 'RoyalFleet',
+    pwa_icon: config.pwa_icon || '/icons/icon-192.png',
     title: config.seo?.title || config.title || 'Sewa Mobil & Rental Armada Mewah Terpercaya | Royal Fleet 24 Jam',
     tagline: config.tagline || 'Sewa Mobil & Armada Premium Terpercaya No. 1',
     metaDescription: config.seo?.metaDescription || config.metaDescription || 'Layanan sewa mobil terpercaya lepas kunci dan include driver dengan armada terlengkap, bersih, dan wangi.',
@@ -60,6 +74,10 @@ export const SiteIdentityManager = ({
       setFormData(prev => ({
         ...prev,
         brandName: config.brandName || prev.brandName,
+        logoUrl: config.logoUrl || prev.logoUrl || '',
+        pwa_name: config.pwa_name || config.brandName || prev.pwa_name,
+        pwa_short_name: config.pwa_short_name || config.brandName || prev.pwa_short_name,
+        pwa_icon: config.pwa_icon || prev.pwa_icon || '/icons/icon-192.svg',
         title: config.seo?.title || config.title || prev.title,
         tagline: config.tagline || prev.tagline,
         metaDescription: config.seo?.metaDescription || config.metaDescription || prev.metaDescription,
@@ -81,6 +99,33 @@ export const SiteIdentityManager = ({
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
+  const handleSelectPresetIcon = (url) => {
+    setFormData(prev => ({ ...prev, pwa_icon: url }));
+  };
+
+  const PWA_ICON_PRESETS = [
+    {
+      id: 'default',
+      name: 'Royal VIP Crown (Baru)',
+      url: '/icons/icon-192.png'
+    },
+    {
+      id: 'automotive',
+      name: 'Rental Mobil Badge',
+      url: 'https://images.unsplash.com/photo-1549399542-7e3f8b79c341?auto=format&fit=crop&w=192&h=192&q=80'
+    },
+    {
+      id: 'luxury',
+      name: 'Luxury Gold Fleet',
+      url: '/icons/pwa-icon.jpg'
+    },
+    {
+      id: 'travel',
+      name: 'Travel & Tour Bag',
+      url: 'https://images.unsplash.com/photo-1488646953014-85cb44e25828?auto=format&fit=crop&w=192&h=192&q=80'
+    }
+  ];
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setSaving(true);
@@ -90,9 +135,17 @@ export const SiteIdentityManager = ({
     const cleanTitle = formData.title.trim();
     const cleanTagline = formData.tagline.trim();
     const cleanMetaDesc = formData.metaDescription.trim();
+    const cleanLogoUrl = formData.logoUrl.trim();
+    const cleanPwaName = formData.pwa_name.trim() || cleanBrandName;
+    const cleanPwaShortName = formData.pwa_short_name.trim() || cleanBrandName.slice(0, 12);
+    const cleanPwaIcon = formData.pwa_icon.trim() || '/icons/icon-192.svg';
 
     const payload = {
       brandName: cleanBrandName,
+      logoUrl: cleanLogoUrl,
+      pwa_name: cleanPwaName,
+      pwa_short_name: cleanPwaShortName,
+      pwa_icon: cleanPwaIcon,
       title: cleanTitle,
       tagline: cleanTagline,
       metaDescription: cleanMetaDesc,
@@ -136,7 +189,7 @@ export const SiteIdentityManager = ({
       if (res && res.success) {
         setSavedSuccess(true);
         if (showToast) {
-          showToast('Identitas situs & nama aplikasi berhasil diperbarui!');
+          showToast('Identitas situs, logo, dan ikon PWA berhasil diperbarui!');
         }
         setTimeout(() => setSavedSuccess(false), 3000);
       } else {
@@ -160,13 +213,13 @@ export const SiteIdentityManager = ({
       <div className="bg-gradient-to-r from-blue-700 via-indigo-700 to-blue-800 rounded-3xl p-6 sm:p-8 text-white shadow-xl flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div className="space-y-2 max-w-xl">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/20 backdrop-blur-md text-blue-100 text-xs font-bold uppercase tracking-wider">
-            <Globe className="w-3.5 h-3.5" /> Identitas & Branding Aplikasi
+            <Globe className="w-3.5 h-3.5" /> Identitas & Branding PWA
           </div>
           <h2 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
-            Pengaturan Nama Aplikasi & Judul Situs
+            Pengaturan Nama Aplikasi, Logo & Ikon PWA
           </h2>
           <p className="text-blue-100 text-xs sm:text-sm leading-relaxed">
-            Ubah nama aplikasi, judul website (SEO title), slogan, deskripsi, nomor kontak resmi, dan email yang tampil di landing page publik secara instan.
+            Ubah nama brand, logo situs, ikon aplikasi mobile PWA (Progressive Web App), nama shortcut di HP, judul SEO, dan nomor kontak resmi secara instan.
           </p>
         </div>
         <div className="flex items-center gap-3 shrink-0">
@@ -186,6 +239,8 @@ export const SiteIdentityManager = ({
         {/* Left Column: Form Pengaturan (7 Cols) */}
         <div className="lg:col-span-7 space-y-6">
           <form onSubmit={handleSubmit} className="bg-white rounded-3xl border border-slate-200 p-6 sm:p-7 shadow-xs space-y-6">
+            
+            {/* Section 1: Nama Brand & Judul Website */}
             <div className="border-b border-slate-100 pb-4">
               <h3 className="text-base font-extrabold text-slate-900 flex items-center gap-2">
                 <Type className="w-4 h-4 text-blue-600" />
@@ -281,12 +336,132 @@ export const SiteIdentityManager = ({
               </div>
             </div>
 
-            {/* Section 2: Kontak Utama Bisnis */}
+            {/* Section 2: Logo Website & Ikon PWA (Progressive Web App) */}
+            <div className="border-t border-slate-100 pt-5 space-y-4">
+              <div className="border-b border-slate-100 pb-3">
+                <h3 className="text-base font-extrabold text-slate-900 flex items-center gap-2">
+                  <Smartphone className="w-4 h-4 text-purple-600" />
+                  <span>2. Logo Website & Ikon PWA (Mobile App)</span>
+                </h3>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Sesuaikan logo situs dan ikon aplikasi yang muncul saat pengunjung menginstal web ini ke layar smartphone (PWA).
+                </p>
+              </div>
+
+              {/* Logo URL */}
+              <ImageUploadInput
+                label="Logo Website Utama (Navbar & Footer)"
+                value={formData.logoUrl}
+                onChange={(val) => setFormData(prev => ({ ...prev, logoUrl: val }))}
+                placeholder="/images/logo.png atau https://domain.com/logo.png"
+                helperText="Format PNG transparan atau SVG disarankan. Jika kosong, sistem memakai teks brand & ikon standar."
+              />
+
+              {/* PWA App Full Name */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
+                    Nama Lengkap Aplikasi PWA *
+                  </label>
+                  <input
+                    type="text"
+                    name="pwa_name"
+                    required
+                    value={formData.pwa_name}
+                    onChange={handleChange}
+                    placeholder="Contoh: Royal Fleet Rental Mobil"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs sm:text-sm font-semibold text-slate-900 focus:ring-2 focus:ring-blue-600 focus:outline-hidden"
+                  />
+                  <span className="text-[11px] text-slate-400 mt-1 block">
+                    Muncul di prompt dialog instalasi browser ("Tambahkan ke Layar Utama").
+                  </span>
+                </div>
+
+                {/* PWA Short Name */}
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block text-xs font-bold uppercase tracking-wider text-slate-700">
+                      Nama Ikon di Layar HP (Short Name) *
+                    </label>
+                    <span className={`text-[10px] font-mono ${formData.pwa_short_name.length > 12 ? 'text-amber-600 font-bold' : 'text-slate-400'}`}>
+                      {formData.pwa_short_name.length} / 12 Karakter
+                    </span>
+                  </div>
+                  <input
+                    type="text"
+                    name="pwa_short_name"
+                    required
+                    maxLength={20}
+                    value={formData.pwa_short_name}
+                    onChange={handleChange}
+                    placeholder="Contoh: RoyalFleet"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs sm:text-sm font-bold text-slate-900 focus:ring-2 focus:ring-blue-600 focus:outline-hidden"
+                  />
+                  <span className="text-[11px] text-slate-400 mt-1 block">
+                    Nama singkat di bawah ikon desktop/homescreen HP (disarankan maks. 12 huruf agar tidak terpotong).
+                  </span>
+                </div>
+              </div>
+
+              {/* PWA Icon URL & Preset Picker */}
+              <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200 space-y-3">
+                <ImageUploadInput
+                  label="Ikon Aplikasi PWA (192x192 / 512x512)"
+                  value={formData.pwa_icon}
+                  onChange={(val) => setFormData(prev => ({ ...prev, pwa_icon: val }))}
+                  placeholder="/icons/icon-192.svg atau https://..."
+                  helperText="Upload gambar ikon aplikasi resolusi tinggi atau pilih preset di bawah"
+                />
+
+                {/* Preset Options */}
+                <div>
+                  <span className="text-[11px] font-bold text-slate-500 block mb-2">
+                    Atau pilih template ikon cepat beresolusi tinggi:
+                  </span>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                    {PWA_ICON_PRESETS.map((preset) => {
+                      const isSelected = formData.pwa_icon === preset.url;
+                      return (
+                        <button
+                          key={preset.id}
+                          type="button"
+                          onClick={() => handleSelectPresetIcon(preset.url)}
+                          className={`p-2 rounded-xl border text-left flex items-center gap-2.5 transition-all cursor-pointer ${
+                            isSelected
+                              ? 'bg-blue-50 border-blue-600 ring-2 ring-blue-600/20'
+                              : 'bg-white border-slate-200 hover:border-slate-300 hover:bg-slate-50'
+                          }`}
+                        >
+                          <img
+                            src={preset.url}
+                            alt={preset.name}
+                            className="w-7 h-7 rounded-lg object-cover shrink-0 border border-slate-100"
+                            onError={(e) => { e.currentTarget.src = '/icons/icon-192.svg'; }}
+                          />
+                          <div className="truncate flex-1 min-w-0">
+                            <span className="block text-[11px] font-bold text-slate-800 truncate leading-tight">
+                              {preset.name}
+                            </span>
+                            {isSelected && (
+                              <span className="inline-flex items-center gap-0.5 text-[9px] text-blue-600 font-extrabold">
+                                <Check className="w-2.5 h-2.5 stroke-[3]" /> Aktif
+                              </span>
+                            )}
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Section 3: Kontak Utama Bisnis */}
             <div className="border-t border-slate-100 pt-5 space-y-4">
               <div className="border-b border-slate-100 pb-3">
                 <h3 className="text-base font-extrabold text-slate-900 flex items-center gap-2">
                   <Phone className="w-4 h-4 text-emerald-600" />
-                  <span>2. Kontak Utama & Lokasi Operasional</span>
+                  <span>3. Kontak Utama & Lokasi Operasional</span>
                 </h3>
                 <p className="text-xs text-slate-500 mt-0.5">
                   Informasi kontak yang terpasang pada tombol telepon navbar, WhatsApp, dan footer.
@@ -372,12 +547,12 @@ export const SiteIdentityManager = ({
               </div>
             </div>
 
-            {/* Section 3: Pengaturan Splash Screen Awal */}
+            {/* Section 4: Pengaturan Splash Screen Awal */}
             <div className="border-t border-slate-100 pt-5 space-y-4">
               <div className="border-b border-slate-100 pb-3">
                 <h3 className="text-base font-extrabold text-slate-900 flex items-center gap-2">
                   <Sparkles className="w-4 h-4 text-amber-500" />
-                  <span>3. Splash Screen Dinamis (Rendering Awal)</span>
+                  <span>4. Splash Screen Dinamis (Rendering Awal)</span>
                 </h3>
                 <p className="text-xs text-slate-500 mt-0.5">
                   Layar pembuka elegan sebelum landing page ditampilkan kepada pengunjung.
@@ -435,12 +610,12 @@ export const SiteIdentityManager = ({
               </div>
             </div>
 
-            {/* Section 4: Integrasi Google Maps Dinamis */}
+            {/* Section 5: Integrasi Google Maps Dinamis */}
             <div className="border-t border-slate-100 pt-5 space-y-4">
               <div className="border-b border-slate-100 pb-3">
                 <h3 className="text-base font-extrabold text-slate-900 flex items-center gap-2">
                   <MapPin className="w-4 h-4 text-rose-600" />
-                  <span>4. Integrasi Google Maps & Lokasi Kantor</span>
+                  <span>5. Integrasi Google Maps & Lokasi Kantor</span>
                 </h3>
                 <p className="text-xs text-slate-500 mt-0.5">
                   Tampilkan peta interaktif Google Maps pada bagian bawah landing page agar kredibilitas bisnis meningkat.
@@ -541,7 +716,91 @@ export const SiteIdentityManager = ({
 
         {/* Right Column: Live Previews (5 Cols) */}
         <div className="lg:col-span-5 space-y-6">
-          {/* Preview 1: Google Search Result (SERP Snippet) */}
+
+          {/* Preview 1: PWA Mobile Homescreen Mockup */}
+          <div className="bg-white rounded-3xl border border-slate-200 p-6 shadow-xs space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <div className="flex items-center gap-2">
+                <Smartphone className="w-4 h-4 text-purple-600" />
+                <h3 className="font-bold text-sm text-slate-900">Pratinjau PWA Layar HP</h3>
+              </div>
+              <span className="text-[10px] font-extrabold text-purple-700 bg-purple-50 px-2 py-0.5 rounded-full border border-purple-200/60">
+                Home Screen
+              </span>
+            </div>
+
+            {/* Mobile Screen Shell */}
+            <div className="bg-gradient-to-b from-slate-900 via-indigo-950 to-slate-900 p-5 rounded-3xl text-white shadow-xl border border-slate-800 relative overflow-hidden">
+              {/* Status Bar */}
+              <div className="flex items-center justify-between text-[11px] text-slate-400 font-mono mb-6">
+                <span>09:41</span>
+                <div className="w-16 h-3 bg-black/60 rounded-full mx-auto" />
+                <span>5G 100%</span>
+              </div>
+
+              {/* Simulated App Grid */}
+              <div className="grid grid-cols-4 gap-3 text-center my-4">
+                {/* Simulated Dummy Apps */}
+                <div className="flex flex-col items-center gap-1.5 opacity-40">
+                  <div className="w-12 h-12 rounded-2xl bg-emerald-600 flex items-center justify-center text-white text-xs font-bold shadow-md">
+                    <MessageCircle className="w-6 h-6" />
+                  </div>
+                  <span className="text-[10px] text-slate-300 font-medium truncate w-full">WhatsApp</span>
+                </div>
+
+                <div className="flex flex-col items-center gap-1.5 opacity-40">
+                  <div className="w-12 h-12 rounded-2xl bg-rose-600 flex items-center justify-center text-white text-xs font-bold shadow-md">
+                    <MapPin className="w-6 h-6" />
+                  </div>
+                  <span className="text-[10px] text-slate-300 font-medium truncate w-full">Maps</span>
+                </div>
+
+                <div className="flex flex-col items-center gap-1.5 opacity-40">
+                  <div className="w-12 h-12 rounded-2xl bg-amber-600 flex items-center justify-center text-white text-xs font-bold shadow-md">
+                    <Phone className="w-6 h-6" />
+                  </div>
+                  <span className="text-[10px] text-slate-300 font-medium truncate w-full">Kontak</span>
+                </div>
+
+                {/* THE ACTIVE PWA APP ICON (HIGHLIGHTED) */}
+                <div className="flex flex-col items-center gap-1.5 relative group">
+                  <div className="w-12 h-12 rounded-2xl bg-white p-0.5 shadow-lg shadow-blue-500/30 ring-2 ring-blue-400 group-hover:scale-105 transition-transform overflow-hidden flex items-center justify-center">
+                    <img
+                      src={formData.pwa_icon}
+                      alt="PWA Icon Preview"
+                      className="w-full h-full object-cover rounded-xl"
+                      onError={(e) => { e.currentTarget.src = '/icons/icon-192.svg'; }}
+                    />
+                  </div>
+                  <span className="text-[11px] font-bold text-white tracking-tight truncate w-14">
+                    {formData.pwa_short_name || formData.brandName}
+                  </span>
+                </div>
+              </div>
+
+              {/* Install Prompt Banner Mockup */}
+              <div className="mt-5 p-3 rounded-2xl bg-white/10 backdrop-blur-md border border-white/15 text-left flex items-center gap-3">
+                <div className="w-9 h-9 rounded-xl bg-white/20 p-1 flex items-center justify-center shrink-0">
+                  <img
+                    src={formData.pwa_icon}
+                    alt="Prompt Icon"
+                    className="w-full h-full object-contain rounded-lg"
+                    onError={(e) => { e.currentTarget.src = '/icons/icon-192.svg'; }}
+                  />
+                </div>
+                <div className="truncate flex-1">
+                  <span className="text-[11px] font-bold text-white block truncate leading-tight">
+                    {formData.pwa_name || formData.brandName}
+                  </span>
+                  <span className="text-[9px] text-blue-200 block truncate">
+                    Tersedia mode offline & navigasi secepat aplikasi native
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Preview 2: Google Search Result (SERP Snippet) */}
           <div className="bg-white rounded-3xl border border-slate-200 p-6 shadow-xs space-y-4">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <div className="flex items-center gap-2">
@@ -555,8 +814,12 @@ export const SiteIdentityManager = ({
 
             <div className="bg-slate-50/70 p-4 rounded-2xl border border-slate-200/80 space-y-1.5 font-sans">
               <div className="flex items-center gap-2 text-[11px] text-slate-600 truncate">
-                <div className="w-4 h-4 rounded-full bg-blue-600 flex items-center justify-center text-[9px] text-white font-bold">
-                  {formData.brandName.charAt(0) || 'M'}
+                <div className="w-4 h-4 rounded-full bg-blue-600 flex items-center justify-center text-[9px] text-white font-bold overflow-hidden">
+                  {formData.logoUrl ? (
+                    <img src={formData.logoUrl} alt="Favicon" className="w-full h-full object-contain" />
+                  ) : (
+                    formData.brandName.charAt(0) || 'M'
+                  )}
                 </div>
                 <span className="font-semibold text-slate-800">{formData.brandName}</span>
                 <span className="text-slate-400">https://your-domain.com</span>
@@ -570,7 +833,7 @@ export const SiteIdentityManager = ({
             </div>
           </div>
 
-          {/* Preview 2: Live Header Navbar Mockup */}
+          {/* Preview 3: Live Header Navbar Mockup */}
           <div className="bg-white rounded-3xl border border-slate-200 p-6 shadow-xs space-y-4">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <div className="flex items-center gap-2">
@@ -584,9 +847,15 @@ export const SiteIdentityManager = ({
 
             <div className="bg-slate-900 p-4 rounded-2xl border border-slate-800 flex items-center justify-between text-white shadow-inner">
               <div className="flex items-center gap-2.5 min-w-0">
-                <div className="w-8 h-8 rounded-xl bg-blue-600 flex items-center justify-center text-white font-black text-xs shrink-0">
-                  <ShieldCheck className="w-4 h-4" />
-                </div>
+                {formData.logoUrl ? (
+                  <div className="h-9 w-auto max-w-[100px] flex items-center justify-center shrink-0">
+                    <img src={formData.logoUrl} alt="Logo Brand" className="max-h-full max-w-full object-contain" />
+                  </div>
+                ) : (
+                  <div className="w-8 h-8 rounded-xl bg-blue-600 flex items-center justify-center text-white font-black text-xs shrink-0">
+                    <ShieldCheck className="w-4 h-4" />
+                  </div>
+                )}
                 <div className="truncate">
                   <span className="font-black text-sm text-white block truncate leading-tight">
                     {formData.brandName}
@@ -604,7 +873,7 @@ export const SiteIdentityManager = ({
             </div>
           </div>
 
-          {/* Preview 3: Footer Contact Info */}
+          {/* Preview 4: Footer Contact Info */}
           <div className="bg-white rounded-3xl border border-slate-200 p-6 shadow-xs space-y-4">
             <div className="border-b border-slate-100 pb-3">
               <h3 className="font-bold text-sm text-slate-900">Informasi Footer Publik</h3>

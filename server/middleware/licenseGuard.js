@@ -24,6 +24,7 @@ export const licenseGuard = async (req, res, next) => {
     fullPath.startsWith('/api/keygen') || path.startsWith('/keygen') ||
     fullPath.startsWith('/api/health') || path.startsWith('/health') ||
     fullPath.startsWith('/api/media') || path.startsWith('/media') ||
+    fullPath.startsWith('/api/upload') || path.startsWith('/upload') ||
     fullPath.startsWith('/icons') || path.startsWith('/icons') ||
     fullPath.startsWith('/assets') || path.startsWith('/assets') ||
     fullPath === '/sw.js' || path === '/sw.js' ||

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   Palette, TrendingUp, Settings, Users, LogOut, CheckCircle2,
   RefreshCw, Globe, Shield, Smartphone, Layers, Save, AlertCircle,
@@ -43,7 +43,7 @@ export const AdminDashboard = ({
       if (savedTab && validTabs.includes(savedTab)) {
         return savedTab;
       }
-    } catch {}
+    } catch { }
     return 'dashboard';
   });
 
@@ -51,7 +51,7 @@ export const AdminDashboard = ({
     setActiveTabState(tabId);
     try {
       localStorage.setItem('cms_admin_active_tab', tabId);
-    } catch {}
+    } catch { }
   };
 
   // Enforce clean browser address bar: strictly /${adminSlug || 'admin'} without sub-paths or query params
@@ -66,12 +66,17 @@ export const AdminDashboard = ({
   }, [adminSlug, activeTab]);
 
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
-  
+
   // Desktop Sidebar Mode: 'expanded' (w-64) or 'rail' (w-20 mini icon rail)
   const [desktopSidebarMode, setDesktopSidebarMode] = useState('expanded');
   const [loading, setLoading] = useState(false);
-  const [toastMessage, setToastMessage] = useState('');
   const [isScraperOpen, setIsScraperOpen] = useState(false);
+  const [scraperTarget, setScraperTarget] = useState('products');
+
+  const handleOpenScraper = (targetType = 'products') => {
+    setScraperTarget(targetType);
+    setIsScraperOpen(true);
+  };
 
   // Local state for theme switching
   const [currentIndustry, setCurrentIndustry] = useState(config?.industry || 'automotive');
@@ -94,6 +99,85 @@ export const AdminDashboard = ({
   const [showConfirmPass, setShowConfirmPass] = useState(false);
   const [securityLoading, setSecurityLoading] = useState(false);
   const [securitySaved, setSecuritySaved] = useState(false);
+  const [toastMessage, setToastMessage] = useState('');
+
+  // Synchronized Dynamic On-Page SEO & Performance Score (Matches InteractiveSeoDashboard 1:1)
+  const seoHealth = useMemo(() => {
+    let score = 0;
+    const title = (config?.seo?.title || config?.title || '').trim().toLowerCase();
+    const desc = (config?.seo?.metaDescription || config?.metaDescription || '').trim().toLowerCase();
+    const rawKeywords = config?.seo?.targetKeywords || [];
+    const targetKeywords = Array.isArray(rawKeywords)
+      ? rawKeywords.map(k => String(k).trim().toLowerCase()).filter(Boolean)
+      : String(rawKeywords).split(',').map(k => k.trim().toLowerCase()).filter(Boolean);
+    const canonical = (config?.seo?.canonicalUrl || '').trim();
+    const isGscConnected = Boolean(config?.seo?.gscConnected);
+    const isGaConnected = Boolean(config?.seo?.gaMeasurementId);
+
+    // 1. Title Audit (25 pts)
+    const titleLengthOk = title.length >= 30 && title.length <= 60;
+    const titleKeywordMatches = targetKeywords.filter(kw => title.includes(kw));
+    let titleScore = 0;
+    if (title.length > 0) {
+      titleScore += titleLengthOk ? 15 : 8;
+      if (titleKeywordMatches.length > 0) titleScore += 10;
+    }
+    score += titleScore;
+
+    // 2. Meta Description Audit (25 pts)
+    const descLengthOk = desc.length >= 100 && desc.length <= 160;
+    const descKeywordMatches = targetKeywords.filter(kw => desc.includes(kw));
+    let descScore = 0;
+    if (desc.length > 0) {
+      descScore += descLengthOk ? 15 : 8;
+      if (descKeywordMatches.length > 0) descScore += 10;
+    }
+    score += descScore;
+
+    // 3. Keywords Density (20 pts)
+    let kwScore = 0;
+    if (targetKeywords.length >= 3) kwScore = 20;
+    else if (targetKeywords.length > 0) kwScore = targetKeywords.length * 6;
+    score += kwScore;
+
+    // 4. Connectivity & Canonical (30 pts)
+    let connScore = 0;
+    if (canonical && (canonical.startsWith('http://') || canonical.startsWith('https://'))) connScore += 10;
+    if (isGscConnected) connScore += 10;
+    if (isGaConnected) connScore += 10;
+    score += connScore;
+
+    const finalScore = Math.min(100, Math.max(0, score));
+
+    let grade = 'C';
+    let statusText = 'Perlu Optimasi';
+    let colorHex = '#f59e0b';
+    if (finalScore >= 85) {
+      grade = 'A+';
+      statusText = 'Sangat Optimal (Page #1 Ready)';
+      colorHex = '#10b981';
+    } else if (finalScore >= 70) {
+      grade = 'A';
+      statusText = 'Bagus & Sehat';
+      colorHex = '#2563eb';
+    } else if (finalScore >= 50) {
+      grade = 'B';
+      statusText = 'Cukup Baik';
+      colorHex = '#f59e0b';
+    } else {
+      grade = 'D';
+      statusText = 'Perlu Perbaikan';
+      colorHex = '#ef4444';
+    }
+
+    return {
+      score: finalScore,
+      grade,
+      statusText,
+      colorHex,
+      isGscConnected
+    };
+  }, [config]);
 
   const showToast = (msg) => {
     setToastMessage(msg);
@@ -176,7 +260,7 @@ export const AdminDashboard = ({
         showToast(`Gaya navigasi mobile diubah ke: ${style}`);
         if (onConfigUpdated) onConfigUpdated(res.themeConfig);
       }
-    } catch {}
+    } catch { }
   };
 
   // Save SEO & Marketing Configuration from InteractiveSeoDashboard
@@ -376,17 +460,17 @@ export const AdminDashboard = ({
   ];
 
   const navMenuItems = [
-    { id: 'dashboard', label: 'Dashboard Ringkasan', icon: LayoutDashboard, badge: 'Utama' },
-    { id: 'branding', label: 'Identitas & Judul Situs', icon: Globe, badge: 'Situs' },
-    { id: 'themes', label: 'Tema & Tampilan', icon: Palette, badge: '50' },
-    { id: 'slideshow', label: 'Slideshow & Banner', icon: Sliders, badge: (config?.heroSlides || []).length || 'Slide' },
-    { id: 'products', label: currentIndustry === 'automotive' ? 'Katalog Armada & Mobil' : 'Katalog Produk & Unit', icon: Package, badge: (config?.items || []).length || 'Unit' },
-    ...(currentIndustry === 'automotive' ? [{ id: 'travel', label: 'Paket Wisata & Tour', icon: Compass, badge: 'Rental' }] : []),
-    { id: 'articles', label: 'Artikel & SEO Daerah', icon: FileText, badge: 'SEO' },
-    { id: 'faqs', label: 'Pertanyaan Umum (FAQ)', icon: HelpCircle, badge: currentIndustry === 'automotive' ? 'Rental' : 'FAQ' },
-    { id: 'whatsapp', label: 'Pengaturan WhatsApp', icon: MessageCircle, badge: 'Kontak' },
-    { id: 'seo', label: 'SEO & Optimasi', icon: TrendingUp, badge: 'Optimasi' },
-    { id: 'leads', label: 'Manajemen Pesanan', icon: Users, badge: 'Pesanan' },
+    { id: 'dashboard', label: 'Dashboard Ringkasan', icon: LayoutDashboard },
+    { id: 'branding', label: 'Identitas & Judul Situs', icon: Globe },
+    { id: 'themes', label: 'Tema & Tampilan', icon: Palette },
+    { id: 'slideshow', label: 'Slideshow & Banner', icon: Sliders },
+    { id: 'products', label: currentIndustry === 'automotive' ? 'Katalog Armada & Mobil' : 'Katalog Produk & Unit', icon: Package },
+    ...(currentIndustry === 'automotive' ? [{ id: 'travel', label: 'Paket Wisata & Tour', icon: Compass }] : []),
+    { id: 'articles', label: 'Artikel & SEO Daerah', icon: FileText },
+    { id: 'faqs', label: 'Pertanyaan Umum (FAQ)', icon: HelpCircle },
+    { id: 'whatsapp', label: 'Pengaturan WhatsApp', icon: MessageCircle },
+    { id: 'seo', label: 'SEO & Optimasi', icon: TrendingUp },
+    // { id: 'leads', label: 'Manajemen Pesanan', icon: Users, badge: 'Baru' }, // Hanya untuk pesanan baru saat unhide
     { id: 'settings', label: 'Keamanan & Portal', icon: Settings },
   ];
 
@@ -463,9 +547,8 @@ export const AdminDashboard = ({
       )}
 
       <aside
-        className={`fixed inset-y-0 left-0 z-50 w-72 max-w-[85vw] bg-white border-r border-slate-200 flex flex-col justify-between transform transition-transform duration-300 ease-out shadow-2xl overflow-x-hidden lg:hidden ${
-          mobileSidebarOpen ? 'translate-x-0' : '-translate-x-full'
-        }`}
+        className={`fixed inset-y-0 left-0 z-50 w-72 max-w-[85vw] bg-white border-r border-slate-200 flex flex-col justify-between transform transition-transform duration-300 ease-out shadow-2xl overflow-x-hidden lg:hidden ${mobileSidebarOpen ? 'translate-x-0' : '-translate-x-full'
+          }`}
       >
         {/* Mobile Drawer Header */}
         <div className="p-4 border-b border-slate-100 flex items-center justify-between overflow-x-hidden">
@@ -502,20 +585,17 @@ export const AdminDashboard = ({
                   setActiveTab(item.id);
                   setMobileSidebarOpen(false);
                 }}
-                className={`w-full flex items-center justify-between px-3.5 py-3 rounded-2xl text-xs sm:text-sm font-semibold transition-all ${
-                  isActive
+                className={`w-full flex items-center justify-between px-3.5 py-3 rounded-2xl text-xs sm:text-sm font-semibold transition-all ${isActive
                     ? 'bg-blue-600 text-white shadow-sm font-bold'
                     : 'text-slate-600 hover:bg-slate-100/70 hover:text-slate-900'
-                }`}
+                  }`}
               >
                 <div className="flex items-center gap-3 min-w-0">
                   <Icon className={`w-5 h-5 shrink-0 ${isActive ? 'text-white' : 'text-slate-500'}`} />
                   <span className="truncate">{item.label}</span>
                 </div>
-                {item.badge && (
-                  <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold shrink-0 ${
-                    isActive ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-600'
-                  }`}>
+                {item.badge && item.id === 'leads' && (
+                  <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold shrink-0 ${isActive ? 'bg-white/20 text-white' : 'bg-red-500 text-white'}`}>
                     {item.badge}
                   </span>
                 )}
@@ -552,9 +632,8 @@ export const AdminDashboard = ({
        * STRICT ZERO HORIZONTAL OVERFLOW: overflow-x-hidden
        * ======================================================== */}
       <aside
-        className={`hidden lg:flex fixed top-0 bottom-0 left-0 z-40 bg-white border-r border-slate-200 flex-col justify-between transition-all duration-300 ease-in-out overflow-x-hidden min-w-0 ${
-          desktopSidebarMode === 'rail' ? 'w-20 max-w-[5rem]' : 'w-64 max-w-64'
-        }`}
+        className={`hidden lg:flex fixed top-0 bottom-0 left-0 z-40 bg-white border-r border-slate-200 flex-col justify-between transition-all duration-300 ease-in-out overflow-x-hidden min-w-0 ${desktopSidebarMode === 'rail' ? 'w-20 max-w-[5rem]' : 'w-64 max-w-64'
+          }`}
       >
         {/* Desktop Brand Header with Single Minimize/Maximize Toggle */}
         <div className="p-4 border-b border-slate-100 flex items-center justify-between overflow-x-hidden w-full">
@@ -608,12 +687,11 @@ export const AdminDashboard = ({
                 <div key={item.id} className="w-full flex justify-center overflow-x-hidden">
                   <button
                     onClick={() => setActiveTab(item.id)}
-                    className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-all shrink-0 cursor-pointer ${
-                      isActive
+                    className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-all shrink-0 cursor-pointer ${isActive
                         ? 'bg-blue-600 text-white shadow-md shadow-blue-600/30'
                         : 'text-slate-500 hover:bg-slate-100 hover:text-slate-900'
-                    }`}
-                    title={`${item.label}${item.badge ? ` (${item.badge})` : ''}`}
+                      }`}
+                    title={item.label}
                     aria-label={item.label}
                   >
                     <Icon className="w-5 h-5 shrink-0" />
@@ -626,20 +704,17 @@ export const AdminDashboard = ({
               <button
                 key={item.id}
                 onClick={() => setActiveTab(item.id)}
-                className={`w-full flex items-center justify-between px-3.5 py-3 rounded-2xl text-xs sm:text-sm font-semibold transition-all cursor-pointer ${
-                  isActive
+                className={`w-full flex items-center justify-between px-3.5 py-3 rounded-2xl text-xs sm:text-sm font-semibold transition-all cursor-pointer ${isActive
                     ? 'bg-blue-600 text-white shadow-sm font-bold'
                     : 'text-slate-600 hover:bg-slate-100/70 hover:text-slate-900'
-                }`}
+                  }`}
               >
                 <div className="flex items-center gap-3 min-w-0">
                   <Icon className={`w-5 h-5 shrink-0 ${isActive ? 'text-white' : 'text-slate-500'}`} />
                   <span className="truncate">{item.label}</span>
                 </div>
-                {item.badge && (
-                  <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold shrink-0 ${
-                    isActive ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-600'
-                  }`}>
+                {item.badge && item.id === 'leads' && (
+                  <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold shrink-0 ${isActive ? 'bg-white/20 text-white' : 'bg-red-500 text-white'}`}>
                     {item.badge}
                   </span>
                 )}
@@ -687,9 +762,8 @@ export const AdminDashboard = ({
        * MAIN CONTENT AREA (Smoothly offsets based on desktopSidebarMode)
        * ======================================================== */}
       <main
-        className={`flex-1 flex flex-col min-w-0 w-full max-w-full overflow-x-hidden transition-all duration-300 ease-in-out ${
-          desktopSidebarMode === 'rail' ? 'lg:pl-20' : 'lg:pl-64'
-        }`}
+        className={`flex-1 flex flex-col min-w-0 w-full max-w-full overflow-x-hidden transition-all duration-300 ease-in-out ${desktopSidebarMode === 'rail' ? 'lg:pl-20' : 'lg:pl-64'
+          }`}
       >
         {/* Desktop Sticky Header (Clean Top Bar without Toggle Button) */}
         <header className="hidden lg:flex bg-white border-b border-slate-200 sticky top-0 z-30 px-6 sm:px-8 py-3.5 items-center justify-between shadow-xs w-full max-w-full">
@@ -726,9 +800,13 @@ export const AdminDashboard = ({
               <Download className="w-3.5 h-3.5" />
               <span>Scraper Eksternal</span>
             </button>
-            <div className="px-3 py-1 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-semibold flex items-center gap-1.5">
-              <Activity className="w-3.5 h-3.5 text-emerald-600" />
-              <span>Core Web Vitals 98+</span>
+            <div className={`px-3 py-1 rounded-full border text-xs font-semibold flex items-center gap-1.5 ${
+              seoHealth.isGscConnected
+                ? 'bg-emerald-50 border-emerald-200 text-emerald-700'
+                : 'bg-slate-100 border-slate-200 text-slate-500'
+            }`}>
+              <Activity className={`w-3.5 h-3.5 ${seoHealth.isGscConnected ? 'text-emerald-600' : 'text-slate-400'}`} />
+              <span>Core Web Vitals {seoHealth.isGscConnected ? '98/100' : '0/100'}</span>
             </div>
             <a
               href="/"
@@ -759,7 +837,7 @@ export const AdminDashboard = ({
                     Ringkasan Sistem & Performa
                   </h2>
                   <p className="text-blue-100 text-xs sm:text-sm leading-relaxed">
-                    Pantau tema aktif, status lisensi, audit PageSpeed Google Search Console, dan status database PostgreSQL Supabase secara realtime.
+                    Pantau tema aktif, status lisensi, skor Health Meter SEO, dan status database PostgreSQL Supabase secara realtime.
                   </p>
                 </div>
                 <div className="flex flex-wrap items-center gap-3 shrink-0">
@@ -776,126 +854,134 @@ export const AdminDashboard = ({
                 </div>
               </div>
 
-              {/* Dashboard Cards: Tema Aktif, Status Lisensi, Audit PageSpeed (Hanya Muncul Jika GSC Terhubung), Koleksi Tema */}
-              {(() => {
-                const isGscConnected = Boolean(config?.seo?.gscConnected || config?.seo?.gscVerificationTag);
-                return (
-                  <div className={`grid grid-cols-1 sm:grid-cols-2 ${isGscConnected ? 'lg:grid-cols-4' : 'lg:grid-cols-3'} gap-4 sm:gap-5`}>
-                    {/* Card 1: Tema Aktif */}
-                    <div className="bg-white rounded-3xl border border-slate-200 p-5 sm:p-6 shadow-xs space-y-3 flex flex-col justify-between hover:border-blue-300 transition-colors">
-                      <div className="space-y-1.5">
-                        <div className="flex items-center justify-between">
-                          <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 block">Tema Aktif</span>
-                          <span className="p-2 rounded-xl bg-blue-50 text-blue-600">
-                            <Palette className="w-4 h-4" />
-                          </span>
-                        </div>
-                        <div className="text-lg font-black text-slate-900 capitalize truncate" title={currentIndustry}>
-                          {currentIndustry}
-                        </div>
-                        <div className="text-xs text-blue-600 font-mono font-bold truncate" title={currentThemeId}>
-                          ID: {currentThemeId}
-                        </div>
-                      </div>
+              {/* Dashboard Cards: Tema Aktif, Status Lisensi, Health Meter SEO, Koleksi Tema */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
+                {/* Card 1: Tema Aktif */}
+                <div className="bg-white rounded-3xl border border-slate-200 p-5 sm:p-6 shadow-xs space-y-3 flex flex-col justify-between hover:border-blue-300 transition-colors">
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 block">Tema Aktif</span>
+                      <span className="p-2 rounded-xl bg-blue-50 text-blue-600">
+                        <Palette className="w-4 h-4" />
+                      </span>
+                    </div>
+                    <div className="text-lg font-black text-slate-900 capitalize truncate" title={currentIndustry}>
+                      {currentIndustry}
+                    </div>
+                    <div className="text-xs text-blue-600 font-mono font-bold truncate" title={currentThemeId}>
+                      ID: {currentThemeId}
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab('themes')}
+                    className="pt-3 border-t border-slate-100 flex items-center justify-between text-xs font-bold text-blue-600 hover:text-blue-700 cursor-pointer"
+                  >
+                    <span>Ganti Tema</span>
+                    <ArrowRight className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+
+                {/* Card 2: Status Lisensi */}
+                <div className="bg-white rounded-3xl border border-slate-200 p-5 sm:p-6 shadow-xs space-y-3 flex flex-col justify-between hover:border-emerald-300 transition-colors">
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 block">Status Lisensi</span>
+                      <span className="p-2 rounded-xl bg-emerald-50 text-emerald-600">
+                        <ShieldCheck className="w-4 h-4" />
+                      </span>
+                    </div>
+                    <div className="text-lg font-black text-emerald-600 flex items-center gap-1.5 truncate">
+                      <CheckCircle2 className="w-4 h-4 shrink-0" />
+                      <span>Aktif Terverifikasi</span>
+                    </div>
+                    <div className="flex items-center gap-1.5 text-xs text-slate-500 font-mono truncate">
+                      <span>MULTICMS-2026-PRO</span>
                       <button
                         type="button"
-                        onClick={() => setActiveTab('themes')}
-                        className="pt-3 border-t border-slate-100 flex items-center justify-between text-xs font-bold text-blue-600 hover:text-blue-700 cursor-pointer"
+                        onClick={() => copyToClipboard('MULTICMS-2026-PRO', 'Token Lisensi')}
+                        className="p-1 rounded-md text-slate-400 hover:text-blue-600 hover:bg-slate-100 transition-colors shrink-0"
+                        title="Salin Token Lisensi"
                       >
-                        <span>Ganti Tema</span>
-                        <ArrowRight className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-
-                    {/* Card 2: Status Lisensi */}
-                    <div className="bg-white rounded-3xl border border-slate-200 p-5 sm:p-6 shadow-xs space-y-3 flex flex-col justify-between hover:border-emerald-300 transition-colors">
-                      <div className="space-y-1.5">
-                        <div className="flex items-center justify-between">
-                          <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 block">Status Lisensi</span>
-                          <span className="p-2 rounded-xl bg-emerald-50 text-emerald-600">
-                            <ShieldCheck className="w-4 h-4" />
-                          </span>
-                        </div>
-                        <div className="text-lg font-black text-emerald-600 flex items-center gap-1.5 truncate">
-                          <CheckCircle2 className="w-4 h-4 shrink-0" />
-                          <span>Aktif Terverifikasi</span>
-                        </div>
-                        <div className="flex items-center gap-1.5 text-xs text-slate-500 font-mono truncate">
-                          <span>MULTICMS-2026-PRO</span>
-                          <button
-                            type="button"
-                            onClick={() => copyToClipboard('MULTICMS-2026-PRO', 'Token Lisensi')}
-                            className="p-1 rounded-md text-slate-400 hover:text-blue-600 hover:bg-slate-100 transition-colors shrink-0"
-                            title="Salin Token Lisensi"
-                          >
-                            <Copy className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
-                      </div>
-                      <div className="pt-3 border-t border-slate-100 text-[11px] text-slate-400 font-medium">
-                        Lisensi Enterprise Seumur Hidup
-                      </div>
-                    </div>
-
-                    {/* Card 3: Audit PageSpeed (HANYA Muncul jika Terhubung GSC) */}
-                    {isGscConnected && (
-                      <div className="bg-white rounded-3xl border border-slate-200 p-5 sm:p-6 shadow-xs space-y-3 flex flex-col justify-between hover:border-indigo-300 transition-colors">
-                        <div className="space-y-1.5">
-                          <div className="flex items-center justify-between">
-                            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 block">Audit PageSpeed</span>
-                            <span className="p-2 rounded-xl bg-emerald-50 text-emerald-600">
-                              <TrendingUp className="w-4 h-4" />
-                            </span>
-                          </div>
-                          <div className="text-lg font-black text-slate-900 flex items-center gap-1 truncate">
-                            <span className="text-2xl text-emerald-600 font-black">98</span>
-                            <span className="text-xs text-slate-400 font-normal">/100 Core Web Vitals</span>
-                          </div>
-                          <div className="text-xs text-emerald-600 font-semibold truncate flex items-center gap-1">
-                            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                            <span>GSC Terhubung • TTFB &lt; 50ms</span>
-                          </div>
-                        </div>
-
-                        <button
-                          type="button"
-                          onClick={() => setActiveTab('seo')}
-                          className="pt-3 border-t border-slate-100 flex items-center justify-between text-xs font-bold text-blue-600 hover:text-blue-700 cursor-pointer"
-                        >
-                          <span>Cek Analitik SEO</span>
-                          <ArrowRight className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-                    )}
-
-                    {/* Card 4: Koleksi Tema */}
-                    <div className="bg-white rounded-3xl border border-slate-200 p-5 sm:p-6 shadow-xs space-y-3 flex flex-col justify-between hover:border-purple-300 transition-colors">
-                      <div className="space-y-1.5">
-                        <div className="flex items-center justify-between">
-                          <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 block">Koleksi Tema</span>
-                          <span className="p-2 rounded-xl bg-purple-50 text-purple-600">
-                            <Layers className="w-4 h-4" />
-                          </span>
-                        </div>
-                        <div className="text-lg font-black text-slate-900 truncate">
-                          50 Varian Desain
-                        </div>
-                        <div className="text-xs text-purple-600 font-medium truncate">
-                          5 Industri Siap Pakai
-                        </div>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => setActiveTab('themes')}
-                        className="pt-3 border-t border-slate-100 flex items-center justify-between text-xs font-bold text-blue-600 hover:text-blue-700 cursor-pointer"
-                      >
-                        <span>Buka Koleksi Tema</span>
-                        <ArrowRight className="w-3.5 h-3.5" />
+                        <Copy className="w-3.5 h-3.5" />
                       </button>
                     </div>
                   </div>
-                );
-              })()}
+                  <div className="pt-3 border-t border-slate-100 text-[11px] text-slate-400 font-medium">
+                    Lisensi Enterprise Seumur Hidup
+                  </div>
+                </div>
+
+                {/* Card 3: Health Meter SEO & Search Console (Sinkron 1:1 dengan Tab SEO) */}
+                <div className="bg-white rounded-3xl border border-slate-200 p-5 sm:p-6 shadow-xs space-y-3 flex flex-col justify-between hover:border-indigo-300 transition-colors">
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 block">Health Meter SEO</span>
+                      <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase text-white shadow-2xs" style={{ backgroundColor: seoHealth.colorHex }}>
+                        Grade {seoHealth.grade}
+                      </span>
+                    </div>
+                    <div className="text-lg font-black text-slate-900 flex items-center gap-1.5 truncate">
+                      <span className="text-2xl font-black" style={{ color: seoHealth.colorHex }}>{seoHealth.score}</span>
+                      <span className="text-xs text-slate-400 font-normal">/100 Skor On-Page</span>
+                    </div>
+                    <div className="text-xs font-semibold truncate flex items-center gap-1.5">
+                      {seoHealth.isGscConnected ? (
+                        <>
+                          <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                          <span className="text-emerald-600">GSC Terhubung</span>
+                        </>
+                      ) : (
+                        <>
+                          <span className="w-2 h-2 rounded-full bg-amber-400"></span>
+                          <span className="text-amber-600">GSC Belum Terhubung</span>
+                        </>
+                      )}
+                    </div>
+                    <div className="flex items-center justify-between text-[11px] pt-1.5 border-t border-slate-100">
+                      <span className="text-slate-400 font-medium">Core Web Vitals:</span>
+                      <span className={`font-bold ${seoHealth.isGscConnected ? 'text-emerald-600' : 'text-slate-500'}`}>
+                        {seoHealth.isGscConnected ? '98/100 (Terverifikasi)' : '0/100 (Belum Terhubung GSC)'}
+                      </span>
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab('seo')}
+                    className="pt-3 border-t border-slate-100 flex items-center justify-between text-xs font-bold text-blue-600 hover:text-blue-700 cursor-pointer"
+                  >
+                    <span>Kelola SEO & Search Console</span>
+                    <ArrowRight className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+
+                {/* Card 4: Koleksi Tema */}
+                <div className="bg-white rounded-3xl border border-slate-200 p-5 sm:p-6 shadow-xs space-y-3 flex flex-col justify-between hover:border-purple-300 transition-colors">
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 block">Koleksi Tema</span>
+                      <span className="p-2 rounded-xl bg-purple-50 text-purple-600">
+                        <Layers className="w-4 h-4" />
+                      </span>
+                    </div>
+                    <div className="text-lg font-black text-slate-900 truncate">
+                      50 Varian Desain
+                    </div>
+                    <div className="text-xs text-purple-600 font-medium truncate">
+                      5 Industri Siap Pakai
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab('themes')}
+                    className="pt-3 border-t border-slate-100 flex items-center justify-between text-xs font-bold text-blue-600 hover:text-blue-700 cursor-pointer"
+                  >
+                    <span>Buka Koleksi Tema</span>
+                    <ArrowRight className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              </div>
 
               {/* Quick Navigation Studio Grid */}
               <div className="bg-white rounded-3xl border border-slate-200 p-6 sm:p-7 shadow-xs space-y-4">
@@ -944,7 +1030,7 @@ export const AdminDashboard = ({
                       <Sliders className="w-5 h-5" />
                     </span>
                     <div>
-                      <div className="text-sm font-bold text-slate-900 group-hover:text-indigo-600">Hero Slideshow (CRUD)</div>
+                      <div className="text-sm font-bold text-slate-900 group-hover:text-indigo-600">Hero Slideshow </div>
                       <div className="text-xs text-slate-500 mt-0.5">Kelola banner utama, judul H1, dan CTA link.</div>
                     </div>
                   </button>
@@ -958,7 +1044,7 @@ export const AdminDashboard = ({
                       <Package className="w-5 h-5" />
                     </span>
                     <div>
-                      <div className="text-sm font-bold text-slate-900 group-hover:text-emerald-600">Katalog Produk (CRUD)</div>
+                      <div className="text-sm font-bold text-slate-900 group-hover:text-emerald-600">Katalog Produk </div>
                       <div className="text-xs text-slate-500 mt-0.5">Tambah & perbarui harga mobil, menu, atau unit.</div>
                     </div>
                   </button>
@@ -1000,7 +1086,7 @@ export const AdminDashboard = ({
                       <Users className="w-5 h-5" />
                     </span>
                     <div>
-                      <div className="text-sm font-bold text-slate-900 group-hover:text-purple-600">Manajemen Pesanan (CRUD)</div>
+                      <div className="text-sm font-bold text-slate-900 group-hover:text-purple-600">Manajemen Pesanan </div>
                       <div className="text-xs text-slate-500 mt-0.5">Daftar booking masuk dan status konfirmasi pelanggan.</div>
                     </div>
                   </button>
@@ -1064,6 +1150,7 @@ export const AdminDashboard = ({
                 if (onConfigUpdated) onConfigUpdated(newCfg);
               }}
               showToast={showToast}
+              onOpenScraper={handleOpenScraper}
             />
           )}
 
@@ -1079,6 +1166,7 @@ export const AdminDashboard = ({
                 if (onConfigUpdated) onConfigUpdated(newCfg);
               }}
               showToast={showToast}
+              onOpenScraper={handleOpenScraper}
             />
           )}
 
@@ -1089,6 +1177,7 @@ export const AdminDashboard = ({
             <TravelTripManager
               adminToken={adminToken}
               showToast={showToast}
+              onOpenScraper={handleOpenScraper}
             />
           )}
 
@@ -1099,6 +1188,7 @@ export const AdminDashboard = ({
             <ArticleManager
               adminToken={adminToken}
               showToast={showToast}
+              onOpenScraper={handleOpenScraper}
             />
           )}
 
@@ -1113,6 +1203,7 @@ export const AdminDashboard = ({
                 if (onConfigUpdated) onConfigUpdated(newCfg);
               }}
               showToast={showToast}
+              onOpenScraper={handleOpenScraper}
             />
           )}
 
@@ -1383,9 +1474,21 @@ export const AdminDashboard = ({
         isOpen={isScraperOpen}
         onClose={() => setIsScraperOpen(false)}
         adminToken={adminToken}
-        onImportSuccess={(newItems) => {
-          if (onConfigUpdated) {
-            onConfigUpdated({ items: [...(config?.items || []), ...newItems] });
+        initialTargetType={scraperTarget}
+        isAutomotive={currentIndustry === 'automotive'}
+        onImportSuccess={(newItems, type) => {
+          if (type === 'products') {
+            if (onConfigUpdated) {
+              onConfigUpdated({ items: [...(config?.items || []), ...newItems] });
+            }
+          } else if (type === 'slideshow') {
+            if (onConfigUpdated) {
+              onConfigUpdated({ heroSlides: [...(config?.heroSlides || []), ...newItems] });
+            }
+          } else if (type === 'faqs') {
+            if (onConfigUpdated) {
+              onConfigUpdated({ faqs: [...(config?.faqs || []), ...newItems] });
+            }
           }
         }}
         showToast={showToast}

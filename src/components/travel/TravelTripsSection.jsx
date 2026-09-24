@@ -43,8 +43,8 @@ export const TravelTripsSection = ({ whatsapp = '6281288990011', brandName = 'Ro
   return (
     <section id="travel-trips" className="space-y-12 sm:space-y-16">
       <div className="text-center max-w-3xl mx-auto space-y-4">
-        <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-bold uppercase tracking-wider">
-          <Compass className="w-4 h-4 text-emerald-600" />
+        <div className="flex items-center justify-center gap-2 text-emerald-600 text-xs font-bold uppercase tracking-wider">
+          <Compass className="w-4 h-4" />
           <span>Paket Wisata & Private Trip</span>
         </div>
         <h2 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold text-slate-900 tracking-tight leading-tight">
@@ -76,11 +76,6 @@ export const TravelTripsSection = ({ whatsapp = '6281288990011', brandName = 'Ro
                   className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                   loading="lazy"
                 />
-                {trip.badge && (
-                  <span className="absolute top-4 left-4 px-3 py-1 rounded-full bg-emerald-600 text-white text-xs font-bold shadow-md">
-                    {trip.badge}
-                  </span>
-                )}
                 {trip.duration && (
                   <span className="absolute bottom-4 right-4 px-3 py-1.5 rounded-xl bg-slate-950/80 backdrop-blur-md text-white text-[11px] font-semibold flex items-center gap-1.5">
                     <Clock className="w-3.5 h-3.5 text-emerald-400" />

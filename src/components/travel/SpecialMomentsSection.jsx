@@ -47,13 +47,6 @@ export const SpecialMomentsSection = ({
                   loading="lazy"
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-transparent to-black/30" />
-                
-                <div className="absolute top-4 left-4 flex gap-2">
-                  <span className="px-3.5 py-1.5 rounded-full bg-amber-500 text-slate-950 text-xs font-extrabold shadow-md flex items-center gap-1.5">
-                    <Crown className="w-3.5 h-3.5" />
-                    <span>{moment.badge || 'Layanan Eksklusif'}</span>
-                  </span>
-                </div>
 
                 <div className="absolute bottom-4 left-4 right-4">
                   <span className="text-amber-300 font-mono text-xs font-bold block mb-1">

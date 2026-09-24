@@ -16,6 +16,7 @@ import {
   X
 } from 'lucide-react';
 import { updateAppSettings } from '../../lib/api';
+import ImageUploadInput from '../common/ImageUploadInput';
 
 /**
  * Slideshow & Hero Banner CRUD Manager
@@ -30,7 +31,8 @@ export const SlideshowManager = ({
   slides = [],
   adminToken,
   onConfigUpdated,
-  showToast
+  showToast,
+  onOpenScraper
 }) => {
   const [slideList, setSlideList] = useState(slides || []);
   const [editingSlide, setEditingSlide] = useState(null); // null or slide object
@@ -155,14 +157,28 @@ export const SlideshowManager = ({
           </p>
         </div>
 
-        <button
-          type="button"
-          onClick={openAddModal}
-          className="self-start sm:self-auto py-3 px-5 rounded-2xl bg-white hover:bg-blue-50 text-blue-700 font-extrabold text-xs sm:text-sm flex items-center gap-2 shadow-lg transition-all active:scale-95 shrink-0 cursor-pointer"
-        >
-          <Plus className="w-4 h-4 stroke-[3]" />
-          <span>Tambah Slide Baru</span>
-        </button>
+        <div className="flex items-center gap-2 self-start sm:self-auto shrink-0">
+          {onOpenScraper && (
+            <button
+              type="button"
+              onClick={() => onOpenScraper('slideshow')}
+              className="py-3 px-4 rounded-2xl bg-white/15 hover:bg-white/25 text-white font-extrabold text-xs sm:text-sm flex items-center gap-2 border border-white/20 backdrop-blur-xs transition-all active:scale-95 cursor-pointer shadow-md"
+              title="Scrape hero banner dan slide dari website kompetitor"
+            >
+              <Sparkles className="w-4 h-4 text-amber-300" />
+              <span>Scrape Banner / Slide</span>
+            </button>
+          )}
+
+          <button
+            type="button"
+            onClick={openAddModal}
+            className="py-3 px-5 rounded-2xl bg-white hover:bg-blue-50 text-blue-700 font-extrabold text-xs sm:text-sm flex items-center gap-2 shadow-lg transition-all active:scale-95 cursor-pointer"
+          >
+            <Plus className="w-4 h-4 stroke-[3]" />
+            <span>Tambah Slide Baru</span>
+          </button>
+        </div>
       </div>
 
       {/* Slide Count & Status */}
@@ -363,38 +379,17 @@ export const SlideshowManager = ({
                     className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 font-mono focus:bg-white focus:ring-2 focus:ring-blue-600 focus:outline-hidden"
                   />
                 </div>
-
-                <div>
-                  <label className="text-xs font-bold text-slate-700 block mb-1">
-                    URL Foto / Gambar Banner:
-                  </label>
-                  <input
-                    type="url"
-                    required
-                    value={formData.image}
-                    onChange={(e) => setFormData({ ...formData, image: e.target.value })}
-                    placeholder="https://images.unsplash.com/..."
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 font-mono focus:bg-white focus:ring-2 focus:ring-blue-600 focus:outline-hidden"
-                  />
-                </div>
               </div>
 
-              {/* Live Preview Image in Modal */}
-              {formData.image && (
-                <div className="rounded-xl overflow-hidden h-28 w-full bg-slate-100 border border-slate-200 relative">
-                  <img
-                    src={formData.image}
-                    alt="Pratinjau Banner"
-                    className="w-full h-full object-cover"
-                    onError={(e) => {
-                      e.target.src = 'https://images.unsplash.com/photo-1503376780353-7e6692767b70?auto=format&fit=crop&w=400&q=80';
-                    }}
-                  />
-                  <span className="absolute bottom-2 left-2 px-2 py-0.5 rounded-md bg-slate-900/80 text-white text-[10px] font-bold">
-                    Pratinjau Foto
-                  </span>
-                </div>
-              )}
+              <div className="pt-1">
+                <ImageUploadInput
+                  label="Foto / Gambar Banner Hero"
+                  value={formData.image}
+                  onChange={(val) => setFormData({ ...formData, image: val })}
+                  placeholder="https://images.unsplash.com/... atau /uploads/..."
+                  helperText="Upload gambar banner resolusi tinggi (disarankan 1920x800 px) atau tempel link URL"
+                />
+              </div>
 
               {/* Modal Buttons */}
               <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100">

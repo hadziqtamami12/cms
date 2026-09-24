@@ -32,7 +32,8 @@ export const DataTable = ({
   // External sorting handler (optional)
   onSortChange,
   // Custom toolbar additions
-  extraToolbar
+  extraToolbar,
+  noHorizontalScroll = false
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
@@ -239,8 +240,8 @@ export const DataTable = ({
 
       {/* Main Table Container */}
       <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-subtle relative min-w-0">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse text-xs">
+        <div className={noHorizontalScroll ? "w-full overflow-hidden" : "overflow-x-auto"}>
+          <table className={`w-full text-left border-collapse text-xs ${noHorizontalScroll ? 'table-fixed' : ''}`}>
             {/* Table Header */}
             <thead>
               <tr className="bg-slate-50 border-b border-slate-200 text-[11px] font-bold text-slate-600 uppercase tracking-wider select-none">

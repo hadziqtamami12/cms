@@ -401,9 +401,9 @@ export const OrderManager = ({ adminToken, activeThemeName }) => {
             </div>
           </div>
 
-          {/* MOBILE TOOLBAR (Screens < 768px): Full-Width Search + Compact Filter Button */}
-          <div className="flex md:hidden items-center gap-2 w-full">
-            <div className="relative flex-1 min-w-0">
+          {/* MOBILE TOOLBAR (Screens < 768px): Full-Width Search + Wrapped Filter Pills (Zero Horizontal Scroll) */}
+          <div className="flex md:hidden flex-col gap-2.5 w-full">
+            <div className="relative w-full min-w-0">
               <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
               <input
                 type="text"
@@ -413,35 +413,36 @@ export const OrderManager = ({ adminToken, activeThemeName }) => {
                 className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-slate-200 bg-white text-xs text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
               />
             </div>
-            <button
-              type="button"
-              onClick={() => setIsMobileFilterOpen(true)}
-              className={`px-3 py-2.5 rounded-xl border flex items-center gap-1.5 text-xs font-bold shrink-0 transition-colors ${
-                statusFilter !== 'all'
-                  ? 'bg-blue-600 text-white border-blue-600 shadow-xs'
-                  : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
-              }`}
-            >
-              <SlidersHorizontal className="w-4 h-4" />
-              <span>Filter</span>
-              {statusFilter !== 'all' && (
-                <span className="w-2 h-2 rounded-full bg-white animate-pulse" />
-              )}
-            </button>
-          </div>
 
-          {/* Active Filter Indicator on Mobile */}
-          {statusFilter !== 'all' && (
-            <div className="md:hidden flex items-center justify-between bg-blue-50 px-3 py-1.5 rounded-xl text-xs text-blue-700 font-semibold">
-              <span>Filter: <b className="capitalize">{statusFilter}</b></span>
-              <button
-                onClick={() => setStatusFilter('all')}
-                className="text-[11px] underline font-bold"
-              >
-                Reset
-              </button>
+            {/* Filter Pills directly on Mobile - Wrapped, Zero Horizontal Scroll */}
+            <div className="flex flex-wrap items-center gap-1.5 w-full">
+              {[
+                { id: 'all', label: 'Semua', count: counts.all },
+                { id: 'pending', label: 'Pending', count: counts.pending },
+                { id: 'confirmed', label: 'Dikonfirmasi', count: counts.confirmed },
+                { id: 'completed', label: 'Selesai', count: counts.completed },
+                { id: 'cancelled', label: 'Dibatalkan', count: counts.cancelled },
+              ].map(tab => (
+                <button
+                  key={tab.id}
+                  type="button"
+                  onClick={() => setStatusFilter(tab.id)}
+                  className={`px-2.5 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 border cursor-pointer ${
+                    statusFilter === tab.id
+                      ? 'bg-blue-600 text-white border-blue-600 shadow-xs'
+                      : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100'
+                  }`}
+                >
+                  <span>{tab.label}</span>
+                  <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-black ${
+                    statusFilter === tab.id ? 'bg-white/20 text-white' : 'bg-white text-slate-600 border border-slate-200'
+                  }`}>
+                    {tab.count}
+                  </span>
+                </button>
+              ))}
             </div>
-          )}
+          </div>
         </div>
 
         {/* Orders Content Area */}

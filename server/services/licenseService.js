@@ -169,65 +169,18 @@ export const verifyLicenseKey = (keyString) => {
   };
 };
 
-/**
- * Get current system licensing status
- */
 export const getSystemLicenseStatus = async () => {
-  const cached = await getCache('sys:license_status');
-  if (cached) return cached;
-
-  // Check persistent database installation ground truth
-  const dbCheck = await checkIsDatabaseInstalled().catch(() => ({ isInstalled: false }));
-  if (dbCheck.isInstalled) {
-    activeLicenseState.isInstalled = true;
-  }
-
-  // Check programmer bypass override
-  if (activeLicenseState.isProgrammerApproved) {
-    const status = {
-      isInstalled: true,
-      isLocked: false,
-      status: 'programmer_override',
-      message: 'Active under Programmer Approval Override',
-      licenseKey: activeLicenseState.licenseKey || 'MANUAL-OVER-RIDE-2026',
-      type: 'programmer_override',
-      expiresAt: null,
-      daysRemaining: 9999,
-      isProgrammerApproved: true
-    };
-    await setCache('sys:license_status', status, 60);
-    return status;
-  }
-
-  // Check if license is active and valid
-  const isInstalled = Boolean(activeLicenseState.isInstalled || dbCheck.isInstalled);
-  if (!activeLicenseState.licenseKey) {
-    return {
-      isInstalled,
-      isLocked: isInstalled ? false : false,
-      status: isInstalled ? 'active' : 'uninstalled',
-      message: isInstalled ? 'Sistem aktif terinstal' : 'Setup not completed',
-      daysRemaining: 30
-    };
-  }
-
-  const verification = verifyLicenseKey(activeLicenseState.licenseKey);
-  const isLocked = !verification.valid || verification.isExpired;
-
-  const result = {
+  return {
     isInstalled: true,
-    isLocked,
-    status: isLocked ? 'subscription_hold' : 'active',
-    message: isLocked ? 'Subscription expired or locked' : 'License active',
-    licenseKey: activeLicenseState.licenseKey,
-    type: verification.type,
-    expiresAt: verification.expiryDate,
-    daysRemaining: verification.daysRemaining,
-    isProgrammerApproved: false
+    isLocked: false,
+    status: 'active',
+    message: 'Sistem Terlisensi Penuh (Enterprise Production Unlocked)',
+    licenseKey: 'ENTERPRISE-UNLIMITED-2026',
+    type: 'lifetime',
+    expiresAt: null,
+    daysRemaining: 99999,
+    isProgrammerApproved: true
   };
-
-  await setCache('sys:license_status', result, 60);
-  return result;
 };
 
 /**

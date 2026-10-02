@@ -93,6 +93,7 @@ export const HeroSlideshow = ({ slides = [], whatsapp, phone }) => {
 
   return (
     <section
+      id="hero"
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
       onPointerDown={handlePointerDown}
@@ -109,9 +110,11 @@ export const HeroSlideshow = ({ slides = [], whatsapp, phone }) => {
         >
           <img
             src={item.image}
-            alt={item.title}
+            alt={item.title || 'Hero Banner Image'}
             className="w-full h-full object-cover object-center"
             loading={index === 0 ? 'eager' : 'lazy'}
+            fetchPriority={index === 0 ? 'high' : 'auto'}
+            decoding="async"
           />
           {/* Dual High-Contrast Scrim for 100% Readability */}
           <div className="absolute inset-0 w-full h-full bg-gradient-to-r from-slate-950/95 via-slate-950/80 to-slate-900/65" />

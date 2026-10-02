@@ -3,9 +3,8 @@ Allow: /
 Disallow: /admin
 Disallow: /sys-portal
 Disallow: /cms-panel
-Disallow: /install
-Disallow: /setup
-Disallow: /subscription-hold
-Disallow: /api/keygen/
+Disallow: /keygen
+Disallow: /secret-keygen
 
-Sitemap: https://yourdomain.com/api/sitemap.xml
+Sitemap: /sitemap.xml
+

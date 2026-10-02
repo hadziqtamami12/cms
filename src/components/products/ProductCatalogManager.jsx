@@ -366,7 +366,7 @@ export const ProductCatalogManager = ({
       label: 'Armada / Produk',
       sortable: true,
       render: (val, row) => (
-        <div className="flex items-center gap-3 min-w-[200px]">
+        <div className="flex items-center gap-3 min-w-0 md:min-w-[200px]">
           <div className="w-12 h-10 rounded-xl overflow-hidden bg-slate-100 shrink-0 border border-slate-200">
             <img
               src={row.image || (Array.isArray(row.images) && row.images[0]) || 'https://images.unsplash.com/photo-1549399542-7e3f8b79c341?auto=format&fit=crop&w=400&q=80'}
@@ -487,7 +487,7 @@ export const ProductCatalogManager = ({
   return (
     <div className="space-y-6 w-full max-w-full min-w-0">
       {/* Top Banner & Action Controls */}
-      <div className="bg-white rounded-3xl border border-slate-200 p-6 sm:p-7 shadow-xs w-full max-w-full min-w-0">
+      <div className="bg-white rounded-3xl border border-slate-200 p-4 sm:p-7 shadow-xs w-full max-w-full min-w-0">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-100 pb-5">
           <div className="space-y-1 min-w-0">
             <div className="flex items-center gap-2">
@@ -503,9 +503,9 @@ export const ProductCatalogManager = ({
             </p>
           </div>
 
-          <div className="flex items-center gap-2.5 flex-wrap sm:flex-nowrap shrink-0">
+          <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
             {/* View Switcher */}
-            <div className="flex items-center bg-slate-100 p-1 rounded-xl border border-slate-200 text-xs">
+            <div className="flex items-center bg-slate-100 p-1 rounded-xl border border-slate-200 text-xs shrink-0">
               <button
                 type="button"
                 onClick={() => setViewMode('table')}
@@ -535,7 +535,7 @@ export const ProductCatalogManager = ({
             <button
               type="button"
               onClick={handleResetPresets}
-              className="px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-600 text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer"
+              className="px-3.5 py-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-600 text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shrink-0"
               title="Reset ke preset bawaan industri saat ini"
             >
               <RefreshCw className="w-3.5 h-3.5 text-slate-400" />
@@ -546,7 +546,7 @@ export const ProductCatalogManager = ({
               <button
                 type="button"
                 onClick={() => onOpenScraper('products')}
-                className="px-3.5 py-2.5 rounded-xl border border-blue-200 bg-blue-50/80 hover:bg-blue-100 text-blue-700 text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-2xs"
+                className="px-3.5 py-2 rounded-xl border border-blue-200 bg-blue-50/80 hover:bg-blue-100 text-blue-700 text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-2xs shrink-0"
                 title="Scrape data armada dari website kompetitor"
               >
                 <Sparkles className="w-3.5 h-3.5 text-blue-600" />
@@ -557,7 +557,7 @@ export const ProductCatalogManager = ({
             <button
               type="button"
               onClick={handleOpenAdd}
-              className="px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 active:scale-95 text-white text-xs font-bold transition-all shadow-md shadow-blue-600/25 flex items-center gap-1.5 cursor-pointer"
+              className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 active:scale-95 text-white text-xs font-bold transition-all shadow-md shadow-blue-600/25 flex items-center gap-1.5 cursor-pointer shrink-0"
             >
               <Plus className="w-4 h-4" />
               <span>Tambah Produk Baru</span>
@@ -567,14 +567,14 @@ export const ProductCatalogManager = ({
 
         {/* Filter Pills & Search */}
         <div className="pt-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          {/* Category Filter */}
-          <div className="flex flex-wrap items-center gap-1.5">
+          {/* Category Filter Pills (Wrapped Mobile First, Zero Horizontal Scroll) */}
+          <div className="flex flex-wrap items-center gap-1.5 w-full sm:w-auto">
             {categories.map((cat) => (
               <button
                 key={cat}
                 type="button"
                 onClick={() => setSelectedCategory(cat)}
-                className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                   selectedCategory === cat
                     ? 'bg-blue-600 text-white shadow-xs'
                     : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
@@ -762,30 +762,30 @@ export const ProductCatalogManager = ({
         <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/70 backdrop-blur-xs animate-fade-in">
           <div className="bg-white rounded-3xl border border-slate-200 shadow-2xl w-full max-w-2xl overflow-hidden max-h-[92vh] flex flex-col min-w-0">
             {/* Modal Header */}
-            <header className="px-6 py-4 border-b border-slate-100 flex items-center justify-between shrink-0 bg-slate-50">
-              <div className="flex items-center gap-2">
-                <span className="p-1.5 rounded-lg bg-blue-100 text-blue-600">
+            <header className="px-4 sm:px-6 py-3.5 border-b border-slate-100 flex items-center justify-between shrink-0 bg-slate-50">
+              <div className="flex items-center gap-2 min-w-0">
+                <span className="p-1.5 rounded-lg bg-blue-100 text-blue-600 shrink-0">
                   <Package className="w-4 h-4" />
                 </span>
-                <h3 className="font-extrabold text-base text-slate-900">
+                <h3 className="font-extrabold text-sm sm:text-base text-slate-900 truncate">
                   {editingItem ? 'Edit Produk / Unit' : 'Tambah Produk Baru'}
                 </h3>
               </div>
               <button
                 type="button"
                 onClick={() => setIsModalOpen(false)}
-                className="p-1.5 rounded-xl border border-slate-200 bg-white text-slate-400 hover:text-slate-700 cursor-pointer"
+                className="p-1.5 rounded-xl border border-slate-200 bg-white text-slate-400 hover:text-slate-700 cursor-pointer shrink-0"
               >
                 <X className="w-4 h-4" />
               </button>
             </header>
 
-            {/* Modal Tab Selector */}
-            <div className="flex border-b border-slate-200 bg-slate-50/50 px-6 shrink-0">
+            {/* Modal Tab Selector (Wrapped Mobile First, Zero Horizontal Scroll) */}
+            <div className="flex flex-wrap border-b border-slate-200 bg-slate-50/50 px-3 sm:px-6 shrink-0 gap-1">
               <button
                 type="button"
                 onClick={() => setActiveModalTab('details')}
-                className={`py-3 px-4 text-xs font-bold border-b-2 transition-all flex items-center gap-1.5 cursor-pointer ${
+                className={`py-2.5 sm:py-3 px-3 sm:px-4 text-xs font-bold border-b-2 transition-all flex items-center gap-1.5 cursor-pointer shrink-0 ${
                   activeModalTab === 'details'
                     ? 'border-blue-600 text-blue-600 bg-white'
                     : 'border-transparent text-slate-500 hover:text-slate-800'
@@ -1009,25 +1009,25 @@ export const ProductCatalogManager = ({
               )}
 
               {/* Action Buttons */}
-              <div className="pt-4 border-t border-slate-100 flex items-center justify-between gap-2.5">
+              <div className="pt-4 border-t border-slate-100 flex flex-col-reverse sm:flex-row sm:items-center justify-between gap-3">
                 <div className="text-[11px] text-slate-400">
                   {activeModalTab !== 'gallery' && (
                     <span>💡 Tip: Buka tab "Galeri Foto & SEO" untuk mengatur Alt Text dan multi-gambar.</span>
                   )}
                 </div>
 
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 w-full sm:w-auto">
                   <button
                     type="button"
                     onClick={() => setIsModalOpen(false)}
-                    className="px-4 py-2.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 font-bold text-xs cursor-pointer"
+                    className="flex-1 sm:flex-initial px-4 py-2.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 font-bold text-xs cursor-pointer text-center"
                   >
                     Batal
                   </button>
                   <button
                     type="submit"
                     disabled={saving}
-                    className="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-md shadow-blue-600/25 flex items-center gap-1.5 cursor-pointer"
+                    className="flex-1 sm:flex-initial px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-md shadow-blue-600/25 flex items-center justify-center gap-1.5 cursor-pointer text-center"
                   >
                     {saving ? (
                       <RefreshCw className="w-3.5 h-3.5 animate-spin" />

@@ -71,6 +71,7 @@ export const initDbConnection = async (customConfig = null) => {
       const client = await pgPool.connect();
       client.release();
       activeDbType = 'postgres';
+      await ensureAdminTables().catch(() => {});
       return { success: true, type: 'postgres', message: 'Connected to PostgreSQL successfully' };
     }
 
@@ -88,6 +89,8 @@ export const initDbConnection = async (customConfig = null) => {
       });
       const conn = await mysqlPool.getConnection();
       conn.release();
+      activeDbType = 'mysql';
+      await ensureAdminTables().catch(() => {});
       return { success: true, type: 'mysql', message: 'Connected to MySQL successfully' };
     }
 
@@ -105,6 +108,27 @@ export const initDbConnection = async (customConfig = null) => {
     activeDbType = 'memory';
     return { success: true, type: 'memory', message: 'Initialized in-memory datastore' };
   } catch (error) {
+    // If a real DB (postgres/mysql/mongodb) is explicitly configured but fails to connect,
+    // DO NOT silently fall back to memory — data written to memory is lost on restart.
+    // Keep activeDbType as configured so queries will retry the real DB or fail explicitly.
+    const wasExplicitlyConfigured = (
+      (dbType === 'postgres' && (customConfig?.connectionString || process.env.DATABASE_URL)) ||
+      (dbType === 'mysql' && (customConfig?.connectionString || process.env.MYSQL_URL)) ||
+      (dbType === 'mongodb' && (customConfig?.connectionString || process.env.MONGODB_URI))
+    );
+
+    if (wasExplicitlyConfigured) {
+      console.error(`[DB] ⚠️  CRITICAL: Configured database (${dbType}) failed to connect: ${error.message}`);
+      console.error('[DB] ⚠️  Data will NOT be persisted until the database connection is restored.');
+      // Reset pools so ensureDbReady retries on next query
+      pgPool = null;
+      mysqlPool = null;
+      mongoClient = null;
+      activeDbType = dbType; // Keep configured type — don't silently use memory
+      return { success: false, error: error.message, type: dbType, critical: true };
+    }
+
+    // Unknown / unconfigured DB type — memory is acceptable
     console.warn(`[DB] Database connection error (${dbType}): ${error.message}. Falling back to memory adapter.`);
     activeDbType = 'memory';
     return { success: false, error: error.message, type: 'memory' };
@@ -134,7 +158,10 @@ export const ensureDbReady = async () => {
 export const query = async (sqlOrCollection, params = [], operation = 'find') => {
   await ensureDbReady();
 
-  if (activeDbType === 'postgres' && pgPool) {
+  if (activeDbType === 'postgres') {
+    if (!pgPool) {
+      throw new Error('[DB] PostgreSQL not connected. Periksa DATABASE_URL di environment dan pastikan Supabase dapat dijangkau.');
+    }
     try {
       const res = await pgPool.query(sqlOrCollection, params);
       return res.rows;
@@ -144,7 +171,10 @@ export const query = async (sqlOrCollection, params = [], operation = 'find') =>
     }
   }
 
-  if (activeDbType === 'mysql' && mysqlPool) {
+  if (activeDbType === 'mysql') {
+    if (!mysqlPool) {
+      throw new Error('[DB] MySQL not connected. Periksa MYSQL_URL di environment.');
+    }
     try {
       const [rows] = await mysqlPool.execute(sqlOrCollection, params);
       return rows;
@@ -154,7 +184,10 @@ export const query = async (sqlOrCollection, params = [], operation = 'find') =>
     }
   }
 
-  if (activeDbType === 'mongodb' && mongoClient) {
+  if (activeDbType === 'mongodb') {
+    if (!mongoClient) {
+      throw new Error('[DB] MongoDB not connected. Periksa MONGODB_URI di environment.');
+    }
     try {
       const db = mongoClient.db(process.env.DB_NAME || 'cms_multitenant');
       const coll = db.collection(sqlOrCollection);
@@ -333,12 +366,20 @@ export const checkIsDatabaseInstalled = async () => {
         if (!rows || rows.length === 0) {
           try {
             const salt = await bcrypt.genSalt(10);
+            const defaultUser = process.env.ADMIN_DEFAULT_USER || 'admin';
             const passwordHash = await bcrypt.hash(process.env.ADMIN_DEFAULT_PASSWORD || 'admin123', salt);
             await query(`
               INSERT INTO admin_settings (id, username, email, password_hash, admin_slug, token_version)
               VALUES ('default_admin', $1, 'admin@royalfleet.com', $2, 'admin', 1)
               ON CONFLICT (id) DO NOTHING;
-            `, [process.env.ADMIN_DEFAULT_USER || 'admin', passwordHash]);
+            `, [defaultUser, passwordHash]).catch(() => {});
+            
+            await query(`
+              INSERT INTO admin_users (id, username, password_hash, role, created_at, updated_at)
+              VALUES ('admin-root', $1, $2, 'superadmin', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+              ON CONFLICT (username) DO NOTHING;
+            `, [defaultUser, passwordHash]).catch(() => {});
+
             rows = await query('SELECT id, username, admin_slug FROM admin_settings LIMIT 1').catch(() => []);
           } catch (seedErr) {
             console.warn('[DB Auto-Seed] Notice:', seedErr.message);
@@ -403,4 +444,103 @@ export const checkIsDatabaseInstalled = async () => {
   return { isInstalled: true, provider: activeDbType };
 };
 
-export default { initDbConnection, query, getDbType, getMemoryStore, testDbConnection, checkIsDatabaseInstalled };
+/**
+ * Ensures admin_users table exists and seeds default admin credentials
+ */
+export const ensureAdminTables = async () => {
+  try {
+    const salt = await bcrypt.genSalt(10);
+    const defaultUser = process.env.ADMIN_DEFAULT_USER || 'admin';
+    const defaultPass = process.env.ADMIN_DEFAULT_PASSWORD || 'admin123';
+    const passwordHash = await bcrypt.hash(defaultPass, salt);
+
+    if (activeDbType === 'postgres' && pgPool) {
+      // 1. Create admin_users table if not exists
+      await pgPool.query(`
+        CREATE TABLE IF NOT EXISTS admin_users (
+          id VARCHAR(100) PRIMARY KEY,
+          username VARCHAR(100) UNIQUE NOT NULL,
+          email VARCHAR(150),
+          password_hash VARCHAR(255) NOT NULL,
+          role VARCHAR(50) DEFAULT 'superadmin',
+          admin_slug VARCHAR(100) DEFAULT 'admin',
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+      `).catch(() => {});
+
+      // 2. Create admin_settings table if not exists
+      await pgPool.query(`
+        CREATE TABLE IF NOT EXISTS admin_settings (
+          id VARCHAR(50) PRIMARY KEY,
+          username VARCHAR(100) NOT NULL,
+          email VARCHAR(150),
+          password_hash VARCHAR(255) NOT NULL,
+          admin_slug VARCHAR(100) DEFAULT 'admin',
+          token_version INT DEFAULT 1,
+          last_login_at TIMESTAMP,
+          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+      `).catch(() => {});
+
+      // 3. Ensure 'admin' user is seeded in admin_users and admin_settings
+      await pgPool.query(`
+        INSERT INTO admin_users (id, username, email, password_hash, role, admin_slug, updated_at)
+        VALUES ('admin-root', $1, 'admin@multicms.id', $2, 'superadmin', 'admin', CURRENT_TIMESTAMP)
+        ON CONFLICT (username) DO UPDATE
+        SET password_hash = EXCLUDED.password_hash, updated_at = CURRENT_TIMESTAMP;
+      `, [defaultUser, passwordHash]).catch(() => {});
+
+      await pgPool.query(`
+        INSERT INTO admin_settings (id, username, email, password_hash, admin_slug, token_version, updated_at)
+        VALUES ('default_admin', $1, 'admin@multicms.id', $2, 'admin', 1, CURRENT_TIMESTAMP)
+        ON CONFLICT (id) DO UPDATE
+        SET username = EXCLUDED.username, password_hash = EXCLUDED.password_hash, updated_at = CURRENT_TIMESTAMP;
+      `, [defaultUser, passwordHash]).catch(() => {});
+
+    } else if (activeDbType === 'mysql' && mysqlPool) {
+      await mysqlPool.execute(`
+        CREATE TABLE IF NOT EXISTS admin_users (
+          id VARCHAR(100) PRIMARY KEY,
+          username VARCHAR(100) UNIQUE NOT NULL,
+          email VARCHAR(150),
+          password_hash VARCHAR(255) NOT NULL,
+          role VARCHAR(50) DEFAULT 'superadmin',
+          admin_slug VARCHAR(100) DEFAULT 'admin',
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+      `).catch(() => {});
+
+      await mysqlPool.execute(`
+        CREATE TABLE IF NOT EXISTS admin_settings (
+          id VARCHAR(50) PRIMARY KEY,
+          username VARCHAR(100) NOT NULL,
+          email VARCHAR(150),
+          password_hash VARCHAR(255) NOT NULL,
+          admin_slug VARCHAR(100) DEFAULT 'admin',
+          token_version INT DEFAULT 1,
+          last_login_at TIMESTAMP,
+          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+      `).catch(() => {});
+
+      await mysqlPool.execute(`
+        INSERT INTO admin_users (id, username, email, password_hash, role, admin_slug)
+        VALUES ('admin-root', ?, 'admin@multicms.id', ?, 'superadmin', 'admin')
+        ON DUPLICATE KEY UPDATE password_hash = VALUES(password_hash);
+      `, [defaultUser, passwordHash]).catch(() => {});
+
+      await mysqlPool.execute(`
+        INSERT INTO admin_settings (id, username, email, password_hash, admin_slug)
+        VALUES ('default_admin', ?, 'admin@multicms.id', ?, 'admin')
+        ON DUPLICATE KEY UPDATE username = VALUES(username), password_hash = VALUES(password_hash);
+      `, [defaultUser, passwordHash]).catch(() => {});
+    }
+  } catch (err) {
+    console.warn('[DB] ensureAdminTables notice:', err.message);
+  }
+};
+
+export default { initDbConnection, query, getDbType, getMemoryStore, testDbConnection, checkIsDatabaseInstalled, ensureAdminTables };
+

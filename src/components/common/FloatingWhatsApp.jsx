@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import WhatsAppChatModal from './WhatsAppChatModal';
 
 /**
@@ -19,7 +19,7 @@ const WhatsAppOfficialIcon = ({ className = "w-6 h-6" }) => (
 
 /**
  * Clean & Professional Floating WhatsApp Contact Button
- * Always visible, static clean design with smooth hover elevation.
+ * Muncul saat di-scroll melewati Hero Section, hilang saat kembali ke Hero Section full.
  */
 export const FloatingWhatsApp = ({
   whatsapp = '6281288990011',
@@ -31,6 +31,28 @@ export const FloatingWhatsApp = ({
   actionType = 'popup' // 'popup' | 'direct'
 }) => {
   const [isChatModalOpen, setIsChatModalOpen] = useState(false);
+  const [isVisible, setIsVisible] = useState(false);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      const heroElement = document.getElementById('hero');
+      // Threshold: saat scroll telah melewati 70% dari tinggi Hero Section
+      const threshold = heroElement ? (heroElement.offsetHeight * 0.7) : 380;
+      const currentScroll = window.scrollY || window.pageYOffset || document.documentElement.scrollTop || 0;
+
+      if (currentScroll > threshold) {
+        setIsVisible(true);
+      } else {
+        setIsVisible(false);
+      }
+    };
+
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    // Check initial position on mount
+    handleScroll();
+
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
 
   // If explicitly disabled, don't render
   if (enabled === false) return null;
@@ -51,8 +73,12 @@ export const FloatingWhatsApp = ({
   return (
     <>
       <div
-        className={`fixed right-4 sm:right-6 z-50 transition-all duration-300 ease-in-out flex flex-col items-end pointer-events-auto select-none ${
+        className={`fixed right-4 sm:right-6 z-50 transition-all duration-500 ease-out flex flex-col items-end select-none ${
           bottomNavVisible ? 'bottom-[88px] sm:bottom-6' : 'bottom-5 sm:bottom-6'
+        } ${
+          isVisible
+            ? 'opacity-100 translate-y-0 scale-100 pointer-events-auto'
+            : 'opacity-0 translate-y-8 scale-90 pointer-events-none'
         }`}
       >
         <button

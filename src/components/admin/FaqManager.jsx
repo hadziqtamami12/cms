@@ -80,7 +80,7 @@ export const FaqManager = ({
 
   return (
     <div className="space-y-6 w-full max-w-full min-w-0">
-      <div className="bg-white rounded-3xl border border-slate-200 p-6 sm:p-7 shadow-xs">
+      <div className="bg-white rounded-3xl border border-slate-200 p-4 sm:p-7 shadow-xs">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 pb-5">
           <div className="space-y-1">
             <div className="flex items-center gap-2">
@@ -96,12 +96,12 @@ export const FaqManager = ({
             </p>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full sm:w-auto">
             {onOpenScraper && (
               <button
                 type="button"
                 onClick={() => onOpenScraper('faqs')}
-                className="px-4 py-2.5 rounded-xl border border-amber-300 bg-amber-50/80 hover:bg-amber-100 text-amber-800 text-xs sm:text-sm font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-xs"
+                className="px-4 py-2.5 rounded-xl border border-amber-300 bg-amber-50/80 hover:bg-amber-100 text-amber-800 text-xs sm:text-sm font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-xs text-center"
                 title="Scrape pertanyaan dan jawaban FAQ dari website kompetitor"
               >
                 <Sparkles className="w-4 h-4 text-amber-600" />
@@ -112,7 +112,7 @@ export const FaqManager = ({
             <button
               type="button"
               onClick={handleOpenAdd}
-              className="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs sm:text-sm shadow-md shadow-blue-600/20 flex items-center gap-2 cursor-pointer shrink-0"
+              className="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs sm:text-sm shadow-md shadow-blue-600/20 flex items-center justify-center gap-2 cursor-pointer shrink-0 text-center"
             >
               <Plus className="w-4 h-4" />
               <span>Tambah FAQ Baru</span>
@@ -189,7 +189,7 @@ export const FaqManager = ({
               </button>
             </header>
 
-            <form onSubmit={handleSubmit} className="p-6 space-y-4">
+            <form onSubmit={handleSubmit} className="p-4 sm:p-6 space-y-4">
               <div className="space-y-1">
                 <label className="block text-xs font-bold text-slate-700">Pertanyaan *</label>
                 <input
@@ -222,18 +222,18 @@ export const FaqManager = ({
                 helperText="Upload foto penjelas FAQ atau tempel link URL gambar"
               />
 
-              <div className="pt-3 border-t border-slate-100 flex items-center justify-end gap-2">
+              <div className="pt-3 border-t border-slate-100 flex flex-col-reverse sm:flex-row sm:items-center justify-end gap-2">
                 <button
                   type="button"
                   onClick={() => setIsModalOpen(false)}
-                  className="px-4 py-2 rounded-xl border border-slate-200 text-slate-700 text-xs font-bold cursor-pointer"
+                  className="w-full sm:w-auto px-4 py-2.5 rounded-xl border border-slate-200 text-slate-700 text-xs font-bold cursor-pointer text-center"
                 >
                   Batal
                 </button>
                 <button
                   type="submit"
                   disabled={saving}
-                  className="px-5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-md shadow-blue-600/20 flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                  className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-md shadow-blue-600/20 flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50 text-center"
                 >
                   {saving ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
                   <span>Simpan FAQ</span>

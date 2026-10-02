@@ -525,10 +525,11 @@ export const SeoServiceCard = ({
                 </div>
               </div>
 
-              {/* Active Campaigns Table */}
+              {/* Active Campaigns Table (Dual-Mode: Desktop Table, Mobile Stacked Cards) */}
               <div className="space-y-3">
                 <h4 className="font-extrabold text-xs sm:text-sm text-slate-900">Kampanye Google Ads Terhubung</h4>
-                <div className="overflow-x-auto rounded-2xl border border-slate-200">
+                {/* Desktop Table View */}
+                <div className="hidden md:block overflow-x-auto rounded-2xl border border-slate-200">
                   <table className="w-full text-left border-collapse text-xs">
                     <thead>
                       <tr className="bg-slate-50 text-[11px] font-bold text-slate-500 uppercase tracking-wider border-b border-slate-200">
@@ -555,6 +556,34 @@ export const SeoServiceCard = ({
                       ))}
                     </tbody>
                   </table>
+                </div>
+
+                {/* Mobile Stacked Cards View (No Horizontal Scroll) */}
+                <div className="md:hidden space-y-2.5">
+                  {(serviceData.data?.campaigns || []).map((camp, idx) => (
+                    <div key={idx} className="p-3.5 bg-slate-50/80 rounded-2xl border border-slate-200 space-y-2">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="font-extrabold text-xs text-slate-900 truncate">{camp.name}</span>
+                        <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 text-[10px] font-bold shrink-0">
+                          {camp.status}
+                        </span>
+                      </div>
+                      <div className="grid grid-cols-3 gap-2 text-[11px] pt-1 border-t border-slate-200/60 font-mono">
+                        <div>
+                          <span className="text-slate-400 block text-[10px]">Klik</span>
+                          <span className="font-bold text-slate-900">{camp.clicks}</span>
+                        </div>
+                        <div>
+                          <span className="text-slate-400 block text-[10px]">Konversi</span>
+                          <span className="font-bold text-emerald-600">{camp.conversions}</span>
+                        </div>
+                        <div className="text-right">
+                          <span className="text-slate-400 block text-[10px]">Biaya</span>
+                          <span className="font-bold text-slate-700">{camp.cost}</span>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </div>
             </div>

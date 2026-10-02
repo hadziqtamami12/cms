@@ -4,6 +4,8 @@
  */
 
 export const DEFAULT_CONFIG = {
+  is_onboarded: false,
+  adminSlug: 'admin',
   industry: 'automotive',
   themeId: 'fleet-grid',
   bottom_nav_variant: 'floating_dock',
@@ -39,7 +41,7 @@ export const DEFAULT_CONFIG = {
     duration: 2.5
   },
   footer: {
-    about: 'Didukung oleh arsitektur Cloud Edge berkecepatan tinggi dengan skor Core Web Vitals optimal dan enkripsi enterprise.',
+    about: 'Layanan sewa armada dan transportasi terpercaya dengan armada prima terawat, driver profesional, dan jaminan keamanan perjalanan.',
     button_text: 'Baca Artikel & Panduan Wisata',
     button_url: '/artikel',
     show_button: true,
@@ -47,11 +49,9 @@ export const DEFAULT_CONFIG = {
     show_phone: true,
     show_email: true,
     show_address: true,
-    legal_title: 'Legalitas & Proteksi',
-    legal_text: 'Hak Cipta dilindungi Undang-Undang. Terdaftar dan terverifikasi di Google Business & Cloudflare Enterprise.',
-    status_text: 'Status Sistem: Operasional Aktif',
-    show_status: true,
-    copyright: 'All rights reserved. Powered by Enterprise MultiCMS Engine.'
+    legal_title: 'Legalitas & Informasi Usaha',
+    legal_text: 'Hak Cipta dilindungi Undang-Undang. Seluruh operasional, reservasi, dan transaksi berizin resmi.',
+    copyright: 'Hak Cipta Dilindungi.'
   },
   heroSlides: [
     {

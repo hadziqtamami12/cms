@@ -72,16 +72,15 @@ export const SiteIdentityManager = ({
     footer_show_phone: config.footer?.show_phone !== false,
     footer_show_email: config.footer?.show_email !== false,
     footer_show_address: config.footer?.show_address !== false,
-    footer_legal_title: config.footer?.legal_title || 'Legalitas & Proteksi',
-    footer_legal_text: config.footer?.legal_text || 'Hak Cipta dilindungi Undang-Undang. Terdaftar dan terverifikasi di Google Business & Cloudflare Enterprise.',
-    footer_status_text: config.footer?.status_text || 'Status Sistem: Operasional Aktif',
-    footer_show_status: config.footer?.show_status !== false,
-    footer_copyright: config.footer?.copyright || 'All rights reserved. Powered by Enterprise MultiCMS Engine.'
+    footer_legal_title: config.footer?.legal_title || 'Legalitas & Informasi',
+    footer_legal_text: config.footer?.legal_text || 'Hak Cipta dilindungi Undang-Undang. Seluruh operasional dan transaksi berizin resmi.',
+    footer_copyright: config.footer?.copyright || 'Hak Cipta Dilindungi.'
   });
 
   const [saving, setSaving] = useState(false);
   const [savedSuccess, setSavedSuccess] = useState(false);
   const [generatingLogo, setGeneratingLogo] = useState(false);
+  const [logoStyle, setLogoStyle] = useState(config.logo_style || 'badge');
 
   // Sync state if external config changes
   useEffect(() => {
@@ -115,26 +114,27 @@ export const SiteIdentityManager = ({
         footer_show_address: config.footer?.show_address !== undefined ? config.footer?.show_address : prev.footer_show_address,
         footer_legal_title: config.footer?.legal_title || prev.footer_legal_title,
         footer_legal_text: config.footer?.legal_text || prev.footer_legal_text,
-        footer_status_text: config.footer?.status_text || prev.footer_status_text,
-        footer_show_status: config.footer?.show_status !== undefined ? config.footer?.show_status : prev.footer_show_status,
         footer_copyright: config.footer?.copyright || prev.footer_copyright
       }));
     }
   }, [config]);
 
-  const handleAutoGenerateLogo = async () => {
+  const handleAutoGenerateLogo = async (overrideStyle) => {
     try {
       setGeneratingLogo(true);
       const token = adminToken || localStorage.getItem('cms_admin_token') || '';
       const headers = { 'Content-Type': 'application/json' };
       if (token) headers['Authorization'] = `Bearer ${token}`;
 
+      const activeStyle = overrideStyle || logoStyle;
+
       const res = await fetch('/api/brand/generate-logo', {
         method: 'POST',
         headers,
         body: JSON.stringify({
           appName: formData.brandName || config?.brandName || 'Royal Fleet',
-          industry: config?.industry || 'automotive'
+          industry: config?.industry || 'automotive',
+          style: activeStyle
         })
       });
       const data = await res.json();
@@ -204,15 +204,20 @@ export const SiteIdentityManager = ({
     e.preventDefault();
     setSaving(true);
 
-    const cleanWhatsapp = formData.whatsapp.trim().replace(/[^0-9]/g, '');
-    const cleanBrandName = formData.brandName.trim();
-    const cleanTitle = formData.title.trim();
-    const cleanTagline = formData.tagline.trim();
-    const cleanMetaDesc = formData.metaDescription.trim();
-    const cleanLogoUrl = formData.logoUrl.trim();
-    const cleanPwaName = formData.pwa_name.trim() || cleanBrandName;
-    const cleanPwaShortName = formData.pwa_short_name.trim() || cleanBrandName.slice(0, 12);
-    const cleanPwaIcon = formData.pwa_icon.trim() || '/icons/icon-192.svg';
+    const safeStr = (val, fallback = '') => {
+      if (val === null || val === undefined) return fallback;
+      return String(val).trim();
+    };
+
+    const cleanWhatsapp = safeStr(formData.whatsapp).replace(/[^0-9]/g, '');
+    const cleanBrandName = safeStr(formData.brandName, 'MultiCMS');
+    const cleanTitle = safeStr(formData.title, cleanBrandName);
+    const cleanTagline = safeStr(formData.tagline);
+    const cleanMetaDesc = safeStr(formData.metaDescription);
+    const cleanLogoUrl = safeStr(formData.logoUrl, '/images/logo.png');
+    const cleanPwaName = safeStr(formData.pwa_name) || cleanBrandName;
+    const cleanPwaShortName = safeStr(formData.pwa_short_name) || cleanBrandName.slice(0, 12);
+    const cleanPwaIcon = safeStr(formData.pwa_icon) || '/icons/icon-192.svg';
 
     const payload = {
       brandName: cleanBrandName,
@@ -223,14 +228,14 @@ export const SiteIdentityManager = ({
       title: cleanTitle,
       tagline: cleanTagline,
       metaDescription: cleanMetaDesc,
-      phone: formData.phone.trim(),
+      phone: safeStr(formData.phone),
       whatsapp: cleanWhatsapp,
-      email: formData.email.trim(),
-      location: formData.location.trim(),
+      email: safeStr(formData.email),
+      location: safeStr(formData.location),
       google_maps: {
-        embed_url: formData.google_maps_embed_url.trim(),
-        coordinates: formData.google_maps_coords.trim(),
-        address: formData.google_maps_address.trim()
+        embed_url: safeStr(formData.google_maps_embed_url),
+        coordinates: safeStr(formData.google_maps_coords),
+        address: safeStr(formData.google_maps_address)
       },
       splash_screen: {
         enabled: Boolean(formData.splash_screen_enabled),
@@ -240,7 +245,7 @@ export const SiteIdentityManager = ({
         ...(config.seo || {}),
         title: cleanTitle,
         metaDescription: cleanMetaDesc,
-        gmbEmbedMapUrl: formData.google_maps_embed_url.trim()
+        gmbEmbedMapUrl: safeStr(formData.google_maps_embed_url)
       },
       floating_whatsapp: {
         ...(config.floating_whatsapp || {}),
@@ -252,44 +257,44 @@ export const SiteIdentityManager = ({
         brandName: cleanBrandName
       },
       footer: {
-        about: formData.footer_about.trim(),
-        button_text: formData.footer_button_text.trim(),
-        button_url: formData.footer_button_url.trim(),
+        about: safeStr(formData.footer_about),
+        button_text: safeStr(formData.footer_button_text),
+        button_url: safeStr(formData.footer_button_url),
         show_button: Boolean(formData.footer_show_button),
-        contact_title: formData.footer_contact_title.trim(),
+        contact_title: safeStr(formData.footer_contact_title),
         show_phone: Boolean(formData.footer_show_phone),
         show_email: Boolean(formData.footer_show_email),
         show_address: Boolean(formData.footer_show_address),
-        legal_title: formData.footer_legal_title.trim(),
-        legal_text: formData.footer_legal_text.trim(),
-        status_text: formData.footer_status_text.trim(),
-        show_status: Boolean(formData.footer_show_status),
-        copyright: formData.footer_copyright.trim()
+        legal_title: safeStr(formData.footer_legal_title),
+        legal_text: safeStr(formData.footer_legal_text),
+        copyright: safeStr(formData.footer_copyright)
       }
     };
 
-    // 1. Instant optimistic update locally
-    if (onConfigUpdated) {
-      onConfigUpdated(payload);
-    }
-
+    // Send to database via API — token fallback from localStorage if prop missing
     try {
-      const res = await updateAppSettings(payload, adminToken);
+      const activeToken = adminToken || (typeof window !== 'undefined' ? localStorage.getItem('cms_admin_token') : '') || '';
+      const res = await updateAppSettings(payload, activeToken);
       if (res && res.success) {
+        // Update local React state only AFTER confirmed server save
+        if (onConfigUpdated) {
+          onConfigUpdated(payload);
+        }
         setSavedSuccess(true);
         if (showToast) {
-          showToast('Identitas situs, logo, dan ikon PWA berhasil diperbarui!');
+          showToast('✅ Identitas situs & logo berhasil disimpan ke database!');
         }
         setTimeout(() => setSavedSuccess(false), 3000);
       } else {
+        const errMsg = res?.error || res?.message || 'Respons server tidak valid';
         if (showToast) {
-          showToast('Identitas diperbarui di penyimpanan lokal');
+          showToast(`⚠️ Gagal menyimpan: ${errMsg}`, 'error');
         }
       }
     } catch (err) {
-      console.error('[SiteIdentityManager] Save notice:', err);
+      console.error('[SiteIdentityManager] Save error:', err);
       if (showToast) {
-        showToast('Identitas disimpan ke cache lokal');
+        showToast(`⚠️ Gagal menyimpan ke database: ${err.message || 'Cek koneksi database'}`, 'error');
       }
     } finally {
       setSaving(false);
@@ -327,7 +332,7 @@ export const SiteIdentityManager = ({
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         {/* Left Column: Form Pengaturan (7 Cols) */}
         <div className="lg:col-span-7 space-y-6">
-          <form onSubmit={handleSubmit} className="bg-white rounded-3xl border border-slate-200 p-6 sm:p-7 shadow-xs space-y-6">
+          <form onSubmit={handleSubmit} className="bg-white rounded-3xl border border-slate-200 p-4 sm:p-7 shadow-xs space-y-6">
 
             {/* Section 1: Nama Brand & Judul Website */}
             <div className="border-b border-slate-100 pb-4">
@@ -437,30 +442,64 @@ export const SiteIdentityManager = ({
                 </p>
               </div>
 
-              {/* Generator Logo Otomatis (Simpel & Transparan) */}
-              <div className="p-4 rounded-2xl bg-gradient-to-r from-blue-50/80 via-indigo-50/80 to-purple-50/80 border border-blue-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs">
-                <div className="space-y-1">
-                  <div className="flex items-center gap-2">
-                    <span className="p-1 rounded-lg bg-blue-600 text-white shadow-xs">
-                      <Sparkles className="w-3.5 h-3.5" />
-                    </span>
-                    <span className="text-xs font-black text-slate-900">
-                      Generator Logo & Favicon Otomatis
-                    </span>
+              {/* Generator Logo Otomatis (Variasi Gaya & Simpel) */}
+              <div className="p-4.5 rounded-2xl bg-gradient-to-r from-blue-50/90 via-indigo-50/80 to-purple-50/90 border border-blue-200/80 space-y-3.5 shadow-xs">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <span className="p-1.5 rounded-lg bg-blue-600 text-white shadow-xs">
+                        <Sparkles className="w-4 h-4" />
+                      </span>
+                      <span className="text-sm font-black text-slate-900">
+                        Generator Logo & Favicon Otomatis
+                      </span>
+                    </div>
+                    <p className="text-xs text-slate-600 leading-relaxed max-w-lg">
+                      Membuat logo & favicon transparan unik dengan berbagai variasi geometri dan palet warna berdasarkan nama brand <b>"{formData.brandName}"</b>.
+                    </p>
                   </div>
-                  <p className="text-[11px] text-slate-600 leading-relaxed max-w-md">
-                    Membuat logo & favicon yang simpel, berkelas, dan 100% transparan secara otomatis berdasarkan nama brand <b>"{formData.brandName}"</b> dan kategori industri.
-                  </p>
+                  <button
+                    type="button"
+                    onClick={() => handleAutoGenerateLogo()}
+                    disabled={generatingLogo}
+                    className="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold transition-all shadow-md shadow-blue-600/25 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 shrink-0 active:scale-95"
+                  >
+                    <RefreshCw className={`w-3.5 h-3.5 ${generatingLogo ? 'animate-spin' : ''}`} />
+                    <span>{generatingLogo ? 'Mengenerate Logo...' : 'Generate Logo Baru'}</span>
+                  </button>
                 </div>
-                <button
-                  type="button"
-                  onClick={handleAutoGenerateLogo}
-                  disabled={generatingLogo}
-                  className="px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold transition-all shadow-md shadow-blue-600/20 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 shrink-0 active:scale-95"
-                >
-                  <RefreshCw className={`w-3.5 h-3.5 ${generatingLogo ? 'animate-spin' : ''}`} />
-                  <span>{generatingLogo ? 'Mengenerate Logo...' : 'Generate Logo Simpel'}</span>
-                </button>
+
+                {/* Variasi Gaya Logo (Wrapped Mobile First, Zero Horizontal Scroll) */}
+                <div className="pt-2 border-t border-blue-200/60 flex flex-wrap items-center gap-1.5 w-full">
+                  <span className="text-[11px] font-bold text-slate-700 mr-1 shrink-0">Variasi:</span>
+                  {[
+                    { id: 'random', label: '🎲 Acak & Unik' },
+                    { id: 'badge', label: '🛡️ Luxury Badge' },
+                    { id: 'minimalist', label: '⭕ Minimalist Orbit' },
+                    { id: 'abstract-lines', label: '⚡ Dynamic Lines' },
+                    { id: 'monogram-shape', label: '⬛ Monogram Shape' },
+                    { id: 'typography', label: '💎 Typography First' },
+                    { id: 'geometric', label: '⬡ Geometric Prism' },
+                    { id: 'pictorial', label: '👑 Pictorial Vector' },
+                    { id: 'horizontal', label: '🏷️ Horizontal Lockup' }
+                  ].map((styleOpt) => (
+                    <button
+                      key={styleOpt.id}
+                      type="button"
+                      onClick={() => {
+                        setLogoStyle(styleOpt.id);
+                        handleAutoGenerateLogo(styleOpt.id);
+                      }}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all shrink-0 cursor-pointer ${
+                        logoStyle === styleOpt.id
+                          ? 'bg-blue-600 text-white shadow-xs'
+                          : 'bg-white border border-blue-200 text-slate-700 hover:bg-blue-50'
+                      }`}
+                    >
+                      {styleOpt.label}
+                    </button>
+                  ))}
+                </div>
               </div>
 
               {/* Logo URL */}
@@ -955,40 +994,25 @@ export const SiteIdentityManager = ({
                   </div>
                 </div>
 
-                {/* 4. Kolom Legalitas & Status Sistem */}
+                {/* 4. Kolom Legalitas & Profil Footer */}
                 <div className="pt-3 border-t border-slate-200/80 space-y-3">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <div>
-                      <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
-                        Judul Kolom Legalitas
-                      </label>
-                      <input
-                        type="text"
-                        name="footer_legal_title"
-                        value={formData.footer_legal_title}
-                        onChange={handleChange}
-                        placeholder="Legalitas & Proteksi"
-                        className="w-full px-3.5 py-2 rounded-xl border border-slate-300 bg-white text-xs font-semibold text-slate-800 focus:ring-2 focus:ring-blue-600 focus:outline-hidden"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
-                        Teks Badge Status
-                      </label>
-                      <input
-                        type="text"
-                        name="footer_status_text"
-                        value={formData.footer_status_text}
-                        onChange={handleChange}
-                        placeholder="Status Sistem: Operasional Aktif"
-                        className="w-full px-3.5 py-2 rounded-xl border border-slate-300 bg-white text-xs font-medium text-slate-800 focus:ring-2 focus:ring-blue-600 focus:outline-hidden"
-                      />
-                    </div>
+                  <div>
+                    <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
+                      Judul Kolom Legalitas & Informasi Resmi
+                    </label>
+                    <input
+                      type="text"
+                      name="footer_legal_title"
+                      value={formData.footer_legal_title}
+                      onChange={handleChange}
+                      placeholder="Legalitas & Informasi Resmi"
+                      className="w-full px-3.5 py-2 rounded-xl border border-slate-300 bg-white text-xs font-semibold text-slate-800 focus:ring-2 focus:ring-blue-600 focus:outline-hidden"
+                    />
                   </div>
 
                   <div>
                     <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
-                      Keterangan Legalitas & Proteksi Hak Cipta
+                      Keterangan Legalitas & Informasi Usaha
                     </label>
                     <textarea
                       name="footer_legal_text"
@@ -998,19 +1022,6 @@ export const SiteIdentityManager = ({
                       placeholder="Hak Cipta dilindungi Undang-Undang..."
                       className="w-full px-3.5 py-2 rounded-xl border border-slate-300 bg-white text-xs text-slate-800 focus:ring-2 focus:ring-blue-600 focus:outline-hidden leading-relaxed"
                     />
-                  </div>
-
-                  <div className="flex items-center justify-between pt-1">
-                    <span className="text-xs font-bold text-slate-700">Tampilkan Badge Status Operasional</span>
-                    <label className="relative inline-flex items-center cursor-pointer shrink-0">
-                      <input
-                        type="checkbox"
-                        checked={formData.footer_show_status}
-                        onChange={(e) => setFormData(prev => ({ ...prev, footer_show_status: e.target.checked }))}
-                        className="sr-only peer"
-                      />
-                      <div className="w-11 h-6 bg-slate-200 peer-focus:outline-hidden rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600"></div>
-                    </label>
                   </div>
                 </div>
 
@@ -1024,7 +1035,7 @@ export const SiteIdentityManager = ({
                     name="footer_copyright"
                     value={formData.footer_copyright}
                     onChange={handleChange}
-                    placeholder="All rights reserved. Powered by Enterprise MultiCMS Engine."
+                    placeholder="Hak Cipta Dilindungi."
                     className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 bg-white text-xs sm:text-sm font-medium text-slate-800 focus:ring-2 focus:ring-blue-600 focus:outline-hidden"
                   />
                   <span className="text-[11px] text-slate-400 mt-1 block">
@@ -1035,14 +1046,14 @@ export const SiteIdentityManager = ({
             </div>
 
             {/* Submit Button */}
-            <div className="pt-4 border-t border-slate-100 flex items-center justify-between">
+            <div className="pt-4 border-t border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <span className="text-xs text-slate-400">
                 Penyimpanan langsung ke database PostgreSQL Supabase (Single Source of Truth).
               </span>
               <button
                 type="submit"
                 disabled={saving}
-                className="px-6 py-3 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-xs sm:text-sm shadow-md shadow-blue-600/30 transition-all flex items-center gap-2 cursor-pointer active:scale-95 disabled:opacity-50"
+                className="w-full sm:w-auto px-6 py-3 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-xs sm:text-sm shadow-md shadow-blue-600/30 transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-95 disabled:opacity-50"
               >
                 {saving ? (
                   <RefreshCw className="w-4 h-4 animate-spin" />
@@ -1291,14 +1302,6 @@ export const SiteIdentityManager = ({
                   <p className="text-[9px] text-slate-400 line-clamp-2 leading-tight">
                     {formData.footer_legal_text}
                   </p>
-                  {formData.footer_show_status && (
-                    <div className="pt-0.5">
-                      <span className="text-[9px] text-emerald-400 font-semibold flex items-center gap-1">
-                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                        <span className="truncate">{formData.footer_status_text}</span>
-                      </span>
-                    </div>
-                  )}
                 </div>
               </div>
 

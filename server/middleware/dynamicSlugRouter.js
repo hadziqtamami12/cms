@@ -31,4 +31,16 @@ export const dynamicSlugRouter = (req, res, next) => {
   next();
 };
 
-export default { dynamicSlugRouter, getAdminSlug, setAdminSlug };
+export const loadAdminSlugFromDb = async (queryFn) => {
+  try {
+    if (typeof queryFn === 'function') {
+      const rows = await queryFn("SELECT admin_slug FROM admin_settings WHERE admin_slug IS NOT NULL LIMIT 1");
+      if (rows && rows.length > 0 && rows[0].admin_slug) {
+        setAdminSlug(rows[0].admin_slug);
+      }
+    }
+  } catch (_) {}
+};
+
+export default { dynamicSlugRouter, getAdminSlug, setAdminSlug, loadAdminSlugFromDb };
+

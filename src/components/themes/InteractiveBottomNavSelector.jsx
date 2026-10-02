@@ -79,7 +79,7 @@ export const InteractiveBottomNavSelector = ({
     const newVariant = variantObj.id;
     const legacyStyle = variantObj.legacyId;
 
-    // 1. Instant Optimistic UI and Local Single-Source Sync
+    // 1. Optimistic UI update in React state only
     setSelectedVariant(newVariant);
     setSavingVariant(newVariant);
 
@@ -92,11 +92,6 @@ export const InteractiveBottomNavSelector = ({
     if (onConfigUpdated) {
       onConfigUpdated(localUpdated);
     }
-
-    try {
-      localStorage.setItem('cms_active_theme_config', JSON.stringify(localUpdated));
-      window.dispatchEvent(new Event('cms-config-updated'));
-    } catch {}
 
     try {
       // 2. Persist to Database via /api/settings and /api/admin/theme/switch
@@ -114,6 +109,11 @@ export const InteractiveBottomNavSelector = ({
         })
       ]);
 
+      // 3. After confirmed DB save, signal other browser tabs via localStorage storage event
+      try {
+        localStorage.setItem('cms_active_theme_config', JSON.stringify(localUpdated));
+      } catch {}
+
       if (showToast) {
         showToast('Varian navigasi berhasil disimpan & aktif di landing page');
       }
@@ -129,7 +129,7 @@ export const InteractiveBottomNavSelector = ({
     } catch (err) {
       console.error('[BottomNavSelector] Failed to persist to database:', err);
       if (showToast) {
-        showToast('Varian navigasi aktif di landing page');
+        showToast('⚠️ Gagal menyimpan ke database. Cek koneksi Supabase.');
       }
     } finally {
       setSavingVariant(null);

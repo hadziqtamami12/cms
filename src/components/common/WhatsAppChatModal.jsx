@@ -1,14 +1,21 @@
 import React, { useState } from 'react';
-import { MessageCircle, X, Send, CheckCheck, Sparkles } from 'lucide-react';
+import { X, Send, CheckCheck, Sparkles } from 'lucide-react';
+
+const WhatsAppOfficialIcon = ({ className = "w-6 h-6" }) => (
+  <svg
+    viewBox="0 0 24 24"
+    width="24"
+    height="24"
+    fill="currentColor"
+    className={className}
+    xmlns="http://www.w3.org/2000/svg"
+  >
+    <path d="M12.04 2C6.58 2 2.13 6.45 2.13 11.91C2.13 13.66 2.59 15.36 3.45 16.86L2.05 22L7.3 20.62C8.75 21.41 10.38 21.83 12.04 21.83C17.5 21.83 21.95 17.38 21.95 11.92C21.95 9.27 20.92 6.78 19.05 4.91C17.18 3.03 14.69 2 12.04 2ZM12.05 3.67C14.25 3.67 16.31 4.53 17.87 6.09C19.42 7.65 20.28 9.72 20.28 11.92C20.28 16.46 16.58 20.15 12.04 20.15C10.56 20.15 9.11 19.76 7.85 19.01L7.55 18.83L4.43 19.65L5.26 16.61L5.06 16.29C4.24 14.99 3.8 13.47 3.8 11.91C3.81 7.37 7.5 3.67 12.05 3.67ZM8.53 7.33C8.37 7.33 8.1 7.39 7.87 7.64C7.65 7.89 7.02 8.49 7.02 9.71C7.02 10.93 7.91 12.11 8.03 12.27C8.16 12.44 9.77 14.92 12.23 15.98C12.82 16.23 13.27 16.38 13.63 16.5C14.22 16.68 14.76 16.66 15.19 16.6C15.67 16.53 16.67 15.99 16.88 15.41C17.09 14.82 17.09 14.32 17.02 14.21C16.96 14.1 16.8 14.04 16.55 13.92C16.31 13.79 15.11 13.2 14.89 13.12C14.66 13.04 14.5 13 14.33 13.25C14.17 13.5 13.7 14.1 13.56 14.26C13.42 14.43 13.28 14.45 13.03 14.33C12.79 14.2 12.01 13.95 11.08 13.12C10.36 12.47 9.87 11.67 9.73 11.43C9.59 11.18 9.71 11.05 9.84 10.92C9.95 10.81 10.08 10.64 10.21 10.49C10.34 10.33 10.38 10.22 10.46 10.05C10.54 9.89 10.5 9.74 10.44 9.62C10.38 9.5 9.91 8.34 9.71 7.86C9.52 7.39 9.32 7.45 9.17 7.44C9.03 7.43 8.87 7.43 8.7 7.43C8.53 7.43 8.37 7.33 8.53 7.33Z" />
+  </svg>
+);
 
 /**
- * Authentic WordPress-style WhatsApp Web Interactive Chat Popup Modal
- * Features:
- * - Verified CS avatar with pulsing online indicator
- * - Official WhatsApp doodle wallpaper chat body
- * - Authentic incoming chat bubble with double blue tick
- * - Quick-reply conversation starter chips
- * - Direct dispatch to WhatsApp official API (wa.me)
+ * Authentic WhatsApp Web Interactive Chat Popup Modal
  */
 export const WhatsAppChatModal = ({
   isOpen = false,
@@ -58,12 +65,12 @@ export const WhatsAppChatModal = ({
         {/* Header: WhatsApp Official Green Theme */}
         <div className="bg-[#075E54] text-white p-4 flex items-center justify-between shadow-md relative overflow-hidden select-none">
           <div className="flex items-center gap-3 min-w-0">
-            {/* CS Avatar with pulsing online badge */}
+            {/* CS Avatar */}
             <div className="relative shrink-0">
               <div className="w-11 h-11 rounded-full bg-white/20 border-2 border-white/40 flex items-center justify-center font-bold text-base text-white shadow-inner">
-                <MessageCircle className="w-6 h-6 text-white" />
+                <WhatsAppOfficialIcon className="w-6 h-6 text-white" />
               </div>
-              <span className="absolute bottom-0 right-0 w-3.5 h-3.5 bg-emerald-400 border-2 border-[#075E54] rounded-full animate-pulse" />
+              <span className="absolute bottom-0 right-0 w-3.5 h-3.5 bg-emerald-400 border-2 border-[#075E54] rounded-full" />
             </div>
 
             {/* CS Details */}

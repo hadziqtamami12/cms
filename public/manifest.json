@@ -1,7 +1,7 @@
 {
-  "name": "Enterprise Multi-Industry CMS & PWA",
-  "short_name": "MultiCMS",
-  "description": "High performance mobile-first landing page generator",
+  "name": "Sewa Mobil & Rental Armada Terpercaya",
+  "short_name": "Rental Mobil",
+  "description": "Layanan sewa mobil dan rental armada profesional dengan pilihan unit lengkap, terawat, dan sopir berpengalaman.",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#ffffff",

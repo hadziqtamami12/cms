@@ -1,16 +1,145 @@
 import { Router } from 'express';
 import fs from 'fs';
 import path from 'path';
+import bcrypt from 'bcryptjs';
+import { query, getDbType } from '../config/db.js';
 import { getActiveThemeConfig } from '../services/themeService.js';
 import { getPublicSettings, saveSettings } from '../services/configService.js';
 import { analyzeKeywordDensity, generateJsonLdSchema } from '../services/seoService.js';
 import { getSystemLicenseStatus } from '../services/licenseService.js';
-import { getAdminSlug } from '../middleware/dynamicSlugRouter.js';
-import { adminAuth } from '../middleware/adminAuth.js';
+import { getAdminSlug, setAdminSlug } from '../middleware/dynamicSlugRouter.js';
+import { adminAuth, generateAdminToken } from '../middleware/adminAuth.js';
 import { createPublicOrder } from './orders.js';
 import { syncAndSaveBrandAssets } from '../services/logoGeneratorService.js';
+import { getPreset, getAllPresets } from '../services/themePresets.js';
+import { delCache } from '../config/cache.js';
 
 const router = Router();
+
+/**
+ * GET /api/theme/presets
+ * List all available turn-key CMS category presets
+ */
+router.get('/theme/presets', (req, res) => {
+  res.json({
+    success: true,
+    presets: getAllPresets()
+  });
+});
+
+/**
+ * POST /api/theme/apply-preset
+ * 1-Click apply turn-key category preset with dummy seeder content & layouts
+ */
+router.post('/theme/apply-preset', async (req, res) => {
+  try {
+    const { presetId } = req.body;
+    const preset = getPreset(presetId);
+    if (!preset) {
+      return res.status(400).json({ success: false, error: 'Preset kategori tidak ditemukan' });
+    }
+
+    const updated = await saveSettings({
+      ...preset,
+      onboarded: true,
+      is_onboarded: true
+    });
+
+    await delCache('*');
+
+    res.json({
+      success: true,
+      message: `Tema kategori ${preset.categoryName} berhasil diterapkan secara instan!`,
+      data: updated
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+/**
+ * POST /api/onboarding/complete
+ * Initial setup:
+ * 1. Applies selected category theme preset & seeders
+ * 2. Hashes & saves admin username & password (Bcrypt)
+ * 3. Saves custom admin URL slug (default /admin)
+ * 4. Marks is_onboarded = true
+ * 5. Returns active JWT session token for seamless redirection
+ */
+router.post('/onboarding/complete', async (req, res) => {
+  try {
+    const { category = 'automotive', adminUser, adminPassword, adminSlug } = req.body;
+
+    const cleanUser = String(adminUser || 'admin').trim();
+    const cleanPass = String(adminPassword || 'admin123').trim();
+    const cleanSlug = String(adminSlug || 'admin').trim().replace(/^\/+|\/+$/g, '') || 'admin';
+
+    // 1. Hash password with Bcrypt
+    const salt = await bcrypt.genSalt(10);
+    const passwordHash = await bcrypt.hash(cleanPass, salt);
+
+    // 2. Persist admin credentials to database
+    const dbType = getDbType();
+    try {
+      if (dbType === 'postgres') {
+        await query(`
+          INSERT INTO admin_settings (id, username, email, password_hash, admin_slug, token_version, updated_at)
+          VALUES ('default_admin', $1, 'admin@multicms.id', $2, $3, 1, CURRENT_TIMESTAMP)
+          ON CONFLICT (id) DO UPDATE
+          SET username = EXCLUDED.username, password_hash = EXCLUDED.password_hash, admin_slug = EXCLUDED.admin_slug, updated_at = CURRENT_TIMESTAMP;
+        `, [cleanUser, passwordHash, cleanSlug]);
+
+        await query(`
+          INSERT INTO admin_users (id, username, password_hash, role, updated_at)
+          VALUES ('admin-root', $1, $2, 'superadmin', CURRENT_TIMESTAMP)
+          ON CONFLICT (username) DO UPDATE
+          SET password_hash = EXCLUDED.password_hash, updated_at = CURRENT_TIMESTAMP;
+        `, [cleanUser, passwordHash]);
+      } else if (dbType === 'mysql') {
+        await query(`
+          INSERT INTO admin_settings (id, username, password_hash, admin_slug)
+          VALUES ('default_admin', ?, ?, ?)
+          ON DUPLICATE KEY UPDATE username = VALUES(username), password_hash = VALUES(password_hash), admin_slug = VALUES(admin_slug);
+        `, [cleanUser, passwordHash, cleanSlug]);
+
+        await query(`
+          INSERT INTO admin_users (id, username, password_hash, role)
+          VALUES ('admin-root', ?, ?, 'superadmin')
+          ON DUPLICATE KEY UPDATE password_hash = VALUES(password_hash);
+        `, [cleanUser, passwordHash]);
+      }
+    } catch (dbErr) {
+      console.warn('[Onboarding Complete DB Warning]:', dbErr.message);
+    }
+
+    // 3. Set dynamic admin slug
+    setAdminSlug(cleanSlug);
+
+    // 4. Apply selected theme preset & mark onboarded
+    const preset = getPreset(category);
+    const updated = await saveSettings({
+      ...preset,
+      adminSlug: cleanSlug,
+      onboarded: true,
+      is_onboarded: true
+    });
+
+    await delCache('*');
+
+    // 5. Generate admin session token
+    const token = generateAdminToken({ id: 'admin-root', username: cleanUser });
+
+    res.json({
+      success: true,
+      message: `Setup CMS selesai! Kategori ${preset.categoryName} berhasil diaktifkan.`,
+      token,
+      adminSlug: cleanSlug,
+      data: updated
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
 
 // In-memory leads storage for enquiries
 const leads = [];
@@ -332,9 +461,18 @@ router.post('/upload', async (req, res) => {
     const safeFilename = `${baseName}-${Date.now()}.${ext}`;
     const destinationPath = path.join(uploadDir, safeFilename);
 
-    fs.writeFileSync(destinationPath, buffer);
+    let publicUrl = `/uploads/${safeFilename}`;
+    try {
+      if (!fs.existsSync(uploadDir)) {
+        fs.mkdirSync(uploadDir, { recursive: true });
+      }
+      fs.writeFileSync(destinationPath, buffer);
+    } catch (fsErr) {
+      console.warn('[Upload API] Serverless read-only mode, serving data URI:', fsErr.message);
+      const mime = ext === 'svg' ? 'image/svg+xml' : `image/${ext}`;
+      publicUrl = `data:${mime};base64,${buffer.toString('base64')}`;
+    }
 
-    const publicUrl = `/uploads/${safeFilename}`;
     return res.json({
       success: true,
       message: 'File berhasil diunggah!',
@@ -348,24 +486,54 @@ router.post('/upload', async (req, res) => {
 });
 
 /**
+ * GET /api/brand/logo.svg
+ * Dynamic serverless-safe SVG streaming endpoint
+ * Guarantees crisp transparent brand logo stream even on read-only environments
+ */
+router.get('/brand/logo.svg', async (req, res) => {
+  try {
+    const { getLastGeneratedLogoSvg, generateLogoSvg } = await import('../services/logoGeneratorService.js');
+    let svg = getLastGeneratedLogoSvg();
+
+    if (!svg) {
+      const settings = await getPublicSettings(false);
+      svg = generateLogoSvg({
+        appName: settings.brandName || 'Enterprise CMS',
+        industry: settings.industry || 'automotive',
+        style: settings.logo_style || 'badge'
+      });
+    }
+
+    res.setHeader('Content-Type', 'image/svg+xml; charset=utf-8');
+    res.setHeader('Cache-Control', 'no-cache, must-revalidate');
+    res.send(svg);
+  } catch (err) {
+    res.status(500).send('<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100"><circle cx="50" cy="50" r="40" fill="#3B82F6"/></svg>');
+  }
+});
+
+/**
  * POST /api/brand/generate-logo
- * Universally accessible route to generate brand logo & favicon
+ * Universally accessible route to generate brand logo & favicon with varied layouts
  */
 router.post('/brand/generate-logo', async (req, res) => {
   try {
-    const { appName, industry } = req.body || {};
+    const { appName, industry, style } = req.body || {};
     const current = await getPublicSettings(false);
     const targetAppName = appName || current.brandName || 'Royal Fleet';
     const targetIndustry = industry || current.industry || 'automotive';
+    const targetStyle = style || current.logo_style || 'badge';
 
     const result = await syncAndSaveBrandAssets({
       appName: targetAppName,
-      industry: targetIndustry
+      industry: targetIndustry,
+      style: targetStyle
     });
 
     const updated = await saveSettings({
       logoUrl: result.logoUrl,
-      pwa_icon: result.pwaIcon
+      pwa_icon: result.pwaIcon,
+      logo_style: targetStyle
     });
 
     res.json({
@@ -375,12 +543,79 @@ router.post('/brand/generate-logo', async (req, res) => {
         logoUrl: result.logoUrl,
         pwaIcon: result.pwaIcon,
         faviconUrl: result.faviconUrl,
+        dataUri: result.dataUri,
         initials: result.initials,
+        style: result.style,
         settings: updated
       }
     });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+/**
+ * GET /sitemap.xml & /api/sitemap.xml
+ * Dynamic search-engine compliant XML Sitemap generator
+ */
+router.get(['/sitemap.xml', '/api/sitemap.xml'], async (req, res) => {
+  try {
+    const protocol = req.headers['x-forwarded-proto'] || req.protocol || 'https';
+    const host = req.headers['x-forwarded-host'] || req.get('host') || 'localhost:3005';
+    const baseUrl = `${protocol}://${host}`;
+
+    let articles = [];
+    try {
+      const artRes = await query('SELECT slug, updated_at, created_at FROM articles WHERE is_published = true ORDER BY id DESC LIMIT 500');
+      if (Array.isArray(artRes)) {
+        articles = artRes;
+      } else if (artRes && Array.isArray(artRes.rows)) {
+        articles = artRes.rows;
+      }
+    } catch (_) {}
+
+    let trips = [];
+    try {
+      const tripRes = await query('SELECT slug, updated_at, created_at FROM travel_trips WHERE is_published = true ORDER BY id DESC LIMIT 500');
+      if (Array.isArray(tripRes)) {
+        trips = tripRes;
+      } else if (tripRes && Array.isArray(tripRes.rows)) {
+        trips = tripRes.rows;
+      }
+    } catch (_) {}
+
+    const now = new Date().toISOString().split('T')[0];
+
+    let xml = `<?xml version="1.0" encoding="UTF-8"?>\n`;
+    xml += `<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n`;
+
+    // 1. Homepage
+    xml += `  <url>\n    <loc>${baseUrl}/</loc>\n    <lastmod>${now}</lastmod>\n    <changefreq>daily</changefreq>\n    <priority>1.0</priority>\n  </url>\n`;
+
+    // 2. Articles Index
+    xml += `  <url>\n    <loc>${baseUrl}/artikel</loc>\n    <lastmod>${now}</lastmod>\n    <changefreq>daily</changefreq>\n    <priority>0.8</priority>\n  </url>\n`;
+
+    // 3. Articles detail
+    for (const art of articles) {
+      if (!art.slug) continue;
+      const lastMod = art.updated_at ? new Date(art.updated_at).toISOString().split('T')[0] : now;
+      xml += `  <url>\n    <loc>${baseUrl}/artikel/${encodeURIComponent(art.slug)}</loc>\n    <lastmod>${lastMod}</lastmod>\n    <changefreq>weekly</changefreq>\n    <priority>0.7</priority>\n  </url>\n`;
+    }
+
+    // 4. Travel trips detail
+    for (const trip of trips) {
+      if (!trip.slug) continue;
+      const lastMod = trip.updated_at ? new Date(trip.updated_at).toISOString().split('T')[0] : now;
+      xml += `  <url>\n    <loc>${baseUrl}/wisata/${encodeURIComponent(trip.slug)}</loc>\n    <lastmod>${lastMod}</lastmod>\n    <changefreq>weekly</changefreq>\n    <priority>0.7</priority>\n  </url>\n`;
+    }
+
+    xml += `</urlset>`;
+
+    res.set('Content-Type', 'application/xml; charset=utf-8');
+    res.set('Cache-Control', 'public, max-age=3600, s-maxage=3600');
+    res.send(xml);
+  } catch (err) {
+    res.status(500).send('<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"></urlset>');
   }
 });
 

@@ -375,7 +375,7 @@ export const CompetitorScraperModal = ({
         endpoint = '/api/admin/scraper/import-articles';
         payload = {
           articles: itemsToImport,
-          competitorUrl: url,
+          competitorUrl: targetUrl || parsedData?.meta?.sourceUrl || '',
           competitorDomain: parsedData?.meta?.sourceDomain || '',
           competitorTitle: parsedData?.meta?.pageTitle || ''
         };
@@ -441,13 +441,13 @@ export const CompetitorScraperModal = ({
               <Globe className="w-4 h-4 sm:w-5 sm:h-5" />
             </span>
             <div>
-              <h3 className="font-extrabold text-sm sm:text-base text-slate-900 flex items-center gap-2">
-                <span>Alat Analisis & Ekstraksi Data Kompetitor</span>
+              <h3 className="font-extrabold text-sm sm:text-base text-slate-900 flex flex-wrap items-center gap-1.5 sm:gap-2">
+                <span>Ekstraksi Data & Scraper Web</span>
                 <span className="px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 text-[10px] font-bold border border-blue-200">
-                  AI & Web Scraper
+                  Web Scraper Otomatis
                 </span>
               </h3>
-              <p className="text-[11px] text-slate-500">
+              <p className="text-[11px] text-slate-500 line-clamp-1">
                 Ekstrak otomatis harga, foto HD, spesifikasi, atau buat data sendiri secara manual
               </p>
             </div>
@@ -461,12 +461,12 @@ export const CompetitorScraperModal = ({
           </button>
         </header>
 
-        {/* Target Type Tab Switcher (No Horizontal Scrollbar) */}
-        <div className="flex items-center gap-1.5 px-4 sm:px-6 pt-2 bg-slate-50 border-b border-slate-200 shrink-0 flex-wrap overflow-x-hidden">
+        {/* Target Type Tab Switcher (Wrapped Mobile First, Zero Horizontal Scroll) */}
+        <div className="flex flex-wrap items-center gap-1.5 px-3 sm:px-6 py-2 bg-slate-50 border-b border-slate-200 shrink-0 select-none">
           <button
             type="button"
             onClick={() => { setTargetType('products'); setParsedData(null); setError(null); }}
-            className={`px-3 py-1.5 rounded-t-xl text-xs font-bold transition-all flex items-center gap-1.5 border-t border-x cursor-pointer ${
+            className={`px-3 py-1.5 rounded-t-xl text-xs font-bold transition-all flex items-center gap-1.5 border-t border-x cursor-pointer shrink-0 ${
               targetType === 'products'
                 ? 'bg-white text-blue-700 border-slate-200 border-b-white -mb-px shadow-xs'
                 : 'border-transparent text-slate-500 hover:text-slate-800'
@@ -903,17 +903,17 @@ export const CompetitorScraperModal = ({
           )}
         </div>
 
-        {/* Footer Actions */}
+        {/* Footer Actions (Mobile First) */}
         {parsedData && !loading && (
-          <footer className="px-6 py-4 border-t border-slate-100 bg-slate-50 flex items-center justify-between shrink-0">
-            <span className="text-xs text-slate-600">
+          <footer className="px-4 sm:px-6 py-3.5 border-t border-slate-100 bg-slate-50 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 shrink-0">
+            <span className="text-xs text-slate-600 text-center sm:text-left">
               <strong className="font-bold text-slate-900">{selectedItems.length}</strong> dari {parsedData.data.length} {getTypeLabel()} siap diimpor
             </span>
-            <div className="flex gap-2">
+            <div className="flex items-center gap-2 w-full sm:w-auto">
               <button
                 type="button"
                 onClick={onClose}
-                className="px-4 py-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 font-bold text-xs cursor-pointer"
+                className="px-4 py-2.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 font-bold text-xs cursor-pointer flex-1 sm:flex-initial text-center"
               >
                 Tutup
               </button>
@@ -921,7 +921,7 @@ export const CompetitorScraperModal = ({
                 type="button"
                 onClick={handleImport}
                 disabled={importing || selectedItems.length === 0}
-                className="px-6 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 active:scale-95 text-white font-bold text-xs shadow-md shadow-blue-600/20 flex items-center gap-2 cursor-pointer disabled:opacity-50"
+                className="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 active:scale-95 text-white font-bold text-xs shadow-md shadow-blue-600/20 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 flex-2 sm:flex-initial text-center"
               >
                 {importing ? (
                   <>
@@ -931,7 +931,7 @@ export const CompetitorScraperModal = ({
                 ) : (
                   <>
                     <Download className="w-3.5 h-3.5" />
-                    <span>Impor ke {getTypeLabel()} ({selectedItems.length})</span>
+                    <span>Impor ({selectedItems.length})</span>
                   </>
                 )}
               </button>

@@ -8,6 +8,8 @@ import { query, getDbType, getMemoryStore } from '../config/db.js';
 import { getCache, setCache, delCache } from '../config/cache.js';
 // Base Default Configuration
 export const DEFAULT_APP_CONFIG = {
+  is_onboarded: false,
+  adminSlug: 'admin',
   industry: 'automotive',
   themeId: 'fleet-grid',
   bottom_nav_variant: 'floating_dock', // 'floating_dock' | 'fixed_curved' | 'floating_bubble' | 'floating_box'
@@ -27,7 +29,7 @@ export const DEFAULT_APP_CONFIG = {
     duration: 2.5
   },
   footer: {
-    about: 'Didukung oleh arsitektur Cloud Edge berkecepatan tinggi dengan skor Core Web Vitals optimal dan enkripsi enterprise.',
+    about: 'Layanan armada dan solusi transportasi profesional dengan standar keselamatan tinggi, unit bersih, dan pengemudi berpengalaman.',
     button_text: 'Baca Artikel & Panduan Wisata',
     button_url: '/artikel',
     show_button: true,
@@ -35,11 +37,9 @@ export const DEFAULT_APP_CONFIG = {
     show_phone: true,
     show_email: true,
     show_address: true,
-    legal_title: 'Legalitas & Proteksi',
-    legal_text: 'Hak Cipta dilindungi Undang-Undang. Terdaftar dan terverifikasi di Google Business & Cloudflare Enterprise.',
-    status_text: 'Status Sistem: Operasional Aktif',
-    show_status: true,
-    copyright: 'All rights reserved. Powered by Enterprise MultiCMS Engine.'
+    legal_title: 'Legalitas & Informasi Usaha',
+    legal_text: 'Hak Cipta dilindungi Undang-Undang. Seluruh kegiatan operasional dan pemesanan berizin resmi.',
+    copyright: 'Hak Cipta Dilindungi.'
   },
   floating_whatsapp: {
     enabled: true,
@@ -352,39 +352,38 @@ export const ensureSettingsTable = async () => {
   if (isDbTableEnsured) return;
   const dbType = getDbType();
 
-  try {
-    if (dbType === 'postgres') {
-      await query(`
-        CREATE TABLE IF NOT EXISTS app_settings (
-          key VARCHAR(100) PRIMARY KEY,
-          value JSONB NOT NULL,
-          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        );
-      `);
-      isDbTableEnsured = true;
-    } else if (dbType === 'mysql') {
-      await query(`
-        CREATE TABLE IF NOT EXISTS app_settings (
-          \`key\` VARCHAR(100) PRIMARY KEY,
-          \`value\` JSON NOT NULL,
-          \`updated_at\` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-      `);
-      isDbTableEnsured = true;
-    }
-  } catch (err) {
-    console.warn('[ConfigService] Table check skipped or non-fatal:', err.message);
+  if (dbType === 'postgres') {
+    await query(`
+      CREATE TABLE IF NOT EXISTS app_settings (
+        key VARCHAR(100) PRIMARY KEY,
+        value JSONB NOT NULL,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+    isDbTableEnsured = true;
+  } else if (dbType === 'mysql') {
+    await query(`
+      CREATE TABLE IF NOT EXISTS app_settings (
+        \`key\` VARCHAR(100) PRIMARY KEY,
+        \`value\` JSON NOT NULL,
+        \`updated_at\` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+    `);
+    isDbTableEnsured = true;
   }
 };
+
 
 /**
  * Reads setting by key directly from database.
  */
 export const getSettingFromDb = async (key) => {
   const dbType = getDbType();
-  await ensureSettingsTable();
 
+  // For reads: graceful degradation — if DB unavailable, return null and use defaults
   try {
+    await ensureSettingsTable();
+
     if (dbType === 'postgres') {
       const rows = await query('SELECT value FROM app_settings WHERE key = $1 LIMIT 1', [key]);
       if (rows && rows.length > 0) {
@@ -401,10 +400,11 @@ export const getSettingFromDb = async (key) => {
       if (val) return val;
     }
   } catch (err) {
-    console.warn(`[ConfigService] Error reading setting [${key}] from DB:`, err.message);
+    console.warn(`[ConfigService] DB read fallback for [${key}]: ${err.message}`);
   }
   return null;
 };
+
 
 /**
  * Writes setting by key directly to database with atomic UPSERT.
@@ -415,43 +415,52 @@ export const saveSettingToDb = async (key, value) => {
 
   const jsonVal = typeof value === 'object' ? JSON.stringify(value) : JSON.stringify({ data: value });
 
-  try {
-    if (dbType === 'postgres') {
-      await query(`
-        INSERT INTO app_settings (key, value, updated_at)
-        VALUES ($1, $2::jsonb, NOW())
-        ON CONFLICT (key) DO UPDATE
-        SET value = EXCLUDED.value, updated_at = NOW();
-      `, [key, jsonVal]);
+  if (dbType === 'postgres') {
+    // Primary save — errors must propagate (don't catch!)
+    await query(`
+      INSERT INTO app_settings (key, value, updated_at)
+      VALUES ($1, $2::jsonb, NOW())
+      ON CONFLICT (key) DO UPDATE
+      SET value = EXCLUDED.value, updated_at = NOW();
+    `, [key, jsonVal]);
 
-      // Dual persistence into legacy sys_configs table
-      await query(`
-        INSERT INTO sys_configs (key, value, updated_at)
-        VALUES ($1, $2::jsonb, NOW())
-        ON CONFLICT (key) DO UPDATE
-        SET value = EXCLUDED.value, updated_at = NOW();
-      `, ['theme_config', jsonVal]).catch(() => {});
-    } else if (dbType === 'mysql') {
-      await query(`
-        INSERT INTO app_settings (\`key\`, \`value\`, updated_at)
-        VALUES (?, ?, NOW())
-        ON DUPLICATE KEY UPDATE \`value\` = VALUES(\`value\`), updated_at = NOW();
-      `, [key, jsonVal]);
-
-      await query(`
-        INSERT INTO sys_configs (\`key\`, \`value\`, updated_at)
-        VALUES (?, ?, NOW())
-        ON DUPLICATE KEY UPDATE \`value\` = VALUES(\`value\`), updated_at = NOW();
-      `, ['theme_config', jsonVal]).catch(() => {});
-    } else if (dbType === 'memory') {
-      const mem = getMemoryStore();
-      mem.configs.set(key, value);
-      mem.configs.set('theme_config', value);
-    }
-  } catch (err) {
-    console.error(`[ConfigService] Error saving setting [${key}] to DB:`, err.message);
+    // Secondary legacy table — silently skip if it doesn't exist
+    await query(`
+      INSERT INTO sys_configs (key, value, updated_at)
+      VALUES ($1, $2::jsonb, NOW())
+      ON CONFLICT (key) DO UPDATE
+      SET value = EXCLUDED.value, updated_at = NOW();
+    `, ['theme_config', jsonVal]).catch(() => {});
+    return;
   }
+
+  if (dbType === 'mysql') {
+    await query(`
+      INSERT INTO app_settings (\`key\`, \`value\`, updated_at)
+      VALUES (?, ?, NOW())
+      ON DUPLICATE KEY UPDATE \`value\` = VALUES(\`value\`), updated_at = NOW();
+    `, [key, jsonVal]);
+
+    await query(`
+      INSERT INTO sys_configs (\`key\`, \`value\`, updated_at)
+      VALUES (?, ?, NOW())
+      ON DUPLICATE KEY UPDATE \`value\` = VALUES(\`value\`), updated_at = NOW();
+    `, ['theme_config', jsonVal]).catch(() => {});
+    return;
+  }
+
+  if (dbType === 'memory') {
+    // Memory mode only acceptable when explicitly configured (DB_TYPE=static)
+    // or when no DB is configured at all. Not a fallback from a failed Postgres.
+    const mem = getMemoryStore();
+    mem.configs.set(key, value);
+    mem.configs.set('theme_config', value);
+    return;
+  }
+
+  throw new Error(`[ConfigService] Tipe database tidak didukung atau koneksi gagal: ${dbType}. Periksa konfigurasi DB di .env`);
 };
+
 
 /**
  * Returns active public settings directly from database (with Redis / in-memory cache).
@@ -504,6 +513,21 @@ export const getPublicSettings = async (forceDb = false) => {
     },
     faqs: dbConfig?.faqs?.length ? dbConfig.faqs : DEFAULT_APP_CONFIG.faqs
   };
+
+  // Strip legacy artificial AI footprints
+  if (merged.footer) {
+    delete merged.footer.status_text;
+    delete merged.footer.show_status;
+    if (merged.footer.legal_text && merged.footer.legal_text.includes('Cloudflare Enterprise')) {
+      merged.footer.legal_text = DEFAULT_APP_CONFIG.footer.legal_text;
+    }
+    if (merged.footer.about && (merged.footer.about.includes('enkripsi enterprise') || merged.footer.about.includes('Cloud Edge'))) {
+      merged.footer.about = DEFAULT_APP_CONFIG.footer.about;
+    }
+    if (merged.footer.copyright && merged.footer.copyright.includes('Enterprise MultiCMS Engine')) {
+      merged.footer.copyright = DEFAULT_APP_CONFIG.footer.copyright;
+    }
+  }
 
   // Ensure each item has dual pricing fields
   if (Array.isArray(merged.items)) {
@@ -562,8 +586,17 @@ export const saveSettings = async (partialSettings = {}) => {
     seo: {
       ...current.seo,
       ...(partialSettings.seo || {})
+    },
+    footer: {
+      ...current.footer,
+      ...(partialSettings.footer || {})
     }
   };
+
+  if (updated.footer) {
+    delete updated.footer.status_text;
+    delete updated.footer.show_status;
+  }
 
   // Save to database permanently
   await saveSettingToDb('app_config', updated);

@@ -4,6 +4,7 @@
  */
 
 import { Router } from 'express';
+import * as cheerio from 'cheerio';
 import { adminAuth } from '../middleware/adminAuth.js';
 import { getPublicSettings, saveSettings } from '../services/configService.js';
 import { query, getDbType } from '../config/db.js';
@@ -1017,11 +1018,111 @@ function rebrandArticleText(text, competitorDomain, competitorTitle, ourBrandNam
   return result;
 }
 
-// Extractor for Articles & Blog Posts
-function extractArticlesFromHtml(html, url, allDetailedImages) {
+// Helper to extract pagination next page URLs from HTML
+function extractPaginationUrls(html, baseUrl) {
+  const nextUrls = [];
+  try {
+    const $ = cheerio.load(html);
+    const seen = new Set([baseUrl]);
+
+    // 1. Check rel="next" or .next class
+    $('a[rel="next"], .pagination a.next, .nav-links a.next, .page-numbers.next, a:contains("Next"), a:contains("Selanjutnya"), a:contains("Berikutnya")').each((_, el) => {
+      const href = $(el).attr('href');
+      if (href) {
+        const resolved = resolveUrl(baseUrl, href);
+        if (resolved && !seen.has(resolved)) {
+          seen.add(resolved);
+          nextUrls.push(resolved);
+        }
+      }
+    });
+
+    // 2. Check numbered pagination links (page 2, page 3)
+    $('.pagination a, .nav-links a, .page-numbers a, ul.page-numbers li a').each((_, el) => {
+      const text = $(el).text().trim();
+      const href = $(el).attr('href');
+      if (/^[2-5]$/.test(text) && href) {
+        const resolved = resolveUrl(baseUrl, href);
+        if (resolved && !seen.has(resolved)) {
+          seen.add(resolved);
+          nextUrls.push(resolved);
+        }
+      }
+    });
+
+    // 3. Fallback: query parameter pattern if none found
+    if (nextUrls.length === 0) {
+      try {
+        const parsed = new URL(baseUrl);
+        if (!parsed.searchParams.has('page') && !parsed.searchParams.has('paged')) {
+          const p2 = new URL(baseUrl);
+          p2.searchParams.set('page', '2');
+          nextUrls.push(p2.href);
+        }
+      } catch (_) {}
+    }
+  } catch (_) {}
+
+  return nextUrls.slice(0, 3);
+}
+
+// Extractor for Articles & Blog Posts using Cheerio + WP REST API + Microdata
+async function extractArticlesFromHtml(html, url, allDetailedImages) {
   const articles = [];
   let itemIndex = 0;
 
+  // 1. Check for WordPress REST API endpoint (often exposes 100% clean full text & images)
+  try {
+    const $wp = cheerio.load(html);
+    const wpApiUrl = $wp('link[rel="https://api.w.org/"]').attr('href');
+    if (wpApiUrl) {
+      const cleanWpBase = wpApiUrl.replace(/\/+$/, '');
+      const postsEndpoint = `${cleanWpBase}/wp/v2/posts?per_page=15&_embed=true`;
+      const wpController = new AbortController();
+      const wpTimer = setTimeout(() => wpController.abort(), 6000);
+      const wpResp = await fetch(postsEndpoint, {
+        signal: wpController.signal,
+        headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' }
+      }).catch(() => null);
+      clearTimeout(wpTimer);
+
+      if (wpResp && wpResp.ok) {
+        const wpData = await wpResp.json().catch(() => null);
+        if (Array.isArray(wpData) && wpData.length > 0) {
+          for (const post of wpData) {
+            const rawTitle = (post.title?.rendered || '').replace(/<[^>]+>/g, '').trim();
+            if (!rawTitle || rawTitle.length < 5) continue;
+
+            const cleanContent = (post.content?.rendered || post.excerpt?.rendered || '')
+              .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
+              .replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, '')
+              .replace(/<[^>]+>/g, ' ')
+              .replace(/\s+/g, ' ')
+              .trim();
+
+            const cleanExcerpt = (post.excerpt?.rendered || '')
+              .replace(/<[^>]+>/g, '')
+              .trim()
+              .slice(0, 200) || cleanContent.slice(0, 180);
+
+            const featuredImg = post._embedded?.['wp:featuredmedia']?.[0]?.source_url ||
+              post._embedded?.['wp:featuredmedia']?.[0]?.media_details?.sizes?.large?.source_url ||
+              resolveUrl(url, post.featured_media_src_url || '');
+
+            articles.push({
+              title: rawTitle,
+              content: cleanContent || `${rawTitle}. Panduan lengkap dan tips perjalanan terpercaya.`,
+              excerpt: cleanExcerpt,
+              category: post._embedded?.['wp:term']?.[0]?.[0]?.name || 'Tips & Berita',
+              featured_image: featuredImg || DIVERSE_ARTICLE_FALLBACKS[articles.length % DIVERSE_ARTICLE_FALLBACKS.length]
+            });
+          }
+        }
+      }
+    }
+  } catch (_) {}
+
+  // 2. JSON-LD parsing (schema.org)
   const jsonLdMatches = [...html.matchAll(/<script[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi)];
   for (const match of jsonLdMatches) {
     try {
@@ -1030,55 +1131,92 @@ function extractArticlesFromHtml(html, url, allDetailedImages) {
       for (const entity of entities) {
         if (['Article', 'NewsArticle', 'BlogPosting'].includes(entity['@type'])) {
           const img = resolveUrl(url, entity.image?.url || entity.image);
-          articles.push({
-            title: entity.headline || entity.name,
-            content: entity.articleBody || entity.description || '',
-            excerpt: entity.description || '',
-            category: entity.articleSection || 'Artikel',
-            featured_image: img || DIVERSE_ARTICLE_FALLBACKS[0]
-          });
+          const title = entity.headline || entity.name;
+          if (title && title.length >= 6) {
+            articles.push({
+              title,
+              content: entity.articleBody || entity.description || '',
+              excerpt: (entity.description || '').slice(0, 200),
+              category: entity.articleSection || 'Artikel',
+              featured_image: img || DIVERSE_ARTICLE_FALLBACKS[0]
+            });
+          }
         }
       }
     } catch (e) {}
   }
 
-  const articleRegex = /<(?:article|div)[^>]*class=["'][^"']*(?:post|blog|article|entry|news)[^"']*["'][^>]*>([\s\S]*?)<\/(?:article|div)>/gi;
-  const articleMatches = [...html.matchAll(articleRegex)];
+  // 3. Cheerio DOM Article Card Extraction
+  try {
+    const $ = cheerio.load(html);
 
-  for (const block of articleMatches.slice(0, 20)) {
-    const blockHtml = block[1];
-    const titleMatch = matchRegex(blockHtml, /<(?:h2|h3|h4)[^>]*>([^<]{6,100})<\/(?:h2|h3|h4)>/i, 1) ||
-      matchRegex(blockHtml, /<a\b[^>]*title=["']([^"']{6,100})["']/i, 1);
-    if (!titleMatch) continue;
+    // Target comprehensive article containers
+    const selectors = [
+      'article',
+      '.post',
+      '.type-post',
+      '.blog-post',
+      '.entry',
+      '.card-post',
+      '.news-item',
+      '.article-card',
+      '.post-card',
+      '[class*="post-item"]',
+      '[class*="article-card"]',
+      '[class*="blog-card"]',
+      '[class*="news-card"]'
+    ].join(', ');
 
-    const cleanTitle = titleMatch.replace(/<[^>]+>/g, '').replace(/&nbsp;/g, ' ').trim();
-    if (cleanTitle.toLowerCase().includes('nav') || cleanTitle.toLowerCase().includes('menu') || cleanTitle.length < 6) continue;
+    $(selectors).each((_, el) => {
+      const $card = $(el);
 
-    const pMatches = [...blockHtml.matchAll(/<p[^>]*>([\s\S]*?)<\/p>/gi)].map(m => m[1].replace(/<[^>]+>/g, '').trim()).filter(p => p.length > 20);
-    const excerpt = pMatches[0] || `${cleanTitle}. Simak informasi selengkapnya mengenai tips dan panduan perjalanan terbaik untuk Anda.`;
-    const fullContent = pMatches.length > 0
-      ? pMatches.join('\n\n')
-      : `${cleanTitle}\n\n${excerpt}\n\nLayanan rental mobil dan transportasi terpercaya selalu mengutamakan kenyamanan, kebersihan unit, dan kepuasan pelanggan dalam setiap perjalanan dinas maupun wisata keluarga.`;
+      // Title extraction with priority
+      const title = $card.find('h1, h2, h3, h4, .entry-title, .post-title, [class*="title"], a[rel="bookmark"]').first().text().replace(/\s+/g, ' ').trim() ||
+        $card.find('a[title]').first().attr('title');
 
-    const blockImages = extractAllImagesFromHtml(blockHtml, url);
-    const assignedImage = blockImages[0] || DIVERSE_ARTICLE_FALLBACKS[itemIndex % DIVERSE_ARTICLE_FALLBACKS.length];
+      if (!title || title.length < 6 || /menu|nav|footer|header|sidebar/i.test(title)) return;
 
-    articles.push({
-      title: cleanTitle,
-      content: fullContent,
-      excerpt: excerpt.slice(0, 200),
-      category: 'Tips & Berita',
-      featured_image: assignedImage
+      // Excerpt extraction
+      const excerpt = $card.find('.entry-summary, .post-excerpt, [class*="excerpt"], [class*="desc"], p').first().text().replace(/\s+/g, ' ').trim();
+
+      // Full content extraction from all paragraphs
+      const pTexts = $card.find('p').map((_, p) => $(p).text().replace(/\s+/g, ' ').trim()).get().filter(t => t.length > 20);
+      const fullContent = pTexts.length > 0 ? pTexts.join('\n\n') : (excerpt || `${title}\n\nInformasi dan tips perjalanan terpercaya.`);
+
+      // Image extraction inspecting lazy load attributes
+      const $img = $card.find('img').first();
+      let rawImg = $img.attr('data-lazy-src') ||
+        $img.attr('data-src') ||
+        $img.attr('data-original') ||
+        $img.attr('data-large_image') ||
+        $img.attr('data-highres') ||
+        $img.attr('srcset')?.split(',')?.[0]?.trim()?.split(/\s+/)?.[0] ||
+        $img.attr('src') || '';
+
+      const resolvedImg = resolveUrl(url, rawImg);
+      const assignedImage = resolvedImg || DIVERSE_ARTICLE_FALLBACKS[itemIndex % DIVERSE_ARTICLE_FALLBACKS.length];
+
+      // Category extraction
+      const category = $card.find('.cat-links, .category, [class*="category"], [class*="badge"]').first().text().trim() || 'Tips & Berita';
+
+      articles.push({
+        title,
+        content: fullContent,
+        excerpt: (excerpt || fullContent).slice(0, 200),
+        category,
+        featured_image: assignedImage
+      });
+      itemIndex++;
     });
-    itemIndex++;
-  }
+  } catch (_) {}
 
+  // 4. De-duplicate articles by normalized title
   const uniqueMap = new Map();
   const results = [];
 
   for (const art of articles) {
-    const norm = art.title.toLowerCase().trim();
-    if (!norm || uniqueMap.has(norm)) continue;
+    const norm = (art.title || '').toLowerCase().trim();
+    if (!norm || norm.length < 5 || uniqueMap.has(norm)) continue;
     uniqueMap.set(norm, true);
 
     const slug = art.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '').slice(0, 80);
@@ -1088,7 +1226,7 @@ function extractArticlesFromHtml(html, url, allDetailedImages) {
       slug,
       excerpt: art.excerpt,
       content: art.content,
-      category: art.category || 'Umum',
+      category: art.category || 'Tips & Berita',
       featured_image: art.featured_image,
       image: art.featured_image,
       views_count: Math.floor(Math.random() * 250) + 50,
@@ -1244,6 +1382,19 @@ function extractFaqsFromHtml(html, url, allDetailedImages) {
 }
 
 /**
+ * GET /api/admin/scraper
+ * GET /api/admin/scraper/history
+ * Returns scraper status and recent extraction history
+ */
+router.get(['/', '/history'], adminAuth, async (req, res) => {
+  res.json({
+    success: true,
+    data: [],
+    message: 'Scraper engine active and operational'
+  });
+});
+
+/**
  * POST /api/admin/scraper/analyze
  * Scrapes target URL and returns extracted products/services with preview data
  */
@@ -1329,8 +1480,45 @@ router.post('/analyze', adminAuth, async (req, res) => {
       let siteHost = '';
       try { siteHost = new URL(url).hostname; } catch (_) {}
 
-      const blogArticles = extractArticlesFromHtml(html, url, allDetailedImages);
-      const rebrandedArticles = blogArticles.map(art => ({
+      // 1. Extract articles from current page
+      let blogArticles = await extractArticlesFromHtml(html, url, allDetailedImages);
+
+      // 2. Pagination Loop: Traverse up to 3 next pages to collect multi-page articles
+      const paginationUrls = extractPaginationUrls(html, url);
+      for (const nextUrl of paginationUrls.slice(0, 3)) {
+        if (blogArticles.length >= 35) break; // Healthy batch limit
+        try {
+          const nextController = new AbortController();
+          const nextTimeout = setTimeout(() => nextController.abort(), 8000);
+          const nextResp = await fetch(nextUrl, {
+            signal: nextController.signal,
+            headers: {
+              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+              'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8'
+            }
+          });
+          clearTimeout(nextTimeout);
+
+          if (nextResp.ok) {
+            const nextHtml = await nextResp.text();
+            const moreArticles = await extractArticlesFromHtml(nextHtml, nextUrl, extractAllDetailedImages(nextHtml, nextUrl));
+            blogArticles = [...blogArticles, ...moreArticles];
+          }
+        } catch (_) {}
+      }
+
+      // 3. De-duplicate combined articles
+      const uniqueCombined = [];
+      const seenTitles = new Set();
+      for (const art of blogArticles) {
+        const norm = (art.title || '').toLowerCase().trim();
+        if (norm && !seenTitles.has(norm)) {
+          seenTitles.add(norm);
+          uniqueCombined.push(art);
+        }
+      }
+
+      const rebrandedArticles = uniqueCombined.map(art => ({
         ...art,
         title: rebrandArticleText(art.title, siteHost, ogTitle, ourBrandName),
         excerpt: rebrandArticleText(art.excerpt, siteHost, ogTitle, ourBrandName),

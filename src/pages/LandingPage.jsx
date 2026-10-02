@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Navbar from '../components/common/Navbar';
 import HeroSlideshow from '../components/common/HeroSlideshow';
 import MobileBottomNav from '../components/common/MobileBottomNav';
@@ -13,6 +13,19 @@ import { ShieldCheck, Phone, Mail, MapPin, ExternalLink } from 'lucide-react';
 
 export const LandingPage = ({ config }) => {
   const [isBottomNavVisible, setIsBottomNavVisible] = useState(false);
+  const [footerArticles, setFooterArticles] = useState([]);
+
+  useEffect(() => {
+    fetch('/api/articles/public?limit=4')
+      .then(res => res.json())
+      .then(json => {
+        if (json.success && Array.isArray(json.data)) {
+          setFooterArticles(json.data.slice(0, 4));
+        }
+      })
+      .catch(() => {});
+  }, []);
+
   if (!config) return null;
 
   const {
@@ -32,15 +45,7 @@ export const LandingPage = ({ config }) => {
     seo = {}
   } = config;
 
-  const localSavedVariant = (() => {
-    try {
-      const saved = JSON.parse(localStorage.getItem('cms_active_theme_config') || '{}');
-      return saved.bottom_nav_variant || saved.bottomNavStyle;
-    } catch {}
-    return null;
-  })();
-
-  const resolvedNavVariant = bottom_nav_variant || localSavedVariant || bottomNavStyle || 'floating_dock';
+  const resolvedNavVariant = bottom_nav_variant || bottomNavStyle || 'floating_dock';
   const waSettings = whatsapp_settings || {};
   const resolvedWa = waSettings.phone || floating_whatsapp?.phone || whatsapp || '6281288990011';
   const resolvedBrandName = waSettings.brandName || brandName || 'Royal Fleet';
@@ -56,7 +61,7 @@ export const LandingPage = ({ config }) => {
         title={seo.title || config.title || `${brandName} - ${tagline}`}
         description={seo.metaDescription || config.metaDescription}
         keywords={seo.targetKeywords}
-        canonicalUrl={typeof window !== 'undefined' ? window.location.href : ''}
+        canonicalUrl={typeof window !== 'undefined' ? (window.location.origin + (window.location.pathname.replace(/\/$/, '') || '/')) : ''}
         ogImage={heroSlides[0]?.image}
         industry={industry}
         brandName={brandName}
@@ -71,13 +76,14 @@ export const LandingPage = ({ config }) => {
         googleAdsId={seo.googleAdsId}
         ahrefsVerification={seo.ahrefsVerification}
         faqs={config.faqs}
+        items={config.items}
       />
 
       {/* Dynamic Scroll Navbar */}
       <Navbar
         brandName={brandName}
         tagline={tagline}
-        logoUrl={config.logoUrl || '/images/logo.png'}
+        logoUrl={config.logoUrl || '/api/brand/logo.svg'}
         phone={phone}
         whatsapp={whatsapp}
       />
@@ -157,104 +163,168 @@ export const LandingPage = ({ config }) => {
         )}
       </main>
 
-      {/* Dynamic Enterprise Footer (Configurable from Admin Settings) */}
+      {/* Modern, Synchronized & Informative Footer (Zero AI Footprint) */}
       {(() => {
         const footerCfg = config.footer || {};
-        const footerAbout = footerCfg.about || `${tagline}. Didukung oleh arsitektur Cloud Edge berkecepatan tinggi dengan enkripsi enterprise.`;
-        const footerButtonText = footerCfg.button_text || 'Baca Artikel & Panduan Wisata';
-        const footerButtonUrl = footerCfg.button_url || '/artikel';
-        const footerShowButton = footerCfg.show_button !== false;
-        const footerContactTitle = footerCfg.contact_title || 'Informasi Kontak';
+        const footerAbout = footerCfg.about || `${tagline}. Layanan transportasi dan armada terpercaya dengan jaminan unit prima, pengemudi profesional, dan pelayanan 24 jam.`;
+        const footerContactTitle = footerCfg.contact_title || 'Kontak Resmi';
         const footerShowPhone = footerCfg.show_phone !== false;
         const footerShowEmail = footerCfg.show_email !== false;
         const footerShowAddress = footerCfg.show_address !== false;
-        const footerLegalTitle = footerCfg.legal_title || 'Legalitas & Proteksi';
-        const footerLegalText = footerCfg.legal_text || 'Hak Cipta dilindungi Undang-Undang. Terdaftar dan terverifikasi di Google Business & Cloudflare Enterprise.';
-        const footerStatusText = footerCfg.status_text || 'Status Sistem: Operasional Aktif';
-        const footerShowStatus = footerCfg.show_status !== false;
+        const resolvedLogoUrl = config.logoUrl || '/api/brand/logo.svg';
+
         const footerCopyright = footerCfg.copyright
           ? (footerCfg.copyright.includes('{brand}') ? footerCfg.copyright.replace('{brand}', brandName).replace('{year}', new Date().getFullYear()) : (footerCfg.copyright.startsWith('©') ? footerCfg.copyright : `© ${new Date().getFullYear()} ${brandName}. ${footerCfg.copyright}`))
-          : `© ${new Date().getFullYear()} ${brandName}. All rights reserved. Powered by Enterprise MultiCMS Engine.`;
+          : `© ${new Date().getFullYear()} ${brandName}. Hak Cipta Dilindungi.`;
 
         return (
           <footer id="footer" className="bg-slate-900 text-slate-400 py-16 sm:py-20 pb-32 md:pb-20 border-t border-slate-800">
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 grid grid-cols-1 md:grid-cols-4 gap-10 sm:gap-12 lg:gap-16">
-              <div className="space-y-4 md:col-span-2">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-10 sm:gap-12 lg:gap-10">
+              {/* Col 1: Brand Profile & Logo */}
+              <div className="space-y-4">
                 <div className="flex items-center gap-3">
-                  {config.logoUrl ? (
-                    <div className="h-10 w-10 shrink-0 flex items-center justify-center">
-                      <img
-                        src={config.logoUrl}
-                        alt={brandName}
-                        className="max-h-full max-w-full object-contain filter drop-shadow-sm"
-                        onError={(e) => { e.currentTarget.style.display = 'none'; }}
-                      />
-                    </div>
-                  ) : (
-                    <div className="w-10 h-10 rounded-2xl bg-blue-600 flex items-center justify-center text-white font-bold shadow-md">
-                      <ShieldCheck className="w-6 h-6" />
-                    </div>
-                  )}
-                  <span className="font-bold text-xl text-white tracking-tight">{brandName}</span>
+                  <div className="h-10 w-10 shrink-0 flex items-center justify-center">
+                    <img
+                      src={resolvedLogoUrl}
+                      alt={brandName}
+                      className="max-h-full max-w-full object-contain filter drop-shadow-sm"
+                      onError={(e) => { e.currentTarget.src = '/api/brand/logo.svg'; }}
+                    />
+                  </div>
+                  <span className="font-extrabold text-xl text-white tracking-tight">{brandName}</span>
                 </div>
-                <p className="text-sm text-slate-300 leading-relaxed max-w-md">
+                <p className="text-xs sm:text-sm text-slate-300 leading-relaxed">
                   {footerAbout}
                 </p>
-                {footerShowButton && footerButtonText && (
-                  <div className="pt-2">
-                    <a
-                      href={footerButtonUrl}
-                      className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-white text-xs font-bold transition-colors"
-                    >
-                      <span>{footerButtonText}</span>
-                      <ExternalLink className="w-3.5 h-3.5" />
-                    </a>
-                  </div>
-                )}
+                <div className="pt-2">
+                  <a
+                    href="/artikel"
+                    className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-slate-800 hover:bg-blue-600 text-white text-xs font-bold transition-all shadow-xs"
+                  >
+                    <span>Baca Artikel & Panduan</span>
+                    <ExternalLink className="w-3.5 h-3.5" />
+                  </a>
+                </div>
               </div>
 
-              <div className="space-y-4">
+              {/* Col 2: Navigasi Layanan */}
+              <div className="space-y-3.5">
+                <h4 className="text-white font-bold text-xs uppercase tracking-wider">Layanan & Navigasi</h4>
+                <ul className="space-y-2 text-xs sm:text-sm">
+                  <li>
+                    <a href="#fleet" className="hover:text-white transition-colors flex items-center gap-1.5">
+                      <span className="text-blue-500 font-bold">›</span>
+                      <span>Katalog & Unit Tersedia</span>
+                    </a>
+                  </li>
+                  {industry === 'automotive' && (
+                    <li>
+                      <a href="#booking-bar" className="hover:text-white transition-colors flex items-center gap-1.5">
+                        <span className="text-blue-500 font-bold">›</span>
+                        <span>Paket Wisata & Tour</span>
+                      </a>
+                    </li>
+                  )}
+                  <li>
+                    <a href="#features" className="hover:text-white transition-colors flex items-center gap-1.5">
+                      <span className="text-blue-500 font-bold">›</span>
+                      <span>Keunggulan Layanan</span>
+                    </a>
+                  </li>
+                  <li>
+                    <a href="#faq" className="hover:text-white transition-colors flex items-center gap-1.5">
+                      <span className="text-blue-500 font-bold">›</span>
+                      <span>Pertanyaan Umum (FAQ)</span>
+                    </a>
+                  </li>
+                  <li>
+                    <a href="/artikel" className="hover:text-white transition-colors flex items-center gap-1.5">
+                      <span className="text-blue-500 font-bold">›</span>
+                      <span>Pusat Edukasi & Artikel</span>
+                    </a>
+                  </li>
+                </ul>
+              </div>
+
+              {/* Col 3: Artikel & Panduan Terbaru */}
+              <div className="space-y-3.5">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-white font-bold text-xs uppercase tracking-wider">Artikel Terbaru</h4>
+                  <a href="/artikel" className="text-[11px] text-blue-400 hover:underline">Semua</a>
+                </div>
+                <div className="space-y-2.5">
+                  {footerArticles.length > 0 ? (
+                    footerArticles.slice(0, 4).map((art) => (
+                      <a
+                        key={art.id}
+                        href={`/artikel/${art.slug}`}
+                        className="group block text-xs hover:text-white transition-colors"
+                      >
+                        <p className="line-clamp-2 text-slate-300 group-hover:text-blue-400 font-medium leading-snug">
+                          {art.title}
+                        </p>
+                        <span className="text-[10px] text-slate-500 font-mono mt-0.5 block">
+                          {art.created_at ? new Date(art.created_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' }) : 'Tips Perjalanan'}
+                        </span>
+                      </a>
+                    ))
+                  ) : (
+                    <div className="space-y-2 text-xs text-slate-400">
+                      <a href="/artikel" className="block hover:text-white">Panduan Lengkap Sewa Mobil Aman & Nyaman</a>
+                      <a href="/artikel" className="block hover:text-white">Tips Memilih Armada Terbaik untuk Keluarga</a>
+                      <a href="/artikel" className="block hover:text-white">Destinasi Wisata Favorit & Rute Perjalanan</a>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Col 4: Informasi Kontak Resmi */}
+              <div className="space-y-3.5">
                 <h4 className="text-white font-bold text-xs uppercase tracking-wider">{footerContactTitle}</h4>
-                <div className="space-y-3 text-sm text-slate-300">
+                <div className="space-y-3 text-xs sm:text-sm text-slate-300">
                   {footerShowPhone && phone && (
                     <div className="flex items-center gap-2.5">
                       <Phone className="w-4 h-4 text-blue-400 shrink-0" />
                       <span>{phone}</span>
                     </div>
                   )}
+                  {whatsapp && (
+                    <a
+                      href={`https://wa.me/${String(whatsapp).replace(/[^0-9]/g, '')}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-2.5 hover:text-emerald-400 transition-colors"
+                    >
+                      <span className="w-4 h-4 rounded-full bg-emerald-500 text-white flex items-center justify-center text-[10px] font-bold shrink-0">W</span>
+                      <span>+62 {String(whatsapp).replace(/[^0-9]/g, '').slice(-10)} (WhatsApp)</span>
+                    </a>
+                  )}
                   {footerShowEmail && email && (
                     <div className="flex items-center gap-2.5">
                       <Mail className="w-4 h-4 text-blue-400 shrink-0" />
-                      <span>{email}</span>
+                      <span className="truncate">{email}</span>
                     </div>
                   )}
                   {footerShowAddress && (config.google_maps?.address || location) && (
-                    <div className="flex items-center gap-2.5">
-                      <MapPin className="w-4 h-4 text-blue-400 shrink-0" />
-                      <span>{config.google_maps?.address || location}</span>
+                    <div className="flex items-start gap-2.5">
+                      <MapPin className="w-4 h-4 text-blue-400 shrink-0 mt-0.5" />
+                      <span className="leading-snug">{config.google_maps?.address || location}</span>
                     </div>
                   )}
                 </div>
               </div>
-
-              <div className="space-y-4">
-                <h4 className="text-white font-bold text-xs uppercase tracking-wider">{footerLegalTitle}</h4>
-                <p className="text-xs text-slate-400 leading-relaxed">
-                  {footerLegalText}
-                </p>
-                {footerShowStatus && (
-                  <div className="pt-2">
-                    <span className="text-xs text-emerald-400 font-semibold flex items-center gap-2">
-                      <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                      <span>{footerStatusText}</span>
-                    </span>
-                  </div>
-                )}
-              </div>
             </div>
 
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-14 pt-8 border-t border-slate-800 text-center text-xs text-slate-500">
-              {footerCopyright}
+            {/* Bottom Copyright Bar */}
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-12 pt-8 border-t border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-slate-500">
+              <span>{footerCopyright}</span>
+              <div className="flex items-center gap-4 text-[11px]">
+                <a href="#fleet" className="hover:text-slate-400 transition-colors">Armada</a>
+                <span>•</span>
+                <a href="/artikel" className="hover:text-slate-400 transition-colors">Artikel</a>
+                <span>•</span>
+                <a href="#faq" className="hover:text-slate-400 transition-colors">Bantuan</a>
+              </div>
             </div>
           </footer>
         );

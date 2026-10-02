@@ -69,8 +69,19 @@ export const SeoHead = ({
       element.setAttribute('content', value);
     };
 
+    // Canonical URL Link
+    const cleanCanonical = canonicalUrl || (typeof window !== 'undefined' ? window.location.href.split('?')[0].split('#')[0] : '/');
+    let canonicalLink = document.querySelector("link[rel='canonical']");
+    if (!canonicalLink) {
+      canonicalLink = document.createElement('link');
+      canonicalLink.setAttribute('rel', 'canonical');
+      document.head.appendChild(canonicalLink);
+    }
+    canonicalLink.setAttribute('href', cleanCanonical);
+
     // Standard Meta Tags
     setMeta('description', description);
+    setMeta('robots', 'index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1');
     if (pwaShortName) {
       setMeta('apple-mobile-web-app-title', pwaShortName);
     }
@@ -88,7 +99,7 @@ export const SeoHead = ({
     setMeta('og:title', title, true);
     setMeta('og:description', description, true);
     setMeta('og:type', 'website', true);
-    if (canonicalUrl) setMeta('og:url', canonicalUrl, true);
+    setMeta('og:url', cleanCanonical, true);
     if (ogImage) setMeta('og:image', ogImage, true);
 
     // Twitter Cards
@@ -97,7 +108,7 @@ export const SeoHead = ({
     setMeta('twitter:description', description);
     if (ogImage) setMeta('twitter:image', ogImage);
 
-    // 3. Dynamic JSON-LD Structured Data Schema
+    // 3. Dynamic JSON-LD Structured Data Schema based on active CMS Category/Industry
     const schemaOrgId = 'dynamic-jsonld-schema';
     let schemaScript = document.getElementById(schemaOrgId);
     if (!schemaScript) {
@@ -107,22 +118,106 @@ export const SeoHead = ({
       document.head.appendChild(schemaScript);
     }
 
-    const currentUrl = canonicalUrl || window.location.href;
-    const schemas = [
-      {
+    const currentUrl = cleanCanonical;
+    const resolvedLogo = logoUrl || pwaIcon || (typeof window !== 'undefined' ? `${window.location.origin}/icons/icon-512.png` : '/icons/icon-512.png');
+    const schemas = [];
+
+    // Category-specific Main Schema
+    if (industry === 'ecommerce') {
+      schemas.push({
         '@context': 'https://schema.org',
-        '@type': 'Organization',
-        name: brandName || 'Enterprise CMS',
+        '@type': 'Store',
+        name: brandName || 'LuxeStore Official',
         url: currentUrl,
-        logo: logoUrl || pwaIcon || `${window.location.origin}/icons/icon-512.svg`,
+        logo: resolvedLogo,
+        image: ogImage || resolvedLogo,
+        description: description,
+        telephone: phone || '+6281233445566',
+        priceRange: 'Rp 50.000 - Rp 10.000.000',
+        paymentAccepted: 'Cash, Credit Card, Bank Transfer, QRIS',
+        currenciesAccepted: 'IDR'
+      });
+
+      if (items && items.length > 0) {
+        schemas.push({
+          '@context': 'https://schema.org',
+          '@type': 'ItemList',
+          itemListElement: items.slice(0, 10).map((prod, idx) => ({
+            '@type': 'ListItem',
+            position: idx + 1,
+            item: {
+              '@type': 'Product',
+              name: prod.title,
+              image: prod.image,
+              description: prod.specs?.join(', ') || prod.badge || prod.title,
+              offers: {
+                '@type': 'Offer',
+                price: (prod.price || '').replace(/[^0-9]/g, '') || '100000',
+                priceCurrency: 'IDR',
+                availability: 'https://schema.org/InStock',
+                url: currentUrl
+              }
+            }
+          }))
+        });
+      }
+    } else if (industry === 'services') {
+      schemas.push({
+        '@context': 'https://schema.org',
+        '@type': 'ProfessionalService',
+        name: brandName || 'Apex Global Consulting',
+        url: currentUrl,
+        logo: resolvedLogo,
+        image: ogImage || resolvedLogo,
+        description: description,
+        telephone: phone || '+6282199887711',
+        areaServed: 'Indonesia',
+        serviceType: 'Konsultasi Manajemen Bisnis, Legalitas, & IT Solution'
+      });
+    } else if (industry === 'news') {
+      schemas.push({
+        '@context': 'https://schema.org',
+        '@type': 'NewsMediaOrganization',
+        name: brandName || 'WartaNusantara Digital',
+        url: currentUrl,
+        logo: resolvedLogo,
+        description: description,
+        publishingPrinciples: `${currentUrl}/artikel`
+      });
+    } else {
+      // Default: Automotive / Rental Mobil
+      schemas.push({
+        '@context': 'https://schema.org',
+        '@type': 'AutoRental',
+        name: brandName || 'Royal Fleet Premiere',
+        url: currentUrl,
+        logo: resolvedLogo,
+        image: ogImage || resolvedLogo,
+        description: description,
+        telephone: phone || '+6281288990011',
+        priceRange: 'Rp 450.000 - Rp 2.500.000',
+        areaServed: 'Jabodetabek & Bali',
         contactPoint: {
           '@type': 'ContactPoint',
-          telephone: phone || '+628123456789',
-          contactType: 'customer service',
+          telephone: phone || '+6281288990011',
+          contactType: 'reservations',
           areaServed: 'ID'
         }
+      });
+    }
+
+    // Universal WebSite Schema with Sitelinks Search
+    schemas.push({
+      '@context': 'https://schema.org',
+      '@type': 'WebSite',
+      name: brandName || 'Enterprise CMS Platform',
+      url: currentUrl,
+      potentialAction: {
+        '@type': 'SearchAction',
+        target: `${currentUrl}/artikel?search={search_term_string}`,
+        'query-input': 'required name=search_term_string'
       }
-    ];
+    });
 
     if (faqs && faqs.length > 0) {
       schemas.push({

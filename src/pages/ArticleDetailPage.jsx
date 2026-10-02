@@ -28,10 +28,44 @@ export const ArticleDetailPage = ({ slug: propSlug }) => {
         }
         setArticle(json.data);
 
-        // Dynamic Document Title and Meta
+        // Dynamic Document Title and SEO Meta
         if (json.data.meta_title) {
           document.title = json.data.meta_title;
         }
+
+        const setMeta = (nameOrProperty, value, isProp = false) => {
+          if (!value) return;
+          const attr = isProp ? 'property' : 'name';
+          let el = document.querySelector(`meta[${attr}="${nameOrProperty}"]`);
+          if (!el) {
+            el = document.createElement('meta');
+            el.setAttribute(attr, nameOrProperty);
+            document.head.appendChild(el);
+          }
+          el.setAttribute('content', value);
+        };
+
+        if (json.data.meta_description) {
+          setMeta('description', json.data.meta_description);
+          setMeta('og:description', json.data.meta_description, true);
+        }
+        if (json.data.meta_title) {
+          setMeta('og:title', json.data.meta_title, true);
+        }
+        if (json.data.featured_image) {
+          setMeta('og:image', json.data.featured_image, true);
+        }
+
+        // Canonical URL
+        const articleCanonical = `${window.location.origin}/artikel/${currentSlug}`;
+        setMeta('og:url', articleCanonical, true);
+        let canonicalLink = document.querySelector("link[rel='canonical']");
+        if (!canonicalLink) {
+          canonicalLink = document.createElement('link');
+          canonicalLink.setAttribute('rel', 'canonical');
+          document.head.appendChild(canonicalLink);
+        }
+        canonicalLink.setAttribute('href', articleCanonical);
 
         // Schema Markup injection
         if (json.data.schema_markup) {

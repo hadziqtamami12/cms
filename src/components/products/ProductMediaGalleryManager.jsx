@@ -261,7 +261,7 @@ export const ProductMediaGalleryManager = ({
               <X className="w-4 h-4" />
             </button>
           </div>
-          <div className="flex gap-2">
+          <div className="flex flex-col sm:flex-row gap-2">
             <input
               type="url"
               required
@@ -272,7 +272,7 @@ export const ProductMediaGalleryManager = ({
             />
             <button
               type="submit"
-              className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shrink-0 cursor-pointer"
+              className="w-full sm:w-auto px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shrink-0 cursor-pointer text-center"
             >
               Simpan ke Galeri
             </button>
@@ -405,7 +405,7 @@ export const ProductMediaGalleryManager = ({
               </button>
             </header>
 
-            <form onSubmit={handleSaveSeoEdit} className="p-6 space-y-3.5 text-xs">
+            <form onSubmit={handleSaveSeoEdit} className="p-4 sm:p-6 space-y-3.5 text-xs">
               <div className="h-28 w-full rounded-2xl overflow-hidden bg-slate-100 border border-slate-200 mb-2">
                 <img src={editingImage.url} alt="Preview" className="w-full h-full object-cover" />
               </div>
@@ -434,7 +434,7 @@ export const ProductMediaGalleryManager = ({
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="space-y-1">
                   <label className="block font-bold text-slate-700">File Name / Nama File</label>
                   <input
@@ -468,17 +468,17 @@ export const ProductMediaGalleryManager = ({
                 />
               </div>
 
-              <div className="pt-3 border-t border-slate-100 flex items-center justify-end gap-2">
+              <div className="pt-3 border-t border-slate-100 flex flex-col-reverse sm:flex-row sm:items-center justify-end gap-2">
                 <button
                   type="button"
                   onClick={() => setEditingImage(null)}
-                  className="px-4 py-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 font-bold"
+                  className="w-full sm:w-auto px-4 py-2.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 font-bold text-center"
                 >
                   Batal
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold shadow-md shadow-blue-600/20"
+                  className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold shadow-md shadow-blue-600/20 text-center"
                 >
                   Simpan Atribut SEO
                 </button>

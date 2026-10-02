@@ -25,6 +25,16 @@ export const ArticlesPage = () => {
   const itemsPerPage = 6;
 
   useEffect(() => {
+    document.title = `Artikel & Panduan Informasi | ${config?.brandName || 'Layanan Rental Mobil & Wisata'}`;
+    const cleanCanonical = `${window.location.origin}/artikel`;
+    let canonicalLink = document.querySelector("link[rel='canonical']");
+    if (!canonicalLink) {
+      canonicalLink = document.createElement('link');
+      canonicalLink.setAttribute('rel', 'canonical');
+      document.head.appendChild(canonicalLink);
+    }
+    canonicalLink.setAttribute('href', cleanCanonical);
+
     fetch('/api/articles/public?limit=100')
       .then(res => res.text())
       .then(text => (text ? JSON.parse(text) : {}))
@@ -35,7 +45,7 @@ export const ArticlesPage = () => {
       })
       .catch(err => console.warn('[ArticlesPage] Error:', err))
       .finally(() => setLoading(false));
-  }, []);
+  }, [config?.brandName]);
 
   // Distinct categories
   const categories = useMemo(() => {

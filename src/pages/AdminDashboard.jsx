@@ -19,6 +19,8 @@ import { CompetitorScraperModal } from '../components/scraper/CompetitorScraperM
 import { TravelTripManager } from '../components/admin/TravelTripManager';
 import { ArticleManager } from '../components/admin/ArticleManager';
 import { FaqManager } from '../components/admin/FaqManager';
+import { FeaturePackageManager } from '../components/admin/FeaturePackageManager';
+import ThemeOnboardingModal from '../components/onboarding/ThemeOnboardingModal';
 import { getPresetForIndustry } from '../lib/industryCatalogs';
 import {
   switchTheme,
@@ -35,11 +37,12 @@ export const AdminDashboard = ({
   onLogout,
   onConfigUpdated
 }) => {
+  const [isThemeModalOpen, setIsThemeModalOpen] = useState(false);
   // Persist activeTab across browser refreshes and CRUD operations
   const [activeTab, setActiveTabState] = useState(() => {
     try {
       const savedTab = localStorage.getItem('cms_admin_active_tab');
-      const validTabs = ['dashboard', 'branding', 'themes', 'slideshow', 'products', 'travel', 'articles', 'faqs', 'scraper', 'whatsapp', 'seo', 'leads', 'settings'];
+      const validTabs = ['dashboard', 'branding', 'themes', 'slideshow', 'products', 'travel', 'features-packages', 'articles', 'faqs', 'scraper', 'whatsapp', 'seo', 'leads', 'settings'];
       if (savedTab && validTabs.includes(savedTab)) {
         return savedTab;
       }
@@ -465,7 +468,9 @@ export const AdminDashboard = ({
     { id: 'themes', label: 'Tema & Tampilan', icon: Palette },
     { id: 'slideshow', label: 'Slideshow & Banner', icon: Sliders },
     { id: 'products', label: currentIndustry === 'automotive' ? 'Katalog Armada & Mobil' : 'Katalog Produk & Unit', icon: Package },
-    ...(currentIndustry === 'automotive' ? [{ id: 'travel', label: 'Paket Wisata & Tour', icon: Compass }] : []),
+    ...(currentIndustry === 'automotive'
+      ? [{ id: 'travel', label: 'Paket Wisata & Tour', icon: Compass }]
+      : [{ id: 'features-packages', label: 'Fitur & Paket Layanan', icon: Layers }]),
     { id: 'articles', label: 'Artikel & SEO Daerah', icon: FileText },
     { id: 'faqs', label: 'Pertanyaan Umum (FAQ)', icon: HelpCircle },
     { id: 'whatsapp', label: 'Pengaturan WhatsApp', icon: MessageCircle },
@@ -775,12 +780,13 @@ export const AdminDashboard = ({
                 <span className="text-blue-600 font-bold capitalize">{activeTab}</span>
               </div>
               <h1 className="text-lg font-extrabold text-slate-900 tracking-tight truncate">
-                {activeTab === 'dashboard' && 'Dashboard Ringkasan & Status Sistem'}
+                {activeTab === 'dashboard' && 'Dashboard Ringkasan Operasional'}
                 {activeTab === 'branding' && 'Identitas Aplikasi & Pengaturan Judul Situs'}
                 {activeTab === 'themes' && 'Engine 50 Tema Multi-Industri'}
                 {activeTab === 'slideshow' && 'Manajemen Slideshow & Banner Beranda'}
                 {activeTab === 'products' && 'Manajemen Armada & Katalog Produk'}
                 {activeTab === 'travel' && 'Manajemen Paket Wisata & Tour'}
+                {activeTab === 'features-packages' && 'Manajemen Fitur & Paket Layanan'}
                 {activeTab === 'articles' && 'Artikel & Multi-Location Programmatic SEO'}
                 {activeTab === 'faqs' && 'Manajemen Pertanyaan Umum (FAQ)'}
                 {activeTab === 'whatsapp' && 'Pengaturan WhatsApp & Kontak Terapung'}
@@ -792,6 +798,15 @@ export const AdminDashboard = ({
           </div>
 
           <div className="flex items-center gap-2.5 shrink-0">
+            <button
+              type="button"
+              onClick={() => setIsThemeModalOpen(true)}
+              className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white text-xs font-bold transition-all shadow-sm flex items-center gap-1.5 cursor-pointer"
+              title="Ganti Tema & Kategori CMS Otomatis"
+            >
+              <Palette className="w-3.5 h-3.5" />
+              <span>Ganti Kategori CMS</span>
+            </button>
             <button
               type="button"
               onClick={() => setIsScraperOpen(true)}
@@ -1170,13 +1185,27 @@ export const AdminDashboard = ({
           )}
 
           {/* ========================================================
-           * TAB: TRAVEL TRIPS & TOUR PACKAGES
+           * TAB: TRAVEL TRIPS & TOUR PACKAGES (AUTOMOTIVE ONLY)
            * ======================================================== */}
           {activeTab === 'travel' && (
             <TravelTripManager
               adminToken={adminToken}
               showToast={showToast}
               onOpenScraper={handleOpenScraper}
+            />
+          )}
+
+          {/* ========================================================
+           * TAB: FEATURES & PACKAGES MANAGER (NON-AUTOMOTIVE CRUD)
+           * ======================================================== */}
+          {activeTab === 'features-packages' && (
+            <FeaturePackageManager
+              config={config}
+              adminToken={adminToken}
+              onConfigUpdated={(newCfg) => {
+                if (onConfigUpdated) onConfigUpdated(newCfg);
+              }}
+              showToast={showToast}
             />
           )}
 
@@ -1488,9 +1517,25 @@ export const AdminDashboard = ({
             if (onConfigUpdated) {
               onConfigUpdated({ faqs: [...(config?.faqs || []), ...newItems] });
             }
+          } else if (type === 'articles') {
+            window.dispatchEvent(new CustomEvent('cms:articles_updated'));
+          } else if (type === 'travel') {
+            window.dispatchEvent(new CustomEvent('cms:travel_updated'));
           }
         }}
         showToast={showToast}
+      />
+
+      {/* Theme & Category Onboarding Selector Modal */}
+      <ThemeOnboardingModal
+        isOpen={isThemeModalOpen}
+        onClose={() => setIsThemeModalOpen(false)}
+        onSelectTheme={(newConfig) => {
+          setIsThemeModalOpen(false);
+          if (onConfigUpdated) onConfigUpdated(newConfig);
+          showToast('Kategori & tema CMS berhasil diperbarui secara instan!', 'success');
+        }}
+        isDismissible={true}
       />
     </div>
   );

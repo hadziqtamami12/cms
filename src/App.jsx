@@ -2,8 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useApp } from './context/AppContext';
 import LandingPage from './pages/LandingPage';
 import AdminDashboard from './pages/AdminDashboard';
-import SetupPage from './pages/SetupPage';
-import LockoutPage from './pages/LockoutPage';
+import InitialSetupWizard from './components/onboarding/InitialSetupWizard';
 import ProgrammerPortalPage from './pages/ProgrammerPortalPage';
 import LandingPageSkeleton from './components/common/LandingPageSkeleton';
 import SplashScreen from './components/common/SplashScreen';
@@ -53,9 +52,16 @@ export const App = () => {
     setCurrentPath(path);
   };
 
-  // Route Guard: Pengecekan Akses Installer vs Landing Page
-  const isInstalled = Boolean(licenseStatus?.isInstalled);
-  const isInstallerRoute = currentPath === '/install' || currentPath === '/setup';
+  // Redirect any legacy installer/lockout routes directly to root
+  useEffect(() => {
+    const isLegacyRoute = currentPath === '/install' || currentPath === '/setup' || currentPath === '/subscription-hold';
+    if (isLegacyRoute) {
+      if (typeof window !== 'undefined') {
+        window.history.replaceState(null, '', '/');
+      }
+      setCurrentPath('/');
+    }
+  }, [currentPath]);
 
   // 1. Loading State Handler (Splash Screen or Shimmer Skeleton)
   if (loading) {
@@ -64,11 +70,12 @@ export const App = () => {
     const isAdminRoute = cleanPath === activeSlug || cleanPath.startsWith(`${activeSlug}/`);
 
     // If splash screen is active and on public landing page
-    if (!isAdminRoute && !isInstallerRoute && config.splash_screen?.enabled !== false && !splashFinished) {
+    if (!isAdminRoute && config.splash_screen?.enabled !== false && !splashFinished) {
       return (
         <SplashScreen
           brandName={config.brandName || 'Royal Fleet Premiere'}
           tagline={config.tagline || 'Sewa Mobil & Armada Terpercaya'}
+          logoUrl={config.logoUrl || '/api/brand/logo.svg'}
           duration={config.splash_screen?.duration || 1.2}
           onFinish={() => setSplashFinished(true)}
         />
@@ -76,7 +83,7 @@ export const App = () => {
     }
 
     // High-fidelity Shimmer Landing Page Skeleton while fetching data
-    if (!isAdminRoute && !isInstallerRoute && currentPath !== '/keygen' && currentPath !== '/secret-keygen') {
+    if (!isAdminRoute && currentPath !== '/keygen' && currentPath !== '/secret-keygen') {
       return <LandingPageSkeleton />;
     }
 
@@ -95,48 +102,30 @@ export const App = () => {
     return <ProgrammerPortalPage />;
   }
 
-  // 3. Installation Route Guard Logic
-  // A. Jika sistem SUDAH TERINSTAL tapi mencoba buka /install atau /setup:
-  // Arahkan kembali ke root (/)
-  if (isInstalled && isInstallerRoute) {
-    if (typeof window !== 'undefined') {
-      window.history.replaceState(null, '', '/');
-    }
-    setCurrentPath('/');
-  }
-
-  // B. Hanya render SetupPage jika pengguna SECARA EKSPLISIT mengakses rute /install atau /setup saat belum terinstal
-  if (isInstallerRoute && !isInstalled) {
-    return (
-      <SetupPage
-        onComplete={(res) => {
-          setLicenseStatus(prev => ({ ...prev, isInstalled: true, isLocked: false, status: 'active' }));
-          const slug = res?.data?.adminSlug || res?.adminSlug || adminSlug || 'admin';
-          if (setAdminSlug) setAdminSlug(slug);
-          navigate('/');
-        }}
-      />
-    );
-  }
-
-
-  // 3. Subscription Hold / Token Lockout State
-  if (currentPath === '/subscription-hold' || (licenseStatus && licenseStatus.isLocked)) {
-    return (
-      <LockoutPage
-        onRenewSuccess={() => {
-          reloadConfig();
-          navigate('/');
-        }}
-      />
-    );
-  }
-
-  // 4. Dynamic Admin Route (e.g. /admin, /sys-portal, /cms-panel)
+  // 3. Dynamic Admin Route resolution
   const cleanPath = currentPath.replace(/^\/+|\/+$/g, '');
   const activeSlug = (adminSlug || 'admin').replace(/^\/+|\/+$/g, '');
+  const isAdminRoute = cleanPath === activeSlug || cleanPath.startsWith(`${activeSlug}/`);
 
-  if (cleanPath === activeSlug || cleanPath.startsWith(`${activeSlug}/`)) {
+  // 4. Initial Setup / Onboarding Wizard Guard:
+  // Tampilkan wizard awal jika belum di-onboard dan bukan sedang login admin
+  const isSetupDone = config?.is_onboarded === true || config?.onboarded === true || localStorage.getItem('cms_initial_setup_completed') === 'true';
+  if (!isSetupDone && !isAdminRoute) {
+    return (
+      <InitialSetupWizard
+        onComplete={(res) => {
+          localStorage.setItem('cms_initial_setup_completed', 'true');
+          if (res?.data) updateConfigLocally(res.data);
+          if (res?.token) handleAdminLogin(res.token, res.adminSlug);
+          if (res?.adminSlug && setAdminSlug) setAdminSlug(res.adminSlug);
+          navigate('/');
+        }}
+      />
+    );
+  }
+
+  // 5. Dynamic Admin Route (e.g. /admin, /sys-portal, /cms-panel)
+  if (isAdminRoute) {
     // Keep URL in address bar strictly /${activeSlug} (e.g. /admin)
     if (typeof window !== 'undefined' && (currentPath !== `/${activeSlug}` || window.location.search || window.location.hash)) {
       window.history.replaceState(null, '', `/${activeSlug}`);
@@ -264,6 +253,7 @@ export const App = () => {
         <SplashScreen
           brandName={config.brandName || 'Royal Fleet Premiere'}
           tagline={config.tagline || 'Sewa Mobil & Armada Terpercaya'}
+          logoUrl={config.logoUrl || '/api/brand/logo.svg'}
           duration={config.splash_screen?.duration || 1.2}
           onFinish={() => setSplashFinished(true)}
         />
@@ -274,3 +264,4 @@ export const App = () => {
 };
 
 export default App;
+

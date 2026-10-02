@@ -85,6 +85,72 @@ function resolveDynamicText(text, variables = {}) {
 }
 
 /**
+ * Root /api/articles or /api/admin/articles router handler
+ */
+router.get('/', async (req, res, next) => {
+  if (req.headers.authorization) {
+    return adminAuth(req, res, () => {
+      req.url = '/manage';
+      router.handle(req, res, next);
+    });
+  }
+  req.url = '/public';
+  router.handle(req, res, next);
+});
+
+/**
+ * Public: GET /api/articles/categories
+ * Returns distinct published article categories
+ */
+router.get('/categories', async (req, res) => {
+  try {
+    let rows = [];
+    try {
+      const sql = `SELECT DISTINCT category FROM articles WHERE is_published = TRUE AND category IS NOT NULL`;
+      const result = await query(sql);
+      rows = Array.isArray(result) ? result : (result?.rows || []);
+    } catch (_) {}
+    
+    const dbCategories = rows.map(r => r.category).filter(Boolean);
+    const defaultCategories = ['Umum', 'Tips & Trik', 'Wisata', 'Panduan'];
+    const merged = ['Semua', ...Array.from(new Set([...defaultCategories, ...dbCategories]))];
+
+    res.json({
+      success: true,
+      data: merged
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+/**
+ * Public: GET /api/articles/popular
+ * Returns most viewed articles
+ */
+router.get('/popular', async (req, res) => {
+  try {
+    const limit = parseInt(req.query.limit, 10) || 5;
+    const dbType = getDbType();
+    let rows = [];
+    try {
+      const sql = dbType === 'postgres'
+        ? `SELECT id, title, slug, excerpt, featured_image, category, location_variable, views_count, created_at FROM articles WHERE is_published = TRUE ORDER BY views_count DESC, created_at DESC LIMIT $1`
+        : `SELECT id, title, slug, excerpt, featured_image, category, location_variable, views_count, created_at FROM articles WHERE is_published = TRUE ORDER BY views_count DESC, created_at DESC LIMIT ?`;
+      const result = await query(sql, [limit]);
+      rows = Array.isArray(result) ? result : (result?.rows || []);
+    } catch (_) {}
+
+    res.json({
+      success: true,
+      data: rows
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+/**
  * Public: GET /api/articles/public
  * Returns published articles with pagination and filters
  */

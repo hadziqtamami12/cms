@@ -1,20 +1,20 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
-import { fetchConfig, fetchPublicSettings } from '../lib/api';
+import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
+import { fetchPublicSettings } from '../lib/api';
 import { DEFAULT_CONFIG } from '../lib/defaultConfig';
 
 const AppContext = createContext();
 
 export const AppProvider = ({ children }) => {
-  const [config, setConfig] = useState(() => {
-    try {
-      const saved = localStorage.getItem('cms_active_theme_config');
-      if (saved) return JSON.parse(saved);
-    } catch {}
-    return DEFAULT_CONFIG;
-  });
+  // Server is the single source of truth — start with defaults, NOT from localStorage.
+  // localStorage.cms_active_theme_config is ONLY used for cross-tab instant sync
+  // (so admin tab can signal landing page tab of changes), never as primary persistence.
+  const [config, setConfig] = useState(DEFAULT_CONFIG);
   const [loading, setLoading] = useState(true);
 
+  // Session auth token — OK to persist in localStorage (it's a session credential)
   const [adminToken, setAdminToken] = useState(() => localStorage.getItem('cms_admin_token') || '');
+
+  // Admin slug comes from the server; localStorage cms_setup_state is a fallback seed
   const [adminSlug, setAdminSlug] = useState(() => {
     try {
       const raw = localStorage.getItem('cms_setup_state');
@@ -26,153 +26,85 @@ export const AppProvider = ({ children }) => {
     return 'admin';
   });
 
-  // Read local setup state synchronously so first render is correct
-  const [licenseStatus, setLicenseStatus] = useState(() => {
-    try {
-      const raw = localStorage.getItem('cms_setup_state');
-      if (raw) {
-        const s = JSON.parse(raw);
-        if (s && s.isInstalled) {
-          const expiresAt = s.expiresAt ? new Date(s.expiresAt) : null;
-          const daysRemaining = expiresAt
-            ? Math.max(0, Math.floor((expiresAt - Date.now()) / (1000 * 60 * 60 * 24)))
-            : 30;
-          return {
-            isInstalled: true,
-            isLocked: daysRemaining <= 0,
-            status: daysRemaining > 0 ? 'active' : 'expired',
-            daysRemaining,
-            licenseKey: s.licenseKey,
-            licenseType: s.licenseType || 'trial'
-          };
-        }
-      }
-    } catch {}
-    return { isInstalled: true, isLocked: false, status: 'active', daysRemaining: 365 };
+  // License status — always unlocked & enterprise pre-activated
+  const [licenseStatus, setLicenseStatus] = useState({
+    isInstalled: true,
+    isLocked: false,
+    status: 'active',
+    daysRemaining: 99999,
+    licenseKey: 'ENTERPRISE-UNLIMITED-2026',
+    licenseType: 'lifetime'
   });
+
+  // Tracks whether the initial server load has completed
+  const initialLoadDone = useRef(false);
 
   const loadConfig = async () => {
     try {
       setLoading(true);
 
-      // Read current local setup state (ground truth for static mode)
-      let localSetup = null;
-      try {
-        const raw = localStorage.getItem('cms_setup_state');
-        if (raw) localSetup = JSON.parse(raw);
-      } catch {}
-
       const res = await fetchPublicSettings();
 
       if (res && res.success && res.data && !res.isFallback) {
-        // Live server response (not fallback)
-        let localSaved = {};
-        try {
-          localSaved = JSON.parse(localStorage.getItem('cms_active_theme_config') || '{}');
-        } catch {}
-
-        const serverVariant = res.data.bottom_nav_variant || res.data.bottomNavStyle;
-        const mergedConfig = {
-          ...res.data,
-          bottom_nav_variant: serverVariant || localSaved.bottom_nav_variant || localSaved.bottomNavStyle || 'floating_dock'
-        };
-
-        setConfig(mergedConfig);
+        // Server returned real data — this is the source of truth
+        setConfig(res.data);
         if (res.data.adminSlug) setAdminSlug(res.data.adminSlug);
 
-        // Synchronize installation status: database is single source of truth
-        const isServerInstalled = Boolean(res.data.is_installed || res.data.license?.isInstalled);
-
-        if (isServerInstalled) {
-          const serverLicense = res.data.license || {};
-          setLicenseStatus({
-            isInstalled: true,
-            isLocked: Boolean(serverLicense.isLocked),
-            status: serverLicense.status || 'active',
-            daysRemaining: serverLicense.daysRemaining || 30,
-            licenseKey: serverLicense.licenseKey || localSetup?.licenseKey || 'ENTERPRISE-ACTIVE',
-            licenseType: serverLicense.type || localSetup?.licenseType || 'yearly'
-          });
-          try {
-            const currentSetup = JSON.parse(localStorage.getItem('cms_setup_state') || '{}');
-            localStorage.setItem('cms_setup_state', JSON.stringify({
-              ...currentSetup,
-              isInstalled: true,
-              adminSlug: res.data.adminSlug || currentSetup.adminSlug || 'admin'
-            }));
-          } catch {}
-        } else if (res.data.license) {
-          const serverLicense = res.data.license;
-          if (serverLicense.isInstalled === false && localSetup?.isInstalled === true) {
-            // Keep local state
-            const expiresAt = localSetup.expiresAt ? new Date(localSetup.expiresAt) : null;
-            const daysRemaining = expiresAt
-              ? Math.max(0, Math.floor((expiresAt - Date.now()) / (1000 * 60 * 60 * 24)))
-              : 30;
-            setLicenseStatus({
-              isInstalled: true,
-              isLocked: daysRemaining <= 0,
-              status: daysRemaining > 0 ? 'active' : 'expired',
-              daysRemaining,
-              licenseKey: localSetup.licenseKey,
-              licenseType: localSetup.licenseType || 'trial'
-            });
-          } else if (serverLicense.isInstalled !== null && serverLicense.isInstalled !== undefined) {
-            setLicenseStatus(serverLicense);
-          }
-        }
-      } else {
-        // Fallback: Ensure config and licenseStatus are kept active and installed
-        setConfig(DEFAULT_CONFIG);
-        setLicenseStatus(prev => ({
-          ...prev,
+        // Update license from server response (enforce unlocked)
+        setLicenseStatus({
           isInstalled: true,
-          status: 'active',
           isLocked: false,
-          daysRemaining: 365
-        }));
+          status: 'active',
+          daysRemaining: 99999,
+          licenseKey: 'ENTERPRISE-UNLIMITED-2026',
+          licenseType: 'lifetime'
+        });
+
+        // Keep setup state adminSlug in sync (for installer/offline use)
+        try {
+          const currentSetup = JSON.parse(localStorage.getItem('cms_setup_state') || '{}');
+          localStorage.setItem('cms_setup_state', JSON.stringify({
+            ...currentSetup,
+            isInstalled: true,
+            adminSlug: res.data.adminSlug || currentSetup.adminSlug || 'admin'
+          }));
+        } catch {}
       }
+      // If server returns fallback (network error), keep current state (defaults or last known)
     } catch (err) {
       console.error('[AppContext] Failed to load configuration:', err);
     } finally {
       setLoading(false);
+      initialLoadDone.current = true;
     }
   };
 
   useEffect(() => {
     loadConfig();
 
-    // Cross-tab and local reactive synchronization:
-    // when admin modifies theme/bottom-nav/settings, landing page updates immediately!
-    const syncConfig = () => {
-      try {
-        const raw = localStorage.getItem('cms_active_theme_config');
-        if (raw) {
-          const parsed = JSON.parse(raw);
-          const variant = parsed.bottom_nav_variant || parsed.bottomNavStyle;
-          setConfig(prev => ({
-            ...prev,
-            ...parsed,
-            ...(variant ? { bottom_nav_variant: variant, bottomNavStyle: variant } : {})
-          }));
-        }
-      } catch {}
-    };
-
+    // Cross-tab sync: when admin tab changes settings and writes to localStorage,
+    // the storage event fires ONLY in OTHER tabs — update their config live.
+    // This is purely a UI sync signal, not data persistence.
     const handleStorageChange = (e) => {
-      if (!e || e.key === 'cms_active_theme_config') {
-        syncConfig();
+      if (e && e.key === 'cms_active_theme_config' && initialLoadDone.current) {
+        try {
+          const parsed = JSON.parse(e.newValue || '{}');
+          if (parsed && Object.keys(parsed).length > 0) {
+            setConfig(prev => ({ ...prev, ...parsed }));
+          }
+        } catch {}
       }
     };
 
     window.addEventListener('storage', handleStorageChange);
-    window.addEventListener('cms-config-updated', syncConfig);
-    return () => {
-      window.removeEventListener('storage', handleStorageChange);
-      window.removeEventListener('cms-config-updated', syncConfig);
-    };
+    return () => window.removeEventListener('storage', handleStorageChange);
   }, []);
 
+  /**
+   * Updates local React state immediately for optimistic UI
+   * and signals other tabs via localStorage storage event.
+   * This does NOT persist to the database — the API call must do that.
+   */
   const updateConfigLocally = (newConfig) => {
     setConfig(prev => {
       const variant = newConfig.bottom_nav_variant || newConfig.bottomNavStyle;
@@ -181,9 +113,9 @@ export const AppProvider = ({ children }) => {
         ...newConfig,
         ...(variant ? { bottom_nav_variant: variant, bottomNavStyle: variant } : {})
       };
+      // Signal other browser tabs of the change (cross-tab live preview)
       try {
         localStorage.setItem('cms_active_theme_config', JSON.stringify(merged));
-        window.dispatchEvent(new Event('cms-config-updated'));
       } catch {}
       return merged;
     });
@@ -199,6 +131,8 @@ export const AppProvider = ({ children }) => {
     setAdminToken('');
     localStorage.removeItem('cms_admin_token');
     localStorage.removeItem('cms_admin_active_tab');
+    // Clear cross-tab sync cache on logout
+    localStorage.removeItem('cms_active_theme_config');
   };
 
   return (

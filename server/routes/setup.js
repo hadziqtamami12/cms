@@ -50,10 +50,8 @@ router.get('/env-status', async (req, res) => {
     const hasSupabaseStorage = Boolean(process.env.SUPABASE_URL && process.env.SUPABASE_ANON_KEY);
     const storageDriver = process.env.STORAGE_DRIVER || (hasR2 ? 'r2' : (hasSupabaseStorage ? 'supabase' : 'local'));
 
-    // Persistent database installation check
-    const dbInstallCheck = await checkIsDatabaseInstalled().catch(() => ({ isInstalled: false }));
-    const licenseStatus = await getSystemLicenseStatus().catch(() => ({ isInstalled: false }));
-    const isInstalled = Boolean(dbInstallCheck?.isInstalled || licenseStatus?.isInstalled);
+    // Turn-key system: always out-of-the-box installed
+    const isInstalled = true;
 
     res.json({
       success: true,

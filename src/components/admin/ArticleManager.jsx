@@ -65,6 +65,11 @@ export const ArticleManager = ({ adminToken, showToast, onOpenScraper }) => {
 
   useEffect(() => {
     fetchArticles();
+    const handleArticlesUpdated = () => {
+      fetchArticles();
+    };
+    window.addEventListener('cms:articles_updated', handleArticlesUpdated);
+    return () => window.removeEventListener('cms:articles_updated', handleArticlesUpdated);
   }, []);
 
   const handleOpenCreate = (isDynamic = false) => {
@@ -432,31 +437,31 @@ export const ArticleManager = ({ adminToken, showToast, onOpenScraper }) => {
         }
 
         return (
-          <div className="flex items-center justify-end gap-1.5">
+          <div className="flex items-center justify-end gap-2.5">
             <a
               href={`/artikel/${viewSlug}`}
               target="_blank"
               rel="noopener noreferrer"
-              className="p-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors"
+              className="h-10 w-10 flex items-center justify-center rounded-xl border border-slate-200 bg-slate-50/80 text-slate-700 hover:text-indigo-600 hover:bg-indigo-50 hover:border-indigo-300 transition-all shadow-xs cursor-pointer active:scale-95"
               title={art.is_dynamic ? 'Buka Contoh Slug Halaman Publik' : 'Buka Halaman Publik'}
             >
-              <ExternalLink className="w-3.5 h-3.5" />
+              <ExternalLink className="w-5 h-5" />
             </a>
             <button
               type="button"
               onClick={() => handleOpenEdit(art)}
-              className="p-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors cursor-pointer"
+              className="h-10 w-10 flex items-center justify-center rounded-xl border border-slate-200 bg-slate-50/80 text-slate-700 hover:text-blue-600 hover:bg-blue-50 hover:border-blue-300 transition-all shadow-xs cursor-pointer active:scale-95"
               title="Edit Artikel"
             >
-              <Edit2 className="w-3.5 h-3.5" />
+              <Edit2 className="w-5 h-5" />
             </button>
             <button
               type="button"
               onClick={() => handleDeleteArticle(art.id, art.title)}
-              className="p-1.5 rounded-lg border border-red-200 text-red-600 hover:bg-red-50 transition-colors cursor-pointer"
+              className="h-10 w-10 flex items-center justify-center rounded-xl border border-rose-200 bg-rose-50/50 text-rose-600 hover:text-rose-700 hover:bg-rose-100 hover:border-rose-300 transition-all shadow-xs cursor-pointer active:scale-95"
               title="Hapus Artikel"
             >
-              <Trash2 className="w-3.5 h-3.5" />
+              <Trash2 className="w-5 h-5" />
             </button>
           </div>
         );
@@ -525,7 +530,7 @@ export const ArticleManager = ({ adminToken, showToast, onOpenScraper }) => {
 
   return (
     <div className="space-y-6 w-full max-w-full min-w-0">
-      <div className="bg-white rounded-3xl border border-slate-200 p-6 sm:p-7 shadow-xs">
+      <div className="bg-white rounded-3xl border border-slate-200 p-4 sm:p-7 shadow-xs">
         {/* Navigation Tabs */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 pb-5">
           <div className="space-y-1">
@@ -542,11 +547,11 @@ export const ArticleManager = ({ adminToken, showToast, onOpenScraper }) => {
             </p>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
             <button
               type="button"
               onClick={() => setActiveSubTab('list')}
-              className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${activeSubTab === 'list'
+              className={`px-4 py-2 rounded-xl text-xs font-bold transition-all shrink-0 cursor-pointer ${activeSubTab === 'list'
                 ? 'bg-slate-900 text-white'
                 : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-50'
                 }`}
@@ -557,7 +562,7 @@ export const ArticleManager = ({ adminToken, showToast, onOpenScraper }) => {
               <button
                 type="button"
                 onClick={() => onOpenScraper('articles')}
-                className="px-3.5 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer bg-indigo-50 border border-indigo-200 text-indigo-700 hover:bg-indigo-100 shadow-xs"
+                className="px-3.5 py-2 rounded-xl text-xs font-bold transition-all shrink-0 flex items-center gap-1.5 cursor-pointer bg-indigo-50 border border-indigo-200 text-indigo-700 hover:bg-indigo-100 shadow-xs"
                 title="Scrape artikel berita dari website kompetitor"
               >
                 <Sparkles className="w-3.5 h-3.5 text-indigo-600" />
@@ -567,7 +572,7 @@ export const ArticleManager = ({ adminToken, showToast, onOpenScraper }) => {
             <button
               type="button"
               onClick={() => handleOpenCreate(false)}
-              className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${activeSubTab === 'create' && !formData.is_dynamic
+              className={`px-4 py-2 rounded-xl text-xs font-bold transition-all shrink-0 flex items-center gap-1.5 cursor-pointer ${activeSubTab === 'create' && !formData.is_dynamic
                 ? 'bg-slate-800 text-white'
                 : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-50'
                 }`}
@@ -578,7 +583,7 @@ export const ArticleManager = ({ adminToken, showToast, onOpenScraper }) => {
             <button
               type="button"
               onClick={() => handleOpenCreate(true)}
-              className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${activeSubTab === 'create' && formData.is_dynamic
+              className={`px-4 py-2 rounded-xl text-xs font-bold transition-all shrink-0 flex items-center gap-1.5 cursor-pointer ${activeSubTab === 'create' && formData.is_dynamic
                 ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/20'
                 : 'bg-indigo-50 border border-indigo-200 text-indigo-700 hover:bg-indigo-100'
                 }`}
@@ -589,7 +594,7 @@ export const ArticleManager = ({ adminToken, showToast, onOpenScraper }) => {
             <button
               type="button"
               onClick={() => setActiveSubTab('programmatic')}
-              className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${activeSubTab === 'programmatic'
+              className={`px-4 py-2 rounded-xl text-xs font-bold transition-all shrink-0 flex items-center gap-1.5 cursor-pointer ${activeSubTab === 'programmatic'
                 ? 'bg-emerald-600 text-white shadow-sm'
                 : 'bg-emerald-50 border border-emerald-200 text-emerald-700 hover:bg-emerald-100'
                 }`}
@@ -1033,21 +1038,21 @@ export const ArticleManager = ({ adminToken, showToast, onOpenScraper }) => {
               </div>
             </div>
 
-            <div className="pt-3 border-t border-slate-100 flex items-center gap-3">
-              <button
-                type="submit"
-                disabled={saving}
-                className="px-6 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs sm:text-sm shadow-md shadow-indigo-600/20 flex items-center gap-2 cursor-pointer disabled:opacity-50"
-              >
-                {saving ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
-                <span>{formData.is_dynamic ? 'Simpan Dynamic Article' : 'Simpan Artikel'}</span>
-              </button>
+            <div className="pt-3 border-t border-slate-100 flex flex-col-reverse sm:flex-row sm:items-center justify-end gap-2.5">
               <button
                 type="button"
                 onClick={() => setActiveSubTab('list')}
-                className="px-4 py-2.5 rounded-xl border border-slate-200 text-slate-700 text-xs font-bold cursor-pointer"
+                className="w-full sm:w-auto px-4 py-2.5 rounded-xl border border-slate-200 text-slate-700 text-xs font-bold cursor-pointer text-center"
               >
                 Batal
+              </button>
+              <button
+                type="submit"
+                disabled={saving}
+                className="w-full sm:w-auto px-6 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs sm:text-sm shadow-md shadow-indigo-600/20 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 text-center"
+              >
+                {saving ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
+                <span>{formData.is_dynamic ? 'Simpan Dynamic Article' : 'Simpan Artikel'}</span>
               </button>
             </div>
           </form>
@@ -1135,11 +1140,11 @@ export const ArticleManager = ({ adminToken, showToast, onOpenScraper }) => {
               />
             </div>
 
-            <div className="pt-3 border-t border-slate-100 flex items-center justify-end gap-3">
+            <div className="pt-3 border-t border-slate-100 flex flex-col sm:flex-row items-stretch sm:items-center justify-end gap-3">
               <button
                 type="submit"
                 disabled={generating}
-                className="px-6 py-3 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs sm:text-sm shadow-md shadow-emerald-600/20 flex items-center gap-2 cursor-pointer disabled:opacity-50"
+                className="w-full sm:w-auto px-6 py-3 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs sm:text-sm shadow-md shadow-emerald-600/20 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
               >
                 {generating ? (
                   <>

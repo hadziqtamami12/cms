@@ -140,12 +140,14 @@ export const switchTheme = async ({ industry, themeId, bottomNavStyle, bottom_na
 };
 
 export const updateAppSettings = async (settings, token) => {
+  const activeToken = token || (typeof window !== 'undefined' ? (localStorage.getItem('cms_admin_token') || '') : '');
+  const headers = { 'Content-Type': 'application/json' };
+  if (activeToken) {
+    headers['Authorization'] = `Bearer ${activeToken}`;
+  }
   return await safeFetchJson(`${API_BASE}/settings`, {
     method: 'PUT',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${token}`
-    },
+    headers,
     body: JSON.stringify(settings)
   });
 };

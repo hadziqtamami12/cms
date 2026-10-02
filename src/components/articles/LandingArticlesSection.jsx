@@ -1,21 +1,60 @@
 import React, { useState, useEffect } from 'react';
-import { FileText, ArrowRight, Eye, Calendar, MapPin, Sparkles } from 'lucide-react';
+import { FileText, ArrowRight, Eye, Calendar, MapPin, Sparkles, ChevronDown } from 'lucide-react';
 
 /**
  * LandingArticlesSection
  * Displays a preview of recent articles/blog posts right before Google Maps on the landing page.
+ * Responsive grid with thumbnail, title, excerpt, date, category tag, and read more actions.
  */
 export const LandingArticlesSection = ({ brandName = 'Rental & Travel' }) => {
   const [articles, setArticles] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [displayLimit, setDisplayLimit] = useState(3);
 
   useEffect(() => {
-    fetch('/api/articles/public?limit=3')
+    fetch('/api/articles/public?limit=6')
       .then(res => res.text())
       .then(text => (text ? JSON.parse(text) : {}))
       .then(json => {
-        if (json.success && Array.isArray(json.data)) {
-          setArticles(json.data.slice(0, 3));
+        if (json.success && Array.isArray(json.data) && json.data.length > 0) {
+          setArticles(json.data);
+        } else {
+          // Curated high quality starter articles if no articles seeded yet
+          setArticles([
+            {
+              id: 'starter-1',
+              title: 'Panduan Lengkap Sewa Mobil Lepas Kunci: Syarat, Tips & Keamanan',
+              slug: 'panduan-sewa-mobil-lepas-kunci-terpercaya',
+              category: 'Tips Sewa Mobil',
+              location_variable: 'Jakarta & Sekitarnya',
+              created_at: new Date().toISOString(),
+              views_count: 1420,
+              excerpt: 'Ketahui dokumen yang diperlukan, proses verifikasi cepat 10 menit, serta cara memastikan unit dalam kondisi prima sebelum serah terima.',
+              featured_image: 'https://images.unsplash.com/photo-1549399542-7e3f8b79c341?auto=format&fit=crop&w=800&q=80'
+            },
+            {
+              id: 'starter-2',
+              title: '5 Rekomendasi Destinasi Wisata Eksotis dengan Rute Terbaik & Nyaman',
+              slug: 'rekomendasi-destinasi-wisata-keluarga',
+              category: 'Panduan Wisata',
+              location_variable: 'Jawa & Bali',
+              created_at: new Date(Date.now() - 86400000 * 2).toISOString(),
+              views_count: 980,
+              excerpt: 'Eksplorasi spot panorama tersembunyi bersama keluarga dengan kenyamanan armada Alphard, Zenix, dan HiAce Luxury berfasilitas lengkap.',
+              featured_image: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=800&q=80'
+            },
+            {
+              id: 'starter-3',
+              title: 'Keuntungan Menggunakan Driver Profesional untuk Perjalanan Dinas & VVIP',
+              slug: 'keuntungan-layanan-driver-profesional-vvip',
+              category: 'Layanan Eksekutif',
+              location_variable: 'Jabodetabek',
+              created_at: new Date(Date.now() - 86400000 * 5).toISOString(),
+              views_count: 750,
+              excerpt: 'Bebas dari lelah kemacetan, penguasaan rute tercepat, privasi terlindungi, serta ketepatan waktu untuk agenda bisnis penting Anda.',
+              featured_image: 'https://images.unsplash.com/photo-1552519507-da3b142c6e3d?auto=format&fit=crop&w=800&q=80'
+            }
+          ]);
         }
       })
       .catch(err => {
@@ -29,14 +68,14 @@ export const LandingArticlesSection = ({ brandName = 'Rental & Travel' }) => {
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
         <div className="py-12 text-center">
           <div className="w-8 h-8 border-3 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto"></div>
-          <p className="text-xs text-slate-400 mt-2 font-medium">Memuat artikel & panduan terbaru...</p>
+          <p className="text-xs text-slate-400 mt-2 font-medium">Memuat artikel & panduan perjalanan...</p>
         </div>
       </section>
     );
   }
 
-  // If no articles exist in database, do not render an empty section
-  if (articles.length === 0) return null;
+  const visibleArticles = articles.slice(0, displayLimit);
+  const hasMore = articles.length > displayLimit;
 
   return (
     <section id="artikel-section" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 sm:py-16 space-y-8 sm:space-y-10">
@@ -51,7 +90,7 @@ export const LandingArticlesSection = ({ brandName = 'Rental & Travel' }) => {
             Artikel, Tips Wisata & Panduan Perjalanan
           </h2>
           <p className="text-sm text-slate-600 leading-relaxed">
-            Dapatkan tips berkendara aman, rekomendasi rute wisata favorit, dan panduan rental mobil terbaik dari tim {brandName}.
+            Dapatkan tips berkendara aman, rekomendasi rute wisata favorit, dan panduan rental armada terpercaya dari tim {brandName}.
           </p>
         </div>
 
@@ -64,9 +103,9 @@ export const LandingArticlesSection = ({ brandName = 'Rental & Travel' }) => {
         </a>
       </div>
 
-      {/* Articles Preview Grid (3 Columns) */}
+      {/* Articles Preview Grid (Responsive 1/2/3 Columns) */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8">
-        {articles.map((art) => (
+        {visibleArticles.map((art) => (
           <a
             key={art.id}
             href={`/artikel/${art.slug}`}
@@ -96,17 +135,27 @@ export const LandingArticlesSection = ({ brandName = 'Rental & Travel' }) => {
 
               {/* Text Content */}
               <div className="p-6 space-y-3">
-                <div className="flex items-center gap-2 text-[11px] font-medium text-slate-400 flex-wrap">
+                <div className="flex items-center gap-3 text-[11px] font-medium text-slate-400 flex-wrap">
+                  {/* Tanggal Terbit */}
+                  <span className="flex items-center gap-1.5 text-slate-500">
+                    <Calendar className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+                    <span>
+                      {art.created_at
+                        ? new Date(art.created_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })
+                        : 'Baru Terbit'}
+                    </span>
+                  </span>
+
                   {art.location_variable && (
                     <span className="flex items-center gap-1 text-blue-600 font-semibold">
-                      <MapPin className="w-3 h-3" />
+                      <MapPin className="w-3 h-3 shrink-0" />
                       <span>{art.location_variable}</span>
-                      <span className="text-slate-300">•</span>
                     </span>
                   )}
-                  <span className="flex items-center gap-1">
+
+                  <span className="flex items-center gap-1 ml-auto">
                     <Eye className="w-3 h-3" />
-                    <span>{art.views_count || 0} dibaca</span>
+                    <span>{art.views_count || 0}</span>
                   </span>
                 </div>
 
@@ -131,13 +180,24 @@ export const LandingArticlesSection = ({ brandName = 'Rental & Travel' }) => {
         ))}
       </div>
 
-      {/* Bottom CTA on mobile/tablet */}
-      <div className="pt-2 text-center sm:hidden">
+      {/* Action Footer: "Muat Lebih Banyak" or "Lihat Semua Artikel" */}
+      <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-4">
+        {hasMore ? (
+          <button
+            type="button"
+            onClick={() => setDisplayLimit(6)}
+            className="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-2xl bg-white border border-slate-300 hover:border-blue-500 text-slate-800 hover:text-blue-600 font-bold text-xs sm:text-sm transition-all duration-200 shadow-xs cursor-pointer"
+          >
+            <span>Muat Lebih Banyak Artikel</span>
+            <ChevronDown className="w-4 h-4" />
+          </button>
+        ) : null}
+
         <a
           href="/artikel"
-          className="inline-flex items-center justify-center gap-2 w-full py-3 rounded-2xl bg-blue-600 text-white font-bold text-xs shadow-md shadow-blue-600/25"
+          className="inline-flex items-center justify-center gap-2 px-7 py-3 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs sm:text-sm transition-all duration-200 shadow-md shadow-blue-600/25 cursor-pointer"
         >
-          <span>Baca Semua Artikel & Tips Perjalanan</span>
+          <span>Lihat Semua Artikel & Direktori Lengkap</span>
           <ArrowRight className="w-4 h-4" />
         </a>
       </div>
